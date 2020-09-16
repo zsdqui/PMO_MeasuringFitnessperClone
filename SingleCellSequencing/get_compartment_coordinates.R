@@ -1,9 +1,9 @@
-get_Compartment_coordinates <-function(){
-  compartment_coordinates = matrix(0, 300,8+2)
+get_Compartment_coordinates <-function(resolution = 300){
+  compartment_coordinates = matrix(0, (resolution^2)/2,8+2)
   colnames(compartment_coordinates) = c("x","y","cytosol", "endoplasmic reticulum", "Golgi apparatus", "nucleus", "mitochondrion", "endosome", "lysosome", "peroxisome")
   compartment_coordinates = as.data.frame(compartment_coordinates)
-  compartment_coordinates$y <- sample.int(nrow(compartment_coordinates), nrow(compartment_coordinates))
-  compartment_coordinates$x <- sample.int(nrow(compartment_coordinates), nrow(compartment_coordinates))
+  compartment_coordinates$y <- sample.int(resolution, nrow(compartment_coordinates),replace =T)
+  compartment_coordinates$x <- sample.int(resolution, nrow(compartment_coordinates), replace =T)
   
   #############################
   ## Deal with Compartments: ##
@@ -31,7 +31,7 @@ get_Compartment_coordinates <-function(){
   library(RColorBrewer)
   colormap = brewer.pal(6,"Paired")
   names(colormap) = c("cytosol","nucleus","reticulum","golgi","mitochondrion","lysosom")
-  plot(compartment_coordinates[idx_cell,]$x, compartment_coordinates[idx_cell,]$y, pch=20, col=colormap["cytosol"])
+  plot(compartment_coordinates[idx_cell,]$x, compartment_coordinates[idx_cell,]$y, pch=20, col=colormap["cytosol"],xaxt="n", xlab="", yaxt="n", ylab="")
   points(compartment_coordinates[idx_nucleus,]$x, compartment_coordinates[idx_nucleus,]$y, pch=20, col=colormap["nucleus"])
   points(compartment_coordinates[idx_endreticulum,]$x, compartment_coordinates[idx_endreticulum,]$y, pch=20, col=colormap["reticulum"])
   points(compartment_coordinates[idx_golgi,]$x, compartment_coordinates[idx_golgi,]$y, pch=20, col=colormap["golgi"])

@@ -13,15 +13,16 @@ library(scales)
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/Pathways/getGenesInvolvedIn.R?raw=TRUE")
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/Pathways/getAllPathways.R?raw=TRUE")
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
-source("~/get_compartment_coordinates.R")
-# source("~/Projects/PMO/MeasuringFitnessPerClone/code/get_compartment_coordinates.R")
-
+# source("~/get_compartment_coordinates.R")
+# pathwayMapFile = "~/NCBI2Reactome_PE_All_Levels_sapiens.txt"
+source("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing/get_compartment_coordinates.R")
+pathwayMapFile = "~/Projects/Resources/data/Databases/Reactome/NCBI2Reactome_PE_All_Levels_sapiens.txt"
 CELLLINE="SNU-668"
 
-coord = get_Compartment_coordinates()
+coord = get_Compartment_coordinates(300)
 colnames(coord) = c("x","y","cytosol", "endoplasmic reticulum", "Golgi apparatus", "nucleus", "mitochondrion", "endosome", "lysosome", "peroxisome")
 
-path2locmap<-read.table("~/NCBI2Reactome_PE_All_Levels_sapiens.txt", header = FALSE, sep = "\t", dec = ".", comment.char="", quote="", check.names = F, stringsAsFactors = F)
+path2locmap<-read.table(pathwayMapFile, header = FALSE, sep = "\t", dec = ".", comment.char="", quote="", check.names = F, stringsAsFactors = F)
 newobject1<-sapply(strsplit(path2locmap$V3, "[", fixed=TRUE), function(x) (x)[2])
 path2locmap$V3<-newobject1
 path2locmap$V3 <- gsub("]", "", path2locmap$V3)
@@ -60,13 +61,8 @@ gs=getAllPathways(include_genes=T, loadPresaved = T);
 gs=gs[sapply(gs, length)>=5]
 pq <- gsva(ex, gs, kcdf="Poisson", mx.diff=T, verbose=FALSE, parallel.sz=2, min.sz=10)
 # Now we're going to look at one cell from all the transcriptomes we grabbed, and un-list it
-pq <- rescale(pq, to = c(0,600))
-cellName =colnames(pq)[1]
-cell1 <- pq[,cellName]
+pq <- rescale(pq, to = c(0,30000))
 
-## All this info comes from REACTOME + scRNA-seq data.
-pathwayExpressionPerCell = cell1 #this is new
-names(pathwayExpressionPerCell) <- rownames(pq) #this is new
 
 ## Exclude pathways that are active in undefined locations for now. @TODO: map all pathways later
 path2locmap = path2locmap[path2locmap$V3 %in% colnames(coord),]
@@ -77,19 +73,31 @@ path2locmap = path2locmap[path2locmap$V6 %in% rownames(pq),]
 ## Rename columns for easier readability
 colnames(path2locmap)[c(3,6)]=c("Location","pathwayname")
 
-pmap = array(0, dim=c(length(rownames(pq)),nrow(coord), nrow(coord)))
+
+cellName =colnames(pq)[4]
+cell1 <- pq[,cellName]
+## All this info comes from REACTOME + scRNA-seq data:
+pathwayExpressionPerCell = cell1 #this is new
+names(pathwayExpressionPerCell) <- rownames(pq) #this is new
+
+pmap = array(0, dim=c(nrow(pq),max(coord$x), max(max(coord$y))))
 rownames(pmap) = rownames(pq)
 ## The first pathway/location pair we're looking at
 for(j in unique(path2locmap$pathwayname)){
   P = path2locmap[path2locmap$pathwayname==j,,drop=F]
-  idx_Candid = which(apply(coord[,P$Location,drop=F]==1,1, any)); ## Candidates of indices
+  fr =  plyr::count(P$Location)
+  fr$freq = fr$freq/sum(fr$freq)
+  rownames(fr) = fr$x
+  ## Candidates of indices
+  idx_Candid = lapply(rownames(fr), function(location) which(coord[,location]==1) )
+  names(idx_Candid) = rownames(fr)
   # Here we take a random sample of x coordinates for our pathway 
-  idx = sample(idx_Candid, pathwayExpressionPerCell[P$pathwayname], replace = T) 
+  idx = sapply(names(idx_Candid), function(x) sample(idx_Candid[[x]], pathwayExpressionPerCell[j]*fr[x,"freq"], replace = T)  )
   # And here we tally how many times each x coordinate appears in the sampling
-  idx = plyr::count(idx)
+  idx = plyr::count(unlist(idx))
   # In this step we populate our pmap with our randomly selected x coordinate and it's matching y coordiate from the coord object
   for(i in 1:nrow(idx)){
-    pmap[P$pathwayname,coord$x[idx$x[i]], coord$y[idx$x[i]]] = idx$freq[i]
+    pmap[j,coord$x[idx$x[i]], coord$y[idx$x[i]]] = idx$freq[i]
   }
   ## Print statement
   print(paste("Processed pathway",j))
@@ -102,6 +110,11 @@ colnames(pmap2D)[1] = "pathway"
 write.table(pmap2D, file=paste0("~/Downloads/pathwayCoordinatesStack_",cellName,".txt"), sep="\t", quote=F, row.names = F)
 
 # Finally we produce an image of the pathway map for testing:
-tmp=pmap2D[pmap2D$pathway=="Cell Cycle",]
-image(as.matrix(tmp[,-1]))
+of = list.files(path = "~/Downloads", pattern = "pathwayCoordinatesStack_Clone",full.names = T)[4]
+pmap2D = read.table(file=of, sep="\t", check.names = F, strip.white = F, header = T)
+par(mfrow=c(2,2));
+for(p in c("Mitotic Metaphase and Anaphase","Apoptosis","Metabolism","Mitochondrial protein import")){
+  tmp=pmap2D[pmap2D$pathway==p,]
+  image(as.matrix(tmp[,-1]),main=paste(p,extractID(fileparts(of)$name)),col =rainbow(100))
+}
 
