@@ -13,10 +13,11 @@ library(scales)
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/Pathways/getGenesInvolvedIn.R?raw=TRUE")
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/Pathways/getAllPathways.R?raw=TRUE")
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
+setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
+source("get_compartment_coordinates.R")
 # source("~/get_compartment_coordinates.R")
 # pathwayMapFile = "~/NCBI2Reactome_PE_All_Levels_sapiens.txt"
-source("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing/get_compartment_coordinates.R")
-pathwayMapFile = "~/Projects/Resources/data/Databases/Reactome/NCBI2Reactome_PE_All_Levels_sapiens.txt"
+pathwayMapFile = "NCBI2Reactome_PE_All_Levels_sapiens.txt"
 CELLLINE="SNU-668"
 
 coord = get_Compartment_coordinates(300)
