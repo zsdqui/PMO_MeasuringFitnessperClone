@@ -14,8 +14,8 @@ r3dDefaults$windowRect=c(0,50, 800, 800)
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/Pathways/getGenesInvolvedIn.R?raw=TRUE")
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/Pathways/getAllPathways.R?raw=TRUE")
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
-setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
-# setwd("/mnt/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/SingleCellSequencing")
+# setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
+setwd("/mnt/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/SingleCellSequencing")
 source("get_compartment_coordinates.R")
 source("get_compartment_coordinates_FromAllen.R")
 source("alignPathways2Compartments.R")
@@ -23,30 +23,23 @@ source("alignPathways2Compartments.R")
 # pathwayMapFile = "~/NCBI2Reactome_PE_All_Levels_sapiens.txt"
 pathwayMapFile = "NCBI2Reactome_PE_All_Levels_sapiens.txt"
 CELLLINE="SNU-668"
-ROOTD = "~/Projects/PMO/MeasuringFitnessPerClone/data/"
-OUTD=paste0("../../results/pathwayCoordinates", filesep, CELLLINE)
+ROOTD = tools::file_path_as_absolute("../../data/")
+OUTD=paste0("../../results/pathwayCoordinates_3D", filesep, CELLLINE)
 dir.create(OUTD,recursive = T)
 
 # coord = get_Compartment_coordinates(300)
-coord = get_compartment_coordinates_FromAllen(nucleusF = paste0(ROOTD,"3Dbrightfield/allencell/D03_FijiOutput/DNA_anothercell.csv"), mitoF = paste0(ROOTD,"3Dbrightfield/allencell/D03_FijiOutput/Mito_anothercell.csv"));
+coord = get_compartment_coordinates_FromAllen(cytosolF=NULL, nucleusF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/D03_FijiOutput/DNA_anothercell.csv"), mitoF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/D03_FijiOutput/Mito_anothercell.csv"));
+# coord = get_compartment_coordinates_FromAllen(nucleusF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/E03_FijiOutput/SNU16C_cell.csv"), mitoF = NULL);
 rgl::movie3d(
   movie="CellCompartmentsIn3D_Placeholder", 
-  rgl::spin3d( axis = c(0, 0, 1), rpm = 2),
-  duration = 10, 
+  # rgl::spin3d( axis = c(0, 0, 1), rpm = 2),
+  rgl::spin3d( axis = c(1, 1, 1), rpm = 3),
+  duration = 20, 
   dir = "~/Downloads/",
   type = "gif", 
   clean = TRUE
 )
 rgl.close()
-
-# align VAE output inside compartment
-coord_nucl = coord[coord$nucleus==1,]
-## Clone_0.0027047_ID107807
-vae = read.csv(paste0(ROOTD,"RNAsequencing/A02_210128_VAEoutput/identities_latentSpace3D.csv"))
-vae=vae[vae$Location=="nucleus",]
-vae=vae[!duplicated(vae),]
-scatterplot3d::scatterplot3d(vae$x, vae$y, vae$z, pch=20)
-alignPathways2Compartments(coord_nucl[,c("x","y","z")], vae[,c("x","y","z")])
 
 path2locmap<-read.table(pathwayMapFile, header = FALSE, sep = "\t", dec = ".", comment.char="", quote="", check.names = F, stringsAsFactors = F)
 newobject1<-sapply(strsplit(path2locmap$V3, "[", fixed=TRUE), function(x) (x)[2])
@@ -98,7 +91,7 @@ ccState = sapply(colnames(pq), function(x) cloneid::getState(x,whichP = "Transcr
 
 
 ## Exclude pathways that are active in undefined locations for now. @TODO: map all pathways later
-path2locmap = path2locmap[path2locmap$V3 %in% colnames(coord),]
+path2locmap = path2locmap[path2locmap$V3 %in% colnames(coord)[apply(coord!=0,2,any)],]
 ## Exclude pathways that are in endosome or peroxisome: we did not set their coordinates. @TODO later
 path2locmap = path2locmap[!path2locmap$V3 %in% c("endosome" ,  "peroxisome"  ),]
 ## Exclude pathways that are not expressed:
@@ -106,7 +99,8 @@ path2locmap = path2locmap[path2locmap$V6 %in% rownames(pq),]
 ## Rename columns for easier readability
 colnames(path2locmap)[c(3,6)]=c("Location","pathwayname")
 
-
+## Calculate 3D pathway activity maps
+LOI=c("nucleus","mitochondrion")
 for (cellName in colnames(pq)[1:10]){
   dir.create(paste0(OUTD,filesep,cellName))
   cell1 <- pq[,cellName]
@@ -115,10 +109,11 @@ for (cellName in colnames(pq)[1:10]){
   names(pathwayExpressionPerCell) <- rownames(pq) #this is new
   
   ## The first pathway/location pair we're looking at
-  for(j in unique(path2locmap$pathwayname[grep("mitoch",(path2locmap$Location))])){
-    pmap = cbind(coord, matrix(NA,nrow(coord),1))
+  for(j in unique(path2locmap$pathwayname[path2locmap$Location %in% LOI])){
+    pmap = cbind(coord, matrix(0,nrow(coord),1))
     colnames(pmap)[ncol(pmap)]=j
     outImage = paste0(OUTD,filesep,cellName,filesep,gsub(" ","_",gsub("/","-",j,fixed = T)),".gif")
+    outTable = paste0(OUTD,filesep,cellName,filesep,gsub(" ","_",gsub("/","-",j,fixed = T)),".txt")
     if(file.exists(outImage)){
       print(paste("Skipping",j,"because image already saved"))
       next;
@@ -145,20 +140,31 @@ for (cellName in colnames(pq)[1:10]){
     
     # Image of the pathway map 
     pmap_ = pmap[pmap[,j]>0,]
-    rgl::plot3d(pmap_$x, pmap_$y, pmap_$z,add=F, size=4.91, col=pmap_[,j], xlim=quantile(pmap$x,c(0,1)), ylim=quantile(pmap$y,c(0,1)), zlim=quantile(pmap$z,c(0,1)), axes=T, xlab="",ylab="", zlab="")
+    write.table(pmap_[,c("x","y","z",j)], file = outTable,sep="\t",quote = F, row.names = F)
+    # # Image of the pathway map 
+    # png(outImage,width = 400, height = 400)
+    # image(pmap[j,,],col =rainbow(100),xaxt = "n",yaxt = "n"); #,main=paste(j,cloneid::extractID(cellName))
+    # dev.off()
+  }
+}
+
+## Animation 3D pathway activity maps
+for (cellName in colnames(pq)[1:10]){
+  for(outTable in list.files(paste0(OUTD,filesep,cellName), pattern = ".txt", full.names = T )){
+    outImage = gsub(".txt",".gif",outTable)
+    pmap_ = read.table(file = outTable,sep="\t", header = T, check.names = F, stringsAsFactors = F)
+    
+    material3d(alpha = 0.1)
+    rgl::plot3d(x=pmap_$x, y=pmap_$y, z=pmap_$z,add=F, size=4.91, col=pmap_[,ncol(pmap_)], xlim=quantile(coord$x,c(0,1)), ylim=quantile(coord$y,c(0,1)), zlim=quantile(coord$z,c(0,1)), axes=F, xlab="",ylab="", zlab="", alpha=0.2)
     rgl::movie3d(
       movie=fileparts(outImage)$name, 
-      rgl::spin3d( axis = c(0, 0, 1), rpm = 2),
-      duration = 2, 
+      rgl::spin3d( axis = c(1, 1, 1), rpm = 12),
+      duration = 4, 
       dir = fileparts(outImage)$path,
       type = "gif", 
       clean = TRUE
     )
     rgl.close()
-    # # Image of the pathway map 
-    # png(outImage,width = 400, height = 400)
-    # image(pmap[j,,],col =rainbow(100),xaxt = "n",yaxt = "n"); #,main=paste(j,cloneid::extractID(cellName))
-    # dev.off()
   }
 }
 
@@ -170,18 +176,28 @@ for (cellName in colnames(pq)[1:10]){
 # done
 
 
-# Finally we produce an image of the pathway map for testing:
-library(matlab)
-library(cloneid)
-of = list.files(path = "~/Downloads", pattern = "pathwayCoordinatesStack_Clone",full.names = T)[4]
-pmap2D = read.table(file=of, sep="\t", check.names = F, strip.white = F, header = T)
-par(mfrow=c(2,2));
-for(p in c("Mitotic Metaphase and Anaphase","Apoptosis","Metabolism","Mitochondrial protein import")){
-  tmp=pmap2D[pmap2D$pathway==p,]
-  pdf(paste0("~/Downloads/",p,".pdf"))
-  image(as.matrix(tmp[,-1]),main=paste(p,cloneid::extractID(fileparts(of)$name)),col =rainbow(100))
-}
-dev.off()
+# # Finally we produce an image of the pathway map for testing:
+# library(matlab)
+# library(cloneid)
+# of = list.files(path = "~/Downloads", pattern = "pathwayCoordinatesStack_Clone",full.names = T)[4]
+# pmap2D = read.table(file=of, sep="\t", check.names = F, strip.white = F, header = T)
+# par(mfrow=c(2,2));
+# for(p in c("Mitotic Metaphase and Anaphase","Apoptosis","Metabolism","Mitochondrial protein import")){
+#   tmp=pmap2D[pmap2D$pathway==p,]
+#   pdf(paste0("~/Downloads/",p,".pdf"))
+#   image(as.matrix(tmp[,-1]),main=paste(p,cloneid::extractID(fileparts(of)$name)),col =rainbow(100))
+# }
+# dev.off()
+
+
+# align VAE output inside compartment
+coord_nucl = coord[coord$nucleus==1,]
+## Clone_0.0027047_ID107807
+vae = read.csv(paste0(ROOTD,"RNAsequencing/A02_210128_VAEoutput/identities_latentSpace3D.csv"))
+vae=vae[vae$Location=="nucleus",]
+vae=vae[!duplicated(vae),]
+scatterplot3d::scatterplot3d(vae$x, vae$y, vae$z, pch=20)
+alignPathways2Compartments(coord_nucl[,c("x","y","z")], vae[,c("x","y","z")])
 
 
 ##########################################################################

@@ -12,13 +12,14 @@ get_compartment_coordinates_FromAllen <-function(cytosolF="~/Downloads/fijitesto
   nucl=read.csv(nucleusF)
   nucl = cbind(nucl[,XYZCOLS], dummy[rep(seq_len(nrow(dummy)), each = nrow(nucl)), ])
   nucl$nucleus = 1;
-  mito=read.csv(mitoF)
-  mito = cbind(mito[,XYZCOLS], dummy[rep(seq_len(nrow(dummy)), each = nrow(mito)), ])
-  mito$`mitochondrion`=1
-  
-  coord = rbind(nucl, mito);#, cyto)
+  coord = nucl
+  if(!is.null(mitoF)){
+    mito=read.csv(mitoF)
+    mito = cbind(mito[,XYZCOLS], dummy[rep(seq_len(nrow(dummy)), each = nrow(mito)), ])
+    mito$`mitochondrion`=1
+    coord = rbind(coord, mito);#, cyto)
+  }
   colnames(coord)[1:3] = c("x","y","z")
-  
   
   ## draw cell to check coordinate assignment
   library(RColorBrewer)
@@ -33,6 +34,6 @@ get_compartment_coordinates_FromAllen <-function(cytosolF="~/Downloads/fijitesto
     rgl::points3d(coord_$x, coord_$y, coord_$z,col=colormap[o],add=T, size=0.01)
   }
   rgl::legend3d("topleft", names(colormap), fill=colormap, bty='n',cex=1.7)
-    
+  
   return(coord)
 }
