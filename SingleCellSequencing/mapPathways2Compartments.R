@@ -42,33 +42,13 @@ rgl::movie3d(
 rgl.close()
 
 path2locmap<-read.table(pathwayMapFile, header = FALSE, sep = "\t", dec = ".", comment.char="", quote="", check.names = F, stringsAsFactors = F)
-newobject1<-sapply(strsplit(path2locmap$V3, "[", fixed=TRUE), function(x) (x)[2])
-path2locmap$V3<-newobject1
-path2locmap$V3 <- gsub("]", "", path2locmap$V3)
-
 # Here we replace all compartment names in the path2locmap with their counterpart in coords column names
-path2locmap$V3 = str_replace_all(path2locmap$V3, "endoplasmic reticulum membrane", "endoplasmic reticulum")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "endoplasmic reticulum lumen", "endoplasmic reticulum")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "Golgi membrane", "Gogli apparatus")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "Golgi-associated vesicle lumen", "Gogli apparatus")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "Golgi-associated vesicle membrane", "Gogli apparatus")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "Golgi lumen", "Gogli apparatus")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "trans-Golgi network membrane", "Gogli apparatus")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "nucleoplasm", "nucleus")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "nucleolus", "nucleus")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "nuclear envelope", "nucleus")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "mitochondrial inner membrane", "mitochondrion")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "mitochondrial outer membrane", "mitochondrion")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "mitochondrial intermembrane space", "mitochondrion")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "mitochondrial matrix", "mitochondrion")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "endosome lumen", "endosome")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "endosome membrane", "endosome")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "late endosome lumen", "endosome")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "late endosome membrane", "endosome")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "lysomal lumen", "lysosome")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "lysomal membrane", "lysosome")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "peroxisomal matrix", "peroxisome")
-path2locmap$V3 = str_replace_all(path2locmap$V3, "peroxisomal membrane", "peroxisome")
+path2locmap$V3 <- sapply(strsplit(path2locmap$V3, "[", fixed=TRUE), function(x) (x)[2])
+path2locmap$V3 <- gsub("]", "", path2locmap$V3)
+aliasMap = list("endoplasmic reticulum membrane"="endoplasmic reticulum", "endoplasmic reticulum lumen" = "endoplasmic reticulum", "Golgi membrane" = "Gogli apparatus", "Golgi-associated vesicle lumen" = "Gogli apparatus", "Golgi-associated vesicle membrane" = "Gogli apparatus", "Golgi lumen" = "Gogli apparatus", "trans-Golgi network membrane" = "Gogli apparatus", "nucleoplasm" = "nucleus", "nucleolus" = "nucleus", "nuclear envelope" = "nucleus", "mitochondrial inner membrane" = "mitochondrion", "mitochondrial outer membrane" = "mitochondrion", "mitochondrial intermembrane space" = "mitochondrion", "mitochondrial matrix" = "mitochondrion", "endosome lumen" = "endosome", "endosome membrane" = "endosome", "late endosome lumen" = "endosome", "late endosome membrane" = "endosome", "lysomal lumen" = "lysosome", "lysomal membrane" = "lysosome", "peroxisomal matrix" = "peroxisome", "peroxisomal membrane" = "peroxisome")
+for(x in names(aliasMap)){
+  path2locmap$V3 = str_replace_all(path2locmap$V3, x, aliasMap[[x]])
+}
 
 # Expression profiles of all detected genes for clone 9 in the cell line.
 cID = 9
@@ -99,17 +79,20 @@ path2locmap = path2locmap[path2locmap$V6 %in% rownames(pq),]
 ## Rename columns for easier readability
 colnames(path2locmap)[c(3,6)]=c("Location","pathwayname")
 
+## locations per pathway:
+lpp = sapply(unique(path2locmap$pathwayname), function(x) unique(path2locmap$Location[path2locmap$pathwayname==x]))
+lpp = lpp[sample(length(lpp),100)]; ## use only subset for testing
+save(file='~/Downloads/tmp_coord.RObj', list=c('coord','OUTD', 'lpp','pq','path2locmap'))
+
 ## Calculate 3D pathway activity maps
 LOI=c("nucleus","mitochondrion")
-for (cellName in colnames(pq)[1:10]){
+for (cellName in colnames(pq)[1:100]){
   dir.create(paste0(OUTD,filesep,cellName))
-  cell1 <- pq[,cellName]
-  ## All this info comes from REACTOME + scRNA-seq data:
-  pathwayExpressionPerCell = cell1 #this is new
-  names(pathwayExpressionPerCell) <- rownames(pq) #this is new
+  pathwayExpressionPerCell <- pq[,cellName]
+  names(pathwayExpressionPerCell) <- rownames(pq) 
   
   ## The first pathway/location pair we're looking at
-  for(j in unique(path2locmap$pathwayname[path2locmap$Location %in% LOI])){
+  for(j in names(lpp)){
     pmap = cbind(coord, matrix(0,nrow(coord),1))
     colnames(pmap)[ncol(pmap)]=j
     outImage = paste0(OUTD,filesep,cellName,filesep,gsub(" ","_",gsub("/","-",j,fixed = T)),".gif")
@@ -149,22 +132,55 @@ for (cellName in colnames(pq)[1:10]){
 }
 
 ## Animation 3D pathway activity maps
-for (cellName in colnames(pq)[1:10]){
+load('~/Downloads/tmp_coord.RObj')
+detach('package:GSVA', unload=TRUE)
+for (cellName in list.dirs(OUTD, full.names = F)){
+  print(cellName)
   for(outTable in list.files(paste0(OUTD,filesep,cellName), pattern = ".txt", full.names = T )){
+    library(rgl)
+    library(magick)
     outImage = gsub(".txt",".gif",outTable)
-    pmap_ = read.table(file = outTable,sep="\t", header = T, check.names = F, stringsAsFactors = F)
-    
-    material3d(alpha = 0.1)
-    rgl::plot3d(x=pmap_$x, y=pmap_$y, z=pmap_$z,add=F, size=4.91, col=pmap_[,ncol(pmap_)], xlim=quantile(coord$x,c(0,1)), ylim=quantile(coord$y,c(0,1)), zlim=quantile(coord$z,c(0,1)), axes=F, xlab="",ylab="", zlab="", alpha=0.2)
-    rgl::movie3d(
-      movie=fileparts(outImage)$name, 
-      rgl::spin3d( axis = c(1, 1, 1), rpm = 12),
-      duration = 4, 
-      dir = fileparts(outImage)$path,
-      type = "gif", 
-      clean = TRUE
-    )
-    rgl.close()
+    print(outImage)
+    if(!file.exists(outImage)){
+      pmap_ = read.table(file = outTable,sep="\t", header = T, check.names = F, stringsAsFactors = F)
+      
+      r3dDefaults$windowRect = c(0,0,700,700)
+      rgl::material3d(alpha = 0.1)
+      rgl::plot3d(x=pmap_$x, y=pmap_$y, z=pmap_$z,add=F, size=4.91, col=pmap_[,ncol(pmap_)], xlim=quantile(coord$x,c(0,1)), ylim=quantile(coord$y,c(0,1)), zlim=quantile(coord$z,c(0,1)), axes=F, xlab="",ylab="", zlab="", alpha=0.2)
+      Sys.sleep(5)
+      try(rgl::movie3d(
+        movie=matlab::fileparts(outImage)$name, 
+        rgl::spin3d( axis = c(1, 1, 1), rpm = 12),
+        duration = 4, 
+        dir = matlab::fileparts(outImage)$path,
+        type = "gif", 
+        clean = F
+      ))
+      rgl::rgl.close()
+      
+      ##################
+      #### clean up ####
+      ##################
+      detach('package:rgl', unload=TRUE)
+      library(crosstalk)
+      library(manipulateWidget)
+      library(miniUI)
+      library(shiny)
+      library(shinythemes)
+      detach('package:crosstalk', unload=TRUE)
+      detach('package:manipulateWidget', unload=TRUE)
+      detach('package:miniUI', unload=TRUE)
+      detach('package:shinythemes', unload=TRUE)
+      detach('package:shiny', unload=TRUE)
+      detach("package:magick", unload = TRUE)
+      ## Remove cache generated by magick package
+      f=list.files('/tmp/Rtmp2quoCU', pattern='magick', full.names=T); 
+      if(length(f)>50){
+        for (x in f){ 
+          file.remove(x)
+        }
+      }
+    }
   }
 }
 
