@@ -1,5 +1,4 @@
-get_compartment_coordinates_FromAllen <-function(cytosolF="~/Downloads/fijitestout2.csv", mitoF="~/Downloads/fijitestout2.csv", nucleusF="~/Downloads/fijitestout3.csv"){
-  XYZCOLS = c("CX..pix.", "CY..pix.", "CZ..pix.")
+get_compartment_coordinates_FromAllen <-function(cytosolF="~/Downloads/fijitestout2.csv", mitoF="~/Downloads/fijitestout2.csv", nucleusF="~/Downloads/fijitestout3.csv",XYZCOLS = c("CX..pix.", "CY..pix.", "CZ..pix.")){
   COMPCOLS = c("cytosol", "endoplasmic reticulum", "Golgi apparatus", "nucleus", "mitochondrion", "endosome", "lysosome", "peroxisome")
   dummy =as.data.frame( matrix(0,1,length(COMPCOLS)))
   colnames(dummy) = COMPCOLS

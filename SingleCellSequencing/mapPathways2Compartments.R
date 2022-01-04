@@ -10,26 +10,46 @@ library(tibble)
 library(stringr)
 library(scales)
 library(rgl)
+library(misc3d)
+library(geometry)
 r3dDefaults$windowRect=c(0,50, 800, 800) 
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/Pathways/getGenesInvolvedIn.R?raw=TRUE")
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/Pathways/getAllPathways.R?raw=TRUE")
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
-# setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
-setwd("/mnt/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/SingleCellSequencing")
+setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
+# setwd("/mnt/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/SingleCellSequencing")
 source("get_compartment_coordinates.R")
 source("get_compartment_coordinates_FromAllen.R")
 source("alignPathways2Compartments.R")
 # source("~/get_compartment_coordinates.R")
+Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, level=0.5/length(xx)) {
+  library(MASS) 
+  ##Remove outliers
+  hQ=0.975; lQ=0.025
+  iK1=which(xx<=quantile(xx,hQ) & xx>=quantile(xx,lQ))
+  iK2=which(yy<=quantile(yy,hQ) & yy>=quantile(yy,lQ))
+  iK3=which(zz<=quantile(zz,hQ) & zz>=quantile(zz,lQ))
+  iK=intersect(iK1,iK2)
+  iK=intersect(iK,iK3)
+  xx=xx[iK]; yy=yy[iK]; zz = zz[iK]
+  ##Contour
+  dens2 <- kde3d(xx, yy, zz, lims=c(min(xx)-sd(xx), max(xx)+sd(xx),   
+                                    min(yy)-sd(yy), max(yy)+sd(yy),   
+                                    min(zz)-sd(zz), max(zz)+sd(zz) ),n=55  )
+  misc3d::contour3d(dens2$d, level=level, dens2$x, dens2$y, dens2$z, color=lcolor, add=add, alpha=alpha); #,drawlabels=F,lwd=2 
+  # return(cbind(dens2$x,dens2$y, dens2$z))
+  return(dens2)
+}
 # pathwayMapFile = "~/NCBI2Reactome_PE_All_Levels_sapiens.txt"
 pathwayMapFile = "NCBI2Reactome_PE_All_Levels_sapiens.txt"
-CELLLINE="SNU-668"
+CELLLINE="NCI-N87"
 ROOTD = tools::file_path_as_absolute("../../data/")
 OUTD=paste0("../../results/pathwayCoordinates_3D", filesep, CELLLINE)
 dir.create(OUTD,recursive = T)
 
 # coord = get_Compartment_coordinates(300)
-coord = get_compartment_coordinates_FromAllen(cytosolF=NULL, nucleusF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/D03_FijiOutput/DNA_anothercell.csv"), mitoF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/D03_FijiOutput/Mito_anothercell.csv"));
-# coord = get_compartment_coordinates_FromAllen(nucleusF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/E03_FijiOutput/SNU16C_cell.csv"), mitoF = NULL);
+# coord = get_compartment_coordinates_FromAllen(cytosolF=NULL, nucleusF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/D03_FijiOutput/DNA_anothercell.csv"), mitoF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/D03_FijiOutput/Mito_anothercell.csv"));
+coord = get_compartment_coordinates_FromAllen(nucleusF = "../../data/3Dbrightfield/allencell/G03_CellposeOutput/0_prediction_c0.model.p.tif_cell_99_coordinates.csv", mitoF = NULL,XYZCOLS = c("x","y","z"));
 rgl::movie3d(
   movie="CellCompartmentsIn3D_Placeholder", 
   # rgl::spin3d( axis = c(0, 0, 1), rpm = 2),
@@ -40,10 +60,12 @@ rgl::movie3d(
   clean = TRUE
 )
 rgl.close()
-
+## Calculate volume
+hull <- convhulln(coord[coord$nucleus==1,1:3], options = "FA")
+print(hull$vol)
 
 # Expression profiles of all detected genes for clone 9 in the cell line.
-cID = 9
+cID = 3
 clones = cloneid::getSubclones(CELLLINE, whichP="TranscriptomePerspective")
 pqFile = paste0(OUTD,filesep,names(clones)[cID],".RObj")
 if(file.exists(pqFile)){
@@ -80,6 +102,35 @@ path2locmap = path2locmap[path2locmap$V6 %in% rownames(pq),]
 ## Rename columns for easier readability
 colnames(path2locmap)[c(3,6)]=c("Location","pathwayname")
 
+
+
+## calculate pq stats: how much is going on in one compartment vs. another?
+seqStats=lapply(unique(path2locmap$Location), function(x) pq[rownames(pq) %in% path2locmap[path2locmap$Location==x,"pathwayname"],])
+names(seqStats)=unique(path2locmap$Location)
+seqStats=cbind(sapply(seqStats,colMeans),sapply(seqStats,colSums))
+colnames(seqStats)=paste(c("meanE","sumE"),colnames(seqStats))
+seqStats=as.data.frame(seqStats)
+par(mfrow=c(2,2))
+sapply(colnames(seqStats), function(x) hist(seqStats[,x],xlab=x))
+## read stats from 3D imaging and plot side by side:
+imgStats=read.table("../../data/3Dbrightfield/allencell/G04_segmentationStats/0_prediction_c0.model_stats.txt",sep="\t",check.names = F,stringsAsFactors = F)
+sapply(colnames(imgStats), function(x) hist(imgStats[,x],xlab=x))
+## co-cluster image and sequencing stats
+imgStats$type="img"
+seqStats$type="seq"
+##@TODO: before reassigning colnames, first ensure they are in desired order (which pair of features match)
+colnames(imgStats)=colnames(seqStats)
+stats=rbind(imgStats,seqStats)
+rownames(stats) = paste(rownames(stats), stats$type)
+dd = dist(stats[,1:2])
+tr = ape::nj(dd)
+plot(tr)
+col = rep("red", length(tr$tip.label))
+col[grep("img",tr$tip.label) ] = "blue"
+par(mfrow=c(1,1))
+plot(tr,show.tip.label = T, tip.color = col, cex=0.6)
+
+
 ## locations per pathway:
 lpp = sapply(unique(path2locmap$pathwayname), function(x) unique(path2locmap$Location[path2locmap$pathwayname==x]))
 lpp = lpp[sample(length(lpp),100)]; ## use only subset for testing
@@ -87,7 +138,7 @@ save(file='~/Downloads/tmp_coord.RObj', list=c('coord','OUTD', 'lpp','pq','path2
 
 ## Calculate 3D pathway activity maps
 LOI=c("nucleus","mitochondrion")
-for (cellName in colnames(pq)[1:100]){
+for (cellName in colnames(pq)[1:50]){
   dir.create(paste0(OUTD,filesep,cellName))
   pathwayExpressionPerCell <- pq[,cellName]
   names(pathwayExpressionPerCell) <- rownames(pq) 
@@ -135,11 +186,11 @@ for (cellName in colnames(pq)[1:100]){
 ## Animation 3D pathway activity maps
 load('~/Downloads/tmp_coord.RObj')
 detach('package:GSVA', unload=TRUE)
+library(rgl)
+library(magick)
 for (cellName in list.dirs(OUTD, full.names = F)){
   print(cellName)
   for(outTable in list.files(paste0(OUTD,filesep,cellName), pattern = ".txt", full.names = T )){
-    library(rgl)
-    library(magick)
     outImage = gsub(".txt",".gif",outTable)
     print(outImage)
     if(!file.exists(outImage)){
@@ -147,15 +198,16 @@ for (cellName in list.dirs(OUTD, full.names = F)){
       
       r3dDefaults$windowRect = c(0,0,700,700)
       rgl::material3d(alpha = 0.1)
-      rgl::plot3d(x=pmap_$x, y=pmap_$y, z=pmap_$z,add=F, size=4.91, col=pmap_[,ncol(pmap_)], xlim=quantile(coord$x,c(0,1)), ylim=quantile(coord$y,c(0,1)), zlim=quantile(coord$z,c(0,1)), axes=F, xlab="",ylab="", zlab="", alpha=0.2)
+      hull=Plot_ConcaveHull(coord[coord$nucleus==1,1], coord[,2], coord[,3], lcolor ="gray", alpha=0.075)
+      rgl::points3d(x=pmap_$x, y=pmap_$y, z=pmap_$z,add=F, size=4.91, col=pmap_[,ncol(pmap_)], xlim=quantile(coord$x,c(0,1)), ylim=quantile(coord$y,c(0,1)), zlim=quantile(coord$z,c(0,1)), axes=F, xlab="",ylab="", zlab="", alpha=0.2)
       Sys.sleep(5)
       try(rgl::movie3d(
         movie=matlab::fileparts(outImage)$name, 
         rgl::spin3d( axis = c(1, 1, 1), rpm = 12),
-        duration = 4, 
+        duration = 8, 
         dir = matlab::fileparts(outImage)$path,
         type = "gif", 
-        clean = F
+        clean = T
       ))
       rgl::rgl.close()
       
