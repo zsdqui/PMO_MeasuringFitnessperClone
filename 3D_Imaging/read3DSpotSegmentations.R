@@ -3,16 +3,26 @@ library(matlab)
 library(geometry)
 library(misc3d)
 library(rgl)
+IN="G05_multiOrganelles_Linked"
+# IN="G03_CellposeOutput"
+OUT="G06_segmentationStats"
+# OUT="G04_segmentationStats"
 r3dDefaults$windowRect=c(0,50, 800, 800) 
-ZSTACK_DISTANCE=0.29
-f=list.files("G03_CellposeOutput",full.names = T)
+ZSTACK_DISTANCE=1;#0.29
+f=list.files(IN,full.names = T,pattern = "11")
+# f=list.files(IN,full.names = T,pattern = "159")
+# f=c(f,list.files(IN,full.names = T,pattern = "149"))
 
 ## Read in data
 coord=c();
 for(x in f){
   a=read.csv(x)
+  if(!"mito_id" %in% colnames(a)){
+    a$mito_id=NA
+  }
   
   id=strsplit(fileparts(x)$name,"_")[[1]]
+  a$organelle = id[3] 
   id=id[length(id)-1]
   a$id=id
   coord=rbind(coord,a)
@@ -25,6 +35,11 @@ coord$z=coord$z*ZSTACK_DISTANCE
 coord_=coord
 tmp = quantile(coord_$z,c(0,1))
 space=tmp[2]-tmp[1]
+col=rainbow(length(unique(coord_$id)))
+names(col)=as.character(unique(coord_$id))
+rgl::plot3d(coord_$x, coord_$y, coord_$z, pch3d=20, zlim=c(tmp[1]-space/2, tmp[2]+space/2), size=2, axes=F, xlab="",ylab="", zlab="",col=1+(coord$organelle=="mito"))
+rgl::plot3d(coord_$x, coord_$y, coord_$z, pch=20, zlim=c(tmp[1]-space/2, tmp[2]+space/2), size=2, axes=F, xlab="",ylab="", zlab="",col=col[as.character(coord_$id)])
+# rgl::plot3d(coord_$x, coord_$y, coord_$z, pch=20, zlim=c(tmp[1]-space/2, tmp[2]+space/2),  axes=F, xlab="",ylab="", zlab="",col=col[as.character(coord_$id)], type="s",radius=1+(coord$organelle=="mito"))
 
 
 ############################################################
@@ -40,15 +55,26 @@ fr=fr[fr$freq>200,]
 coord_=coord_[coord_$id!=0 & coord_$id %in% fr$x,]
 ## Gather stats
 cells=unique(coord_$id)
-imgStats=as.data.frame(matrix(NA,length(cells),2))
+organelles=unique(coord_$organelle)
+imgStats=as.data.frame(matrix(NA,length(cells),1+3*length(organelles)))
 rownames(imgStats)=as.character(cells)
-colnames(imgStats)=c("volume","area")
+colnames(imgStats)=c("MitoCount",sapply(c("volume_","area_","pixel_"),paste0,organelles))
 for(id in cells){
   a=coord_[coord_$id==id,]
-  hull <- convhulln(a[,1:3], options = "FA")
-  imgStats[as.character(id),c("volume","area")]=c(hull$vol,hull$area)
+  imgStats[as.character(id),"MitoCount"]=length(unique(a$mito_id))-1
+  for(organelle in organelles){
+    a_=a[a$organelle==organelle,]
+    hull <- convhulln(a_[,1:3], options = "FA")
+    imgStats[as.character(id),paste0(c("volume_","area_","pixel_"),organelle)]=c(hull$vol,hull$area,nrow(a_))
+  }
 }
-write.table(imgStats,file="G04_segmentationStats/0_prediction_c0.model_stats.txt",sep="\t")
+## Add more stats and save 
+imgStats$pixel_per_mito_avg=imgStats$pixel_mito/imgStats$MitoCount
+imgStats$pixel_per_volume_mito=imgStats$pixel_mito/imgStats$volume_mito
+for(organelle in organelles){
+  imgStats[,paste0("pixel_per_volume_",organelle)]=imgStats[,paste0("pixel_",organelle)]/imgStats[,paste0("volume_",organelle)]
+}
+write.table(imgStats,file=paste0(OUT,filesep,"0_prediction_c0.model_stats.txt"),sep="\t")
 ## Remove cells with very small volumes -- likely FPs
 realCells=as.numeric(rownames(imgStats)[imgStats$volume>=8^3 & imgStats$volume<=20^3])
 coord_=coord_[coord_$id %in% realCells,]

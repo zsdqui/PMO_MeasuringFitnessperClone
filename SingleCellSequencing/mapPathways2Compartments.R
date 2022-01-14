@@ -20,8 +20,6 @@ setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
 # setwd("/mnt/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/SingleCellSequencing")
 source("get_compartment_coordinates.R")
 source("get_compartment_coordinates_FromAllen.R")
-source("alignPathways2Compartments.R")
-# source("~/get_compartment_coordinates.R")
 Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, level=0.5/length(xx)) {
   library(MASS) 
   ##Remove outliers
@@ -40,53 +38,24 @@ Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, level
   # return(cbind(dens2$x,dens2$y, dens2$z))
   return(dens2)
 }
-overlayHist<-function(this,ontothat){
-  dat=as.data.frame(c(this,ontothat))
-  colnames(dat)="data"
-  dat$cat="ontothat"
-  dat$cat[1:length(this)]="this"
-  p=ggplot(dat,aes(x=data,fill=cat)) + 
-    geom_histogram(data=dat, alpha = 0.4)
-  return(list(dat=dat,p=p))
-}
-# this=imgStats[,1]; ontothat=sample(imgStats[,2],100)
-overlayDistributions1D<-function(this, ontothat,q=c(0.05,0.5,0.95)){
-  # dat=overlayHist(this,ontothat)
-  qstat<-function(this, ontothat){
-    q=sapply(list(this,ontothat), quantile, q)
-    colnames(q)=c("this","ontothat")
-    q=as.data.frame(q)
-    return(q)
-  }
-  q1=qstat(this, ontothat)
-  ## Shift both medians to 0
-  this=this-q1$this[1]
-  ontothat=ontothat-q1$ontothat[1]
-  ## Overlay upper quantile
-  q2=qstat(this, ontothat)
-  this=this/(q2$this[3]/q2$ontothat[3])
-  
-  ## ontothat: Median back to orig
-  ontothat=ontothat+q1$ontothat[2]
-  this=this+q1$ontothat[2]
-  dat=overlayHist(this,ontothat)
-  return(dat)
-}
 # pathwayMapFile = "~/NCBI2Reactome_PE_All_Levels_sapiens.txt"
 pathwayMapFile = "NCBI2Reactome_PE_All_Levels_sapiens.txt"
 CELLLINE="NCI-N87"
 ROOTD = tools::file_path_as_absolute("../../data/")
 OUTD=paste0("../../results/pathwayCoordinates_3D", filesep, CELLLINE)
+B01=paste0("../../data/RNAsequencing/B01_220112_pathwayActivity", filesep, CELLLINE)
+B02=paste0("../../data/RNAsequencing/B02_220112_seqStats", filesep, CELLLINE)
 dir.create(OUTD,recursive = T)
-
+# cellID=115
+cellID=159
 
 ############################################################
 ### Load coordinates of various compartments for one cell ##
 # coord = get_Compartment_coordinates(300)
 # coord = get_compartment_coordinates_FromAllen(cytosolF=NULL, nucleusF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/D03_FijiOutput/DNA_anothercell.csv"), mitoF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/D03_FijiOutput/Mito_anothercell.csv"));
-coord = get_compartment_coordinates_FromAllen(nucleusF = "../../data/3Dbrightfield/allencell/G03_CellposeOutput/0_prediction_c0.model.p_cell_109_coordinates.csv", mitoF = "../../data/3Dbrightfield/allencell/G03_CellposeOutput/0_prediction_c0.model.p_cell_108_coordinates.csv", XYZCOLS = c("x","y","z"));
+coord = get_compartment_coordinates_FromAllen(nucleusF = paste0("../../data/3Dbrightfield/allencell/G05_multiOrganelles_Linked/0_prediction_c0.model.p_cell_",cellID,"_coordinates.csv"), mitoF = paste0("../../data/3Dbrightfield/allencell/G05_multiOrganelles_Linked/0_target_mito_cell_",cellID,"_coordinates.csv"), XYZCOLS = c("x","y","z"), size = 3);
 rgl::movie3d(
-  movie="CellCompartmentsIn3D_Placeholder", 
+  movie="~/Downloads/CellCompartmentsIn3D_Placeholder", 
   rgl::spin3d( axis = c(1, 1, 1), rpm = 3),
   duration = 20, 
   dir = "~/Downloads/",
@@ -99,9 +68,9 @@ hull <- convhulln(coord[coord$nucleus==1,1:3], options = "FA")
 print(hull$vol)
 
 # Expression profiles of all detected genes for clone 9 in the cell line.
-cID = 3
+cID = 2
 clones = cloneid::getSubclones(CELLLINE, whichP="TranscriptomePerspective")
-pqFile = paste0(OUTD,filesep,names(clones)[cID],".RObj")
+pqFile = paste0(B01,filesep,names(clones)[cID],".RObj")
 if(file.exists(pqFile)){
   load(pqFile)
 }else{
@@ -113,7 +82,7 @@ if(file.exists(pqFile)){
   gs=gs[sapply(gs, length)>=5]
   pq <- gsva(ex, gs, kcdf="Poisson", mx.diff=T, verbose=FALSE, parallel.sz=2, min.sz=10)
   pq <- rescale(pq, to = c(0,30000))
-  save(pq, file=paste0(OUTD,filesep,names(clones)[cID],".RObj"))
+  save(pq, file=paste0(B01,filesep,names(clones)[cID],".RObj"))
 }
 ccState = sapply(colnames(pq), function(x) cloneid::getState(x,whichP = "TranscriptomePerspective"))
 
@@ -144,49 +113,23 @@ names(seqStats)=unique(path2locmap$Location)
 seqStats=cbind(sapply(seqStats,colMeans),sapply(seqStats,colSums))
 colnames(seqStats)=paste(c("meanE","sumE"),colnames(seqStats))
 seqStats=as.data.frame(seqStats)
-par(mfrow=c(2,2))
-sapply(colnames(seqStats), function(x) hist(seqStats[,x],xlab=x))
-## read stats from 3D imaging and plot side by side:
-imgStats=read.table("../../data/3Dbrightfield/allencell/G04_segmentationStats/0_prediction_c0.model_stats.txt",sep="\t",check.names = F,stringsAsFactors = F)
-sapply(colnames(imgStats), function(x) hist(imgStats[,x],xlab=x))
-## Overlay distributions
-seqStatsMapped=list()
-for(i in 1:ncol(imgStats)){
-  overlayHist(seqStats[,i],imgStats[,i])$p
-  seqStatsMapped[[colnames(imgStats)[i]]]=overlayDistributions1D(seqStats[,i],imgStats[,i], q=c(0.1,0.5,0.9))
-}
-seqStatsMapped$volume$p 
-ggsave(filename = "~/Downloads/volumeFeature.png",width = 4,height = 3)
-## Overwrite seqStats
-seqStats=as.data.frame(sapply(seqStatsMapped,function(x) x$dat$data))
-colnames(seqStats)=colnames(imgStats)
-seqStats=seqStats[sample(nrow(seqStats),size = nrow(imgStats)),]
-## co-cluster image and sequencing stats
-imgStats$type="img"
-seqStats$type="seq"
-##@TODO: before reassigning colnames, first ensure they are in desired order (which pair of features match)
-stats=rbind(imgStats,seqStats)
-rownames(stats) = paste(rownames(stats), stats$type)
-dd = dist(stats[,1:2])
-tr = ape::nj(dd)
-plot(tr)
-col = rep("red", length(tr$tip.label))
-col[grep("img",tr$tip.label) ] = "blue"
-par(mfrow=c(1,1))
-plot(tr,show.tip.label = T, tip.color = col, cex=0.36)
-legend("topright",c("sequencing","imaging"),fill=c("red","blue"))
+seqStats=cbind(seqStats,t(pq[grep("Cell cycle",rownames(pq),ignore.case = T),]))
+write.table(seqStats, paste0(B02,filesep,fileparts(pqFile)$name,".txt"),sep="\t")
 
 
 ## locations per pathway:
 lpp = sapply(unique(path2locmap$pathwayname), function(x) unique(path2locmap$Location[path2locmap$pathwayname==x]))
 # lpp = lpp[sample(length(lpp),10)]; ## use only subset for testing
-lpp = lpp[grep("Cycle",names(lpp),value=T)[c(7:9)]]
+lpp = lpp[grep("Cycle",names(lpp),value=T,ignore.case = T)]#[c(7:9)]]
+lpp=lpp[order(sapply(lpp,paste,collapse=","),decreasing = F)]
+lpp=lpp[1:10]
 save(file='~/Downloads/tmp_coord.RObj', list=c('coord','OUTD', 'lpp','pq','path2locmap'))
 
 ## Calculate 3D pathway activity maps
 pathwayColors=rainbow(length(lpp))
 names(pathwayColors)=names(lpp)
-LOI=c("nucleus","mitochondrion")
+LOI=c("gray","pink")
+names(LOI)=c("nucleus","mitochondrion")
 for (cellName in colnames(pq)[1]){
   dir.create(paste0(OUTD,filesep,cellName))
   pathwayExpressionPerCell <- pq[,cellName]/20
@@ -214,8 +157,7 @@ for (cellName in colnames(pq)[1]){
     names(idx) = names(idx_Candid)
     # And here we tally how many times each x coordinate appears in the sampling
     idx = plyr::count(unlist(idx))
-    # In this step we populate our pmap with our randomly selected x
-    # coordinate and it's matching y coordiate from the coord object
+    # In this step we populate our pmap with our randomly selected x coordinate and it's matching y coordiate from the coord object
     for(i in 1:nrow(idx)){
       # pmap[coord$x[idx$x[i]], coord$y[idx$x[i]]] = idx$freq[i]
       pmap[idx$x[i],j] =  idx$freq[i]
@@ -233,15 +175,15 @@ for (cellName in colnames(pq)[1]){
   }
   ##  Plot all pathways together
   rgl::close3d()
-  for(compartment in LOI){
+  for(compartment in names(LOI)){
     ii=which(coord[,compartment]==1)
-    hull=Plot_ConcaveHull(coord[ii,1], coord[ii,2], coord[ii,3], lcolor ="gray", alpha=0.075)
+    hull=Plot_ConcaveHull(coord[ii,1], coord[ii,2], coord[ii,3], lcolor =LOI[compartment], alpha=0.575)
   }
   for(j in names(lpp)){
     pmap_ = pmap[pmap[,j]>0,]
-    rgl::points3d(x=pmap_$x, y=pmap_$y, z=pmap_$z,add=F, size=6,col=pathwayColors[j], xlim=quantile(coord$x,c(0,1)), ylim=quantile(coord$y,c(0,1)), zlim=quantile(coord$z,c(0,1)), axes=F, xlab="",ylab="", zlab="", alpha=0.3)
+    rgl::points3d(x=pmap_$x, y=pmap_$y, z=pmap_$z,add=F, size=8,col=pathwayColors[j], xlim=quantile(coord$x,c(0,1)), ylim=quantile(coord$y,c(0,1)), zlim=quantile(coord$z,c(0,1)), axes=F, xlab="",ylab="", zlab="", alpha=0.7)
   }
-  legend3d("topright",names(pathwayColors),fill=pathwayColors)
+  legend3d("topright",names(lpp),fill=pathwayColors[names(lpp)])
   
 }
 

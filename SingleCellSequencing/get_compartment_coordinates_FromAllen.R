@@ -1,4 +1,4 @@
-get_compartment_coordinates_FromAllen <-function(cytosolF="~/Downloads/fijitestout2.csv", mitoF="~/Downloads/fijitestout2.csv", nucleusF="~/Downloads/fijitestout3.csv",XYZCOLS = c("CX..pix.", "CY..pix.", "CZ..pix.")){
+get_compartment_coordinates_FromAllen <-function(cytosolF="~/Downloads/fijitestout2.csv", mitoF="~/Downloads/fijitestout2.csv", nucleusF="~/Downloads/fijitestout3.csv",XYZCOLS = c("CX..pix.", "CY..pix.", "CZ..pix."), size=0.01){
   COMPCOLS = c("cytosol", "endoplasmic reticulum", "Golgi apparatus", "nucleus", "mitochondrion", "endosome", "lysosome", "peroxisome")
   dummy =as.data.frame( matrix(0,1,length(COMPCOLS)))
   colnames(dummy) = COMPCOLS
@@ -27,10 +27,10 @@ get_compartment_coordinates_FromAllen <-function(cytosolF="~/Downloads/fijitesto
   tmp = quantile(coord$z,c(0,1))
   space=tmp[2]-tmp[1]
   scatterplot3d::scatterplot3d(coord$x, coord$y, coord$z, pch=20,cex.symbols = 0.1, zlim=c(tmp[1]-space/1.5, tmp[2]+space/1.5))
-  rgl::plot3d(coord$x, coord$y, coord$z, pch=20, zlim=c(tmp[1]-space/2, tmp[2]+space/2), size=0.01, axes=F, xlab="",ylab="", zlab="")
+  rgl::plot3d(coord$x, coord$y, coord$z, pch=20, zlim=c(tmp[1]-space/2, tmp[2]+space/2), size=size, axes=F, xlab="",ylab="", zlab="")
   for(o in names(colormap)){
     coord_ = coord[coord[,o]==1,]
-    rgl::points3d(coord_$x, coord_$y, coord_$z,col=colormap[o],add=T, size=0.01)
+    rgl::points3d(coord_$x, coord_$y, coord_$z,col=colormap[o],add=T, size=size)
   }
   rgl::legend3d("topleft", names(colormap), fill=colormap, bty='n',cex=1.7)
   
