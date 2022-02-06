@@ -43,17 +43,17 @@ pathwayMapFile = "NCBI2Reactome_PE_All_Levels_sapiens.txt"
 CELLLINE="NCI-N87"
 ROOTD = tools::file_path_as_absolute("../../data/")
 OUTD=paste0("../../results/pathwayCoordinates_3D", filesep, CELLLINE)
-B01=paste0("../../data/RNAsequencing/B01_220112_pathwayActivity", filesep, CELLLINE)
-B02=paste0("../../data/RNAsequencing/B02_220112_seqStats", filesep, CELLLINE)
+B01=paste0("../../data/GastricCancerCL/RNAsequencing/B01_220112_pathwayActivity", filesep, CELLLINE)
+B02=paste0("../../data/GastricCancerCL/RNAsequencing/B02_220112_seqStats", filesep, CELLLINE)
 dir.create(OUTD,recursive = T)
-# cellID=115
-cellID=159
+# cellID=251
+cellID=23
 
 ############################################################
 ### Load coordinates of various compartments for one cell ##
 # coord = get_Compartment_coordinates(300)
-# coord = get_compartment_coordinates_FromAllen(cytosolF=NULL, nucleusF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/D03_FijiOutput/DNA_anothercell.csv"), mitoF = paste0(ROOTD,filesep,"3Dbrightfield/allencell/D03_FijiOutput/Mito_anothercell.csv"));
-coord = get_compartment_coordinates_FromAllen(nucleusF = paste0("../../data/3Dbrightfield/allencell/G05_multiOrganelles_Linked/0_prediction_c0.model.p_cell_",cellID,"_coordinates.csv"), mitoF = paste0("../../data/3Dbrightfield/allencell/G05_multiOrganelles_Linked/0_target_mito_cell_",cellID,"_coordinates.csv"), XYZCOLS = c("x","y","z"), size = 3);
+coord = get_compartment_coordinates_FromAllen(nucleusF = paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/H05_multiOrganelles_Linked/nucleus.p_cell_",cellID,"_coordinates.csv"), mitoF = paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/H05_multiOrganelles_Linked/mito.p_cell_",cellID,"_coordinates.csv"),cytosolF = paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/H05_multiOrganelles_Linked/cytoplasm.p_cell_",cellID,"_coordinates.csv"), XYZCOLS = c("x","y","z"), size = 1);
+# coord = get_compartment_coordinates_FromAllen(nucleusF = paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/H05_multiOrganelles_Linked/nucleus.p_cell_",cellID,"_coordinates.csv"), mitoF = paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/H05_multiOrganelles_Linked/mito.p_cell_",cellID,"_coordinates.csv"), XYZCOLS = c("x","y","z"), size = 3);
 rgl::movie3d(
   movie="~/Downloads/CellCompartmentsIn3D_Placeholder", 
   rgl::spin3d( axis = c(1, 1, 1), rpm = 3),
@@ -128,8 +128,8 @@ save(file='~/Downloads/tmp_coord.RObj', list=c('coord','OUTD', 'lpp','pq','path2
 ## Calculate 3D pathway activity maps
 pathwayColors=rainbow(length(lpp))
 names(pathwayColors)=names(lpp)
-LOI=c("gray","pink")
-names(LOI)=c("nucleus","mitochondrion")
+LOI=c("gray","pink","cyan")
+names(LOI)=c("nucleus","mitochondrion","cytosol")
 for (cellName in colnames(pq)[1]){
   dir.create(paste0(OUTD,filesep,cellName))
   pathwayExpressionPerCell <- pq[,cellName]/20
@@ -175,9 +175,11 @@ for (cellName in colnames(pq)[1]){
   }
   ##  Plot all pathways together
   rgl::close3d()
+  alpha=0.575
   for(compartment in names(LOI)){
     ii=which(coord[,compartment]==1)
-    hull=Plot_ConcaveHull(coord[ii,1], coord[ii,2], coord[ii,3], lcolor =LOI[compartment], alpha=0.575)
+    hull=Plot_ConcaveHull(coord[ii,1], coord[ii,2], coord[ii,3], lcolor =LOI[compartment], alpha=alpha)
+    alpha=alpha-0.2
   }
   for(j in names(lpp)){
     pmap_ = pmap[pmap[,j]>0,]
