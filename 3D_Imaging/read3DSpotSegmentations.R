@@ -1,31 +1,36 @@
-setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/3Dbrightfield/allencell/")
+setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87/")
 library(matlab)
 library(geometry)
 library(misc3d)
 library(rgl)
-IN="G05_multiOrganelles_Linked"
-# IN="G03_CellposeOutput"
-OUT="G06_segmentationStats"
-# OUT="G04_segmentationStats"
+IN="H05_multiOrganelles_Linked"
+# IN="H03_CellposeOutput/All_Cells_coordinates"
+OUT="H06_segmentationStats"
+# OUT="H04_segmentationStats"
 r3dDefaults$windowRect=c(0,50, 800, 800) 
 ZSTACK_DISTANCE=1;#0.29
-f=list.files(IN,full.names = T,pattern = "11")
-# f=list.files(IN,full.names = T,pattern = "159")
-# f=c(f,list.files(IN,full.names = T,pattern = "149"))
+f=list.files(IN,full.names = T)
+signals_per_id=plyr::count(sapply(strsplit(f,"_"), function(x) x[length(x)-1]))
+## keep only cells with all three signals:
+signals_per_id=signals_per_id[signals_per_id$freq==3,]
 
 ## Read in data
 coord=c();
-for(x in f){
-  a=read.csv(x)
-  if(!"mito_id" %in% colnames(a)){
-    a$mito_id=NA
+for(cell in signals_per_id$x){
+  for(x in sapply(c("nucleus.p_cell_","mito.p_cell_","cytoplasm.p_cell_"), paste0,cell,"_coordinates.csv")){
+    a=read.csv(paste0(IN,filesep,x))
+    if(!"mito.p" %in% colnames(a)){
+      a$mito.p=NA
+    }
+    if(!"cytoplasm.p" %in% colnames(a)){
+      a$cytoplasm.p=NA
+    }
+    id=strsplit(fileparts(x)$name,"_")[[1]]
+    a$organelle = id[3] 
+    id=id[length(id)-1]
+    a$id=id
+    coord=rbind(coord,a)
   }
-  
-  id=strsplit(fileparts(x)$name,"_")[[1]]
-  a$organelle = id[3] 
-  id=id[length(id)-1]
-  a$id=id
-  coord=rbind(coord,a)
 }
 coord$id=as.numeric(coord$id)
 # apply(coord,2,quantile,c(0,1))
@@ -42,13 +47,9 @@ rgl::plot3d(coord_$x, coord_$y, coord_$z, pch=20, zlim=c(tmp[1]-space/2, tmp[2]+
 # rgl::plot3d(coord_$x, coord_$y, coord_$z, pch=20, zlim=c(tmp[1]-space/2, tmp[2]+space/2),  axes=F, xlab="",ylab="", zlab="",col=col[as.character(coord_$id)], type="s",radius=1+(coord$organelle=="mito"))
 
 
-############################################################
-## Correct segmentation: merge ids belonging to same cell ##
-rgl::close3d()
-o=dbscan::dbscan(coord_[,c("x","y","z")],eps = 1,minPts = 12)
-coord_$id=o$cluster
-rgl::plot3d(coord_$x, coord_$y, coord_$z, pch=20, zlim=c(tmp[1]-space/2, tmp[2]+space/2), size=2, axes=F, xlab="",ylab="", zlab="",col=coord_$id+1)
 ## Reassign cell ID based on cluster membership
+o=dbscan::dbscan(coord_[,c("x","y","z")],eps = 2.5,minPts = 3)
+coord_$id=o$cluster
 fr=plyr::count(o$cluster)
 fr=fr[fr$freq>200,]
 ## remove coordinates classified as noise
@@ -61,7 +62,7 @@ rownames(imgStats)=as.character(cells)
 colnames(imgStats)=c("MitoCount",sapply(c("volume_","area_","pixel_"),paste0,organelles))
 for(id in cells){
   a=coord_[coord_$id==id,]
-  imgStats[as.character(id),"MitoCount"]=length(unique(a$mito_id))-1
+  imgStats[as.character(id),"MitoCount"]=length(unique(a$mito.p))-1
   for(organelle in organelles){
     a_=a[a$organelle==organelle,]
     hull <- convhulln(a_[,1:3], options = "FA")
@@ -97,8 +98,8 @@ rgl::plot3d(a$x, a$y, a$z, pch=20, size=2, axes=F, xlab="",ylab="", zlab="",col=
 rgl::close3d()
 for(id in cells){
   a=coord_[coord_$id==id,]
-  # hull=Plot_ConcaveHull(a[,1], a[,2], a[,3], lcolor =which(cells==id), alpha=0.5,add = T)
-  rgl::plot3d(a$x, a$y, a$z, pch=20, zlim=c(tmp[1]-space/2, tmp[2]+space/2), size=2, axes=F, xlab="",ylab="", zlab="",col=which(cells==id),add=T)
+  hull=Plot_ConcaveHull(a[,1], a[,2], a[,3], lcolor =which(cells==id), alpha=0.5,add = T)
+  # rgl::plot3d(a$x, a$y, a$z, pch=20, zlim=c(tmp[1]-space/2, tmp[2]+space/2), size=2, axes=F, xlab="",ylab="", zlab="",col=which(cells==id),add=T)
 }
 rgl::movie3d(
   movie="CellPose3D_output",

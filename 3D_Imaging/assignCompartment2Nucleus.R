@@ -1,16 +1,15 @@
 assignCompartment2Nucleus<-function(other_center_coord, nuc_center_coord){
-  setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87/H03_CellposeOutput/Cells_center_coordinates")
   ZSTACK_DISTANCE=0.29
-  mito_coord=read.csv(file=other_center_coord,check.names = F,stringsAsFactors = F)
-  other_coord=read.csv(file=nuc_center_coord,check.names = F,stringsAsFactors = F)
-  mito_coord$z=mito_coord$z*ZSTACK_DISTANCE
+  other_coord=read.csv(file=other_center_coord,check.names = F,stringsAsFactors = F)
+  nuc_coord=read.csv(file=nuc_center_coord,check.names = F,stringsAsFactors = F)
   other_coord$z=other_coord$z*ZSTACK_DISTANCE
+  nuc_coord$z=nuc_coord$z*ZSTACK_DISTANCE
   
   ##@TODO: should not be necessary!
   other_center_coord=strsplit(other_center_coord,"_Cells_")[[1]][1]
   nuc_center_coord=strsplit(nuc_center_coord,"_Cells_")[[1]][1]
   
-  d=flexclust::dist2(mito_coord, other_coord)
+  d=flexclust::dist2(other_coord, nuc_coord)
   ##Assign mitochondria to closest nucleus
   i_nuc=apply(d,1,which.min)
   ## Aggregate mitochondria all_cells_coordinates for each nucleus 
@@ -41,8 +40,8 @@ assignCompartment2Nucleus<-function(other_center_coord, nuc_center_coord){
   }
 }
 
-
-OUTD="../../H05_multiOrganelles_Linked/"
+setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87/I04_PostProcessCellposeOutput/Cells_center_coordinates")
+OUTD="../../I05_multiOrganelles_Linked/"
 nuc_center_coord="nucleus.p_Cells_Centers.csv";
 other_center_coord="mito.p_Cells_Centers.csv"
 assignCompartment2Nucleus(other_center_coord, nuc_center_coord)
