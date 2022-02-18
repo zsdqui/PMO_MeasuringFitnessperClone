@@ -1,4 +1,5 @@
-assignCompartment2Nucleus<-function(other_center_coord, nuc_center_coord){
+assignCompartment2Nucleus<-function(other_center_coord, nuc_center_coord,OUTD){
+  dir.create(OUTD, recursive = T)
   ZSTACK_DISTANCE=0.29
   other_coord=read.csv(file=other_center_coord,check.names = F,stringsAsFactors = F)
   nuc_coord=read.csv(file=nuc_center_coord,check.names = F,stringsAsFactors = F)
@@ -40,19 +41,19 @@ assignCompartment2Nucleus<-function(other_center_coord, nuc_center_coord){
   }
 }
 
-setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87/I04_PostProcessCellposeOutput/Cells_center_coordinates")
-OUTD="../../I05_multiOrganelles_Linked/"
-nuc_center_coord="nucleus.p_Cells_Centers.csv";
-other_center_coord="mito.p_Cells_Centers.csv"
-assignCompartment2Nucleus(other_center_coord, nuc_center_coord)
-other_center_coord="cytoplasm.p_Cells_Centers.csv"
-assignCompartment2Nucleus(other_center_coord, nuc_center_coord)
-
-f=list.files(OUTD,full.names = T)
-signals_per_id=plyr::count(sapply(strsplit(f,"_"), function(x) x[length(x)-1]))
-## keep only cells with all three signals:
-toRM=signals_per_id$x[signals_per_id$freq<3]
-for(x in toRM){
-  y=list.files(OUTD,full.names = T,pattern = paste0("_",x,"_"))
-  file.remove(y)
-}
+# setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87/I04_PostProcessCellposeOutput/Cells_center_coordinates")
+# OUTD="../../I05_multiOrganelles_Linked/"
+# nuc_center_coord="nucleus.p_Cells_Centers.csv";
+# other_center_coord="mito.p_Cells_Centers.csv"
+# assignCompartment2Nucleus(other_center_coord, nuc_center_coord, OUTD)
+# other_center_coord="cytoplasm.p_Cells_Centers.csv"
+# assignCompartment2Nucleus(other_center_coord, nuc_center_coord, OUTD)
+# 
+# f=list.files(OUTD,full.names = T)
+# signals_per_id=plyr::count(sapply(strsplit(f,"_"), function(x) x[length(x)-1]))
+# ## keep only cells with all three signals:
+# toRM=signals_per_id$x[signals_per_id$freq<3]
+# for(x in toRM){
+#   y=list.files(OUTD,full.names = T,pattern = paste0("_",x,"_"))
+#   file.remove(y)
+# }
