@@ -7,7 +7,7 @@ A01='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCa
 
 f=`find $A01/*$date* -type f -name README`
 
-FoF=`grep $filename $f`
+FoF=`grep $filename'$' $f`
 FoF="$(dirname -- $FoF)"
 FoF="$(basename -- $FoF)"
 
