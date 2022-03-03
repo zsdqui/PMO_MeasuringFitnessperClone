@@ -1,32 +1,68 @@
-# setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87")
 # conda activate r_env
-setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/R")
+# setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/R")
+setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
 source("CorrectCellposeSegmentation.R")
 source("assignCompartment2Nucleus.R")
 source("compareCells.R")
-setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87")
+# setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87")
+setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87")
 library(matlab)
+library(rgl)
+library(geometry)
 
-## Input and output:
-FoF="FoF0_211007_fluorescent.nucleus"
+
+## Constants, Settings, Input and output folders:
+ZSTACK_DISTANCE=0.29
+r3dDefaults$windowRect=c(0,50, 800, 800) 
 INDIR="A04_CellposeOutput"
 OUTCORRECTED="A05_PostProcessCellposeOutput"
 OUTLINKED="A06_multiSignals_Linked"
-signal1="nucleus.t_Cells_Centers.csv"
-signal2="nucleus.p_Cells_Centers.csv"
+OUTSTATS="A07_LinkedSignals_Stats"
+dir.create(OUTCORRECTED)
+dir.create(OUTLINKED)
+dir.create(OUTSTATS)
+## Local helper functions
+correctSegmentations<-function(FoF, signals){
+  sapply(names(signals), function(x) CorrectCellposeSegmentation(FoF,signal=x,INDIR,OUTCORRECTED,doplot=F))
+}
+readOrganelleCoordinates<-function(signals_per_id, signals, IN){
+  coord=c();
+  for(cell in signals_per_id$x){
+    for(s in signals){
+      x=paste0(s,"_cell_",cell,"_coordinates.csv")
+      a=read.csv(paste0(IN,filesep,x))
+      id=strsplit(fileparts(x)$name,"_")[[1]]
+      a$organelle = a[,ncol(a)] 
+      a$signal=s
+      id=id[length(id)-1]
+      a$id=id
+      coord=rbind(coord,a[,c("y", "x", "z", "organelle", "id","signal")])
+    }
+  }
+  coord$id=as.numeric(coord$id)
+  coord$z=coord$z*ZSTACK_DISTANCE
+  return(coord)
+}
+
+
+###############################################
+######Allen model performance evaluation#######
+###############################################
+
+## Input and output:
+FoF="FoF0_211007_fluorescent.nucleus"
+signals=list(nucleus.t="nucleus.t_Cells_Centers.csv", nucleus.p="nucleus.p_Cells_Centers.csv")
 
 ## First correct segmentation output
-dir.create(OUTCORRECTED)
-CorrectCellposeSegmentation(FoF,signal="nucleus.t",INDIR,OUTCORRECTED,doplot=F)
-CorrectCellposeSegmentation(FoF,signal="nucleus.p",INDIR,OUTCORRECTED,doplot=F)
+correctSegmentations(FoF, signals)
 
 ## Next link each predicted nucleus to its closest target nucleus
-OUTLINKED=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
+OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
 setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
-assignCompartment2Nucleus(signal2, signal1, OUTLINKED)
+assignCompartment2Nucleus(signals[2], signals[1], OUTLINKED_)
 
 ## Compare each predicted to its linked target nucleus
-stats=compareCells(signal1, signal2,OUTLINKED)
+stats=compareCells(signals[1], signals[2],OUTLINKED_)
 
 ##Plot
 minmax=quantile(unlist(stats[,1:2]), c(0,1))
@@ -34,4 +70,107 @@ par(mfrow=c(2,2))
 plot(stats$nucleus.t_NumPixels,stats$nucleus.p_NumPixels,pch=20,log="xy",xlim=minmax,ylim=minmax)
 hist(stats$nucleus.t_IntersectingPixels,col="cyan")
 hist(stats$nucleus.p_IntersectingPixels,col="cyan")
+
+
+
+#################################
+###### Linking organelles #######
+#################################
+
+## Input and output:
+FoF="FoF13_220228_fluorescent.cytoplasm"
+signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv",cytoplasm.t="cytoplasm.t_Cells_Centers.csv")
+OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
+
+## First correct segmentation output
+correctSegmentations(FoF, signals["nucleus.p"])
+
+## Next link each predicted nucleus to its closest target nucleus
+setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
+assignCompartment2Nucleus(signals$mito.p, signals$nucleus.p, OUTLINKED_)
+assignCompartment2Nucleus(signals$cytoplasm.t, signals$nucleus.p, OUTLINKED_)
+
+## keep only cells with all three signals:
+f=list.files(OUTLINKED_,full.names = T)
+signals_per_id=plyr::count(sapply(strsplit(f,"_"), function(x) x[length(x)-1]))
+toRM=signals_per_id$x[signals_per_id$freq<length(signals)]
+for(x in toRM){
+  y=list.files(OUTLINKED_,full.names = T,pattern = paste0("_",x,"_"))
+  file.remove(y)
+}
+signals_per_id=signals_per_id[!signals_per_id$x %in% toRM,]
+
+## Read in linked organelles
+coord_=readOrganelleCoordinates(signals_per_id, names(signals), OUTLINKED_)
+coord=coord_
+
+## Visualize organelles
+tmp = quantile(coord_$z,c(0,1))
+space=tmp[2]-tmp[1]
+zlim=c(tmp[1]-space/2, tmp[2]+space/2)
+col=rainbow(length(unique(coord_$signal)))
+names(col)=as.character(unique(coord_$signal))
+## Color by organelle
+rgl::close3d()
+# rgl::plot3d(coord_$x, coord_$y, coord_$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col="white",alpha=0.4)
+alpha=list(cytoplasm.p=0.01,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=1,mito.t=0.1,mito.p=0.1)
+for(s in names(signals)){
+  X=coord_[coord_$signal==s,]
+  if(s=="nucleus.p"){
+    rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[X$signal],alpha=alpha[[s]], add=F)
+  }else{
+    rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[X$signal],alpha=alpha[[s]], add=T)
+  }
+}
+## Color by cell
+rgl::close3d()
+col=rainbow(length(unique(coord_$id)))
+names(col)=as.character(unique(coord_$id))
+rgl::plot3d(coord_$x, coord_$y, coord_$z, pch=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[as.character(coord_$id)],add=T)
+## Save as gif
+# rgl::movie3d(
+#   movie=paste0("CellPose3D_output_",FoF),
+#   rgl::spin3d( axis = c(1, 1, 1), rpm = 8),
+#   duration = 1,
+#   dir = "~/Downloads/",
+#   type = "gif",
+#   clean = TRUE
+# )
+
+
+
+## Gather stats
+cells=unique(coord_$id)
+signals=unique(coord_$signal)
+imgStats=as.data.frame(matrix(NA,length(cells),4*length(signals)))
+rownames(imgStats)=as.character(cells)
+colnames(imgStats)=c(sapply(c("vol_","area_","pixels_","count_"),paste0,signals))
+for(id in cells){
+  # print(paste("cell",id))
+  a=coord_[coord_$id==id,]
+  for(signal in signals){
+    stats_=list(area_=NA,vol_=NA,pixels_=NA)
+    for(organelle in unique(a$organelle)){
+      a_=a[a$organelle==organelle & a$signal==signal,]
+      hull <- try(convhulln(a_[,c("x","y","z")], options = "FA"),silent = T)
+      if(class(hull)!="try-error"){
+        stats_$area_=c(stats_$area_,hull$area)
+        stats_$vol_=c(stats_$vol_,hull$vol)
+        stats_$pixels_=c(stats_$pixels_,nrow(a_))
+      }
+    }
+    imgStats[as.character(id),paste0(c(names(stats_),"count_"),signal)]=c(sapply(stats_,sum,na.rm=T),length(stats_$area_)-1)
+  }
+}
+## Add more stats and save 
+imgStats$pixel_per_mito_avg=imgStats$pixels_mito.p/imgStats$count_mito.p
+imgStats$pixel_per_volume_mito=imgStats$pixels_mito.p/imgStats$vol_mito.p
+for(organelle in signals){
+  imgStats[,paste0("pixel_per_volume_",organelle)]=imgStats[,paste0("pixels_",organelle)]/imgStats[,paste0("vol_",organelle)]
+}
+write.table(imgStats,file=paste0(OUTSTATS,filesep,FoF,"_stats.txt"),sep="\t",quote=F,row.names = F)
+## Visualize stats
+tmp=as.matrix(log(imgStats))
+tmp[!is.finite(tmp)]=NA
+hm = gplots::heatmap.2(tmp,trace = "none", margins = c(13, 6), symm = F)
 

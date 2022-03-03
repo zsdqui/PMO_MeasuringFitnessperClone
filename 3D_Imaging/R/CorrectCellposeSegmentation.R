@@ -48,7 +48,7 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F){
     }
   }
   ## Save output
-  tmp=sapply(1:length(newCellCoord), function(id) write.csv(newCellCoord[[id]],file=paste0("./",OUTDIR,filesep,ID, "/All_Cells_coordinates/", signal, "_cell_",id,"_coordinates.csv")))
+  tmp=sapply(1:length(newCellCoord), function(id) write.csv(newCellCoord[[id]],file=paste0("./",OUTDIR,filesep,ID, "/All_Cells_coordinates/", signal, "_cell_",id,"_coordinates.csv"), row.names = F, quote = F))
   write.csv(centroids,file=paste0("./",OUTDIR,filesep,ID, "/Cells_center_coordinates/", signal, "_Cells_Centers.csv"),quote = F, row.names = F)
   print(paste(nrow(coord_),"cell IDs merged into",length(newCellCoord),"unique IDs"))
   
