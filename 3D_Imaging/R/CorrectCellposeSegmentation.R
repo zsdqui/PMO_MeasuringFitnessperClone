@@ -6,7 +6,7 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F){
   r3dDefaults$windowRect=c(0,50, 800, 800) 
   
   ## Create output folders
-  sapply(c("Cells_center_coordinates","All_Cells_coordinates"), function(x) dir.create(paste0(OUTDIR,filesep,ID,filesep,x)  ))
+  sapply(c("Cells_center_coordinates","All_Cells_coordinates"), function(x) dir.create(paste0(OUTDIR,filesep,ID,filesep,x), recursive = T  ))
   
   ############################################################
   ## Correct segmentation: merge ids belonging to same cell ##
@@ -38,9 +38,9 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F){
   colnames(centroids)=c("x","y","z")
   fr=fr[order(fr$datapoints),]
   hist(fr$freq)
-  rgl::close3d()
   ## Plot coordinates for cells of interest
   if(doplot){
+    rgl::close3d()
     coi=fr$newCellID[seq(1,nrow(fr),by=20)]
     for(cell in coi){
       a=newCellCoord[[as.character(cell)]]

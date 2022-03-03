@@ -1,17 +1,28 @@
-setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87/")
-FoF="FoF00_2021Aug03"
-INDIR="H03_CellposeOutput"
-OUTCORRECTED="I04_PostProcessCellposeOutput"
+# setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87")
+# conda activate r_env
+setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/R")
+source("CorrectCellposeSegmentation.R")
+source("assignCompartment2Nucleus.R")
+source("compareCells.R")
+setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87")
+library(matlab)
+
+## Input and output:
+FoF="FoF0_211007_fluorescent.nucleus"
+INDIR="A04_CellposeOutput"
+OUTCORRECTED="A05_PostProcessCellposeOutput"
+OUTLINKED="A06_multiSignals_Linked"
 signal1="nucleus.t_Cells_Centers.csv"
 signal2="nucleus.p_Cells_Centers.csv"
 
 ## First correct segmentation output
+dir.create(OUTCORRECTED)
 CorrectCellposeSegmentation(FoF,signal="nucleus.t",INDIR,OUTCORRECTED,doplot=F)
 CorrectCellposeSegmentation(FoF,signal="nucleus.p",INDIR,OUTCORRECTED,doplot=F)
 
 ## Next link each predicted nucleus to its closest target nucleus
+OUTLINKED=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
 setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
-OUTLINKED=paste0(getwd(),filesep,"J05_multiSignals_Linked/",FoF,filesep)
 assignCompartment2Nucleus(signal2, signal1, OUTLINKED)
 
 ## Compare each predicted to its linked target nucleus

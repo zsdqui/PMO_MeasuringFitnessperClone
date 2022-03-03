@@ -1,0 +1,32 @@
+#!/bin/sh
+
+FoF=$1
+# FoF='FoF1_211027_fluorescent.mito'
+
+run_CellPose='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/run_CellPose_3D_v1.py'
+root='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87/'
+A03=$root/A03_allenModel/$FoF
+A04=$root/A04_CellposeOutput/$FoF
+mkdir $A04
+## temp copy to cellpose folder
+cp $A03/*.tif $A04/
+
+
+## Segment each except for signal
+f=`ls $A04/*p.tif  $A04/*t.tif`
+conda activate cellpose
+for x in $f; do
+  organelle="$(basename -- $x .tif)"
+  organelle=${organelle%.*}
+  organelle=`echo $organelle | sed 's/mito/mitochondria/g'`
+  # python3 cellPose_getCount.py -dir $x -t $organelle -GPU 1
+  echo "running "$organelle" model on "$x
+  python3 $run_CellPose -imgPath $x -t $organelle -GPU 1
+done
+
+
+## Move all coordinates one level up
+f=`find $A04/All_Cells_coordinates -type f -name *csv`
+mv $f $A04/All_Cells_coordinates/
+torm=`ls -d $A04/All_Cells_coordinates/*/`
+rm -r $torm
