@@ -1,0 +1,3 @@
+  nucleus.t nucleus.p
+FoF0_211007_fluorescent.nucleus 12  10
+FoF13_220228_fluorescent.cytoplasm 12  10

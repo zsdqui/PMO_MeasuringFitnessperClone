@@ -1,6 +1,6 @@
 # conda activate r_env
-setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/R")
-# setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
+# setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/R")
+setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
 source("CorrectCellposeSegmentation.R")
 source("assignCompartment2Nucleus.R")
 source("compareCells.R")
@@ -11,8 +11,8 @@ library(geometry)
 
 
 ## Constants, Settings, Input and output folders:
-ROOT="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87"
-# ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87"
+# ROOT="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87"
+ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87"
 setwd(ROOT)
 ZSTACK_DISTANCE=0.29
 r3dDefaults$windowRect=c(0,50, 800, 800) 
@@ -85,17 +85,22 @@ hist(stats_$nucleus.p_IntersectingPixels,col="cyan")
 #################################
 
 ## Input and output:
-FoF="FoF13_220228_fluorescent.cytoplasm"
+# FoF="FoF13_220228_fluorescent.cytoplasm"
+FoF="FoF16_210818_fluorescent.cytoplasm"
 signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv",cytoplasm.t="cytoplasm.t_Cells_Centers.csv")
 OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
 
 ## First correct segmentation output
-correctSegmentations(FoF, signals["nucleus.p"])
+eps=matrix(3,1,length(signals))
+rownames(eps)=FoF
+colnames(eps)=names(signals)
+correctSegmentations(FoF, signals["nucleus.p"], eps)
 
 ## Next link each predicted nucleus to its closest target nucleus
 setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
 assignCompartment2Nucleus(signals$mito.p, signals$nucleus.p, OUTLINKED_)
 assignCompartment2Nucleus(signals$cytoplasm.t, signals$nucleus.p, OUTLINKED_)
+setwd(ROOT)
 
 ## keep only cells with all three signals:
 f=list.files(OUTLINKED_,full.names = T)
