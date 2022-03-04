@@ -1,6 +1,14 @@
 library(matlab)
 library(ggplot2)
 setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
+ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87"
+OUTCORRECTED=paste0(ROOT,filesep,"A05_PostProcessCellposeOutput")
+K=15 ## neighbors
+N=30; ## cells
+MINNUCVOL=8^3
+FoF="FoF16_210818_fluorescent.cytoplasm"
+# FoF="FoF13_220228_fluorescent.cytoplasm"
+
 overlayHist<-function(this,ontothat){
   dat=as.data.frame(c(this,ontothat))
   colnames(dat)="data"
@@ -36,52 +44,72 @@ overlayDistributions1D<-function(this, ontothat,q=c(0.05,0.5,0.95)){
 
 
 
-## read imaging and seq stats
-seqStats=read.table("../../data/RNAsequencing/B02_220112_seqStats/NCI-N87/Clone_0.244347_ID119967.txt",sep="\t",check.names = F,stringsAsFactors = F)
-imgStats=read.table("../../data/3Dbrightfield/allencell/G06_segmentationStats/0_prediction_c0.model_stats.txt",sep="\t",check.names = F,stringsAsFactors = F)
+## read seq stats
+# seqStats=read.table("../../data/GastricCancerCL/RNAsequencing/B02_220112_seqStats/NCI-N87/Clone_0.244347_ID119967.txt",sep="\t",check.names = F,stringsAsFactors = F)
+load('~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/RNAsequencing/B01_220112_pathwayActivity/NCI-N87/Clone_0.244347_ID119967.RObj')
+ccState=sapply(colnames(pq), function(x) cloneid::getAttribute(x,"TranscriptomePerspective","state"))
+seqStats=t(pq)
 
-# plot separately
-ggplot(imgStats, aes(x=log(area_mito), y=log(volume_c0.model.p)) ) +
-  geom_bin2d(bins = 10) +
-  scale_fill_continuous(type = "viridis") +  theme_bw()
+## read imaging stats
+imgStats=read.table(paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A07_LinkedSignals_Stats/",FoF,"_stats.txt"),sep="\t",check.names = F,stringsAsFactors = F,header = T)
+imgStats=imgStats[apply(!is.na(imgStats),1,all),]; ## exclude cells whose volume could not be estimated
+imgStats=imgStats[,apply(!is.na(imgStats),2,all)]; ## exclude features with NA vals
+imgStats=imgStats[imgStats$vol_nucleus>MINNUCVOL,]
 
+###################################
+## Compare imaging and seq stats ##
+###################################
+## Visualize spatial distribution of cell IDs
+centers=read.csv(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates/nucleus.p_Cells_Centers.csv"))
+centers=centers[as.character(rownames(imgStats)),]
+## Hypothesis: cells in the center of islands don't divide -- top k dense cells are considered G0/G1 cells
+d=dist(centers)
+d=apply(as.matrix(d),1, function(x) mean(sort(x)[1:K]))
+g1cells_img=names(sort(d)[1:N])
+plot(centers$x,-centers$y,cex=log(imgStats[,"area_nucleus.p"]/1000),col=1+rownames(centers) %in% g1cells_img,pch=1+19*rownames(centers) %in% g1cells_img)
+text(centers$x,-centers$y, rownames(centers),cex=0.4)
+
+## Image stats postprocess
+# imgStats=as.data.frame(apply(imgStats, 2, function(x) (x - mean(x,na.rm=T))/sd(x,na.rm=T))) ## standardize
+# write.table(cbind(rownames(imgStats),imgStats),col.names = c("cellID",colnames(imgStats)),file=paste0("~/Downloads/",FoF,"_organelleFeatures.txt"),sep="\t",quote = F,row.names = F)
+
+## Same number of sequenced and imaged cells:
+seqStats=seqStats[sample(nrow(seqStats),size = nrow(imgStats)),]
+g1cells_seq=rownames(seqStats)[ccState[rownames(seqStats)]=="G0G1"]
+
+## UMAP
 imgStats_=as.data.frame(umap::umap(imgStats)$layout)
-plot(imgStats_,pch=20)
-
 seqStats_=as.data.frame(umap::umap(seqStats)$layout)
-plot(seqStats_,pch=20)
 
+## MST imaging:
+par(mfrow=c(1,2))
+tree=slingshot(imgStats_,rep(1,nrow(imgStats_))); 
+cc_img=slingshot::slingPseudotime(tree)+1
+col=rainbow(max(cc_img[rownames(imgStats_),1]))
+plot(imgStats_, asp = 1,pch=15-13*(!rownames(imgStats_) %in% g1cells_img), col=col[round(cc_img[rownames(imgStats_),1])])
+lines(as.SlingshotDataSet(tree), type = 'c', lwd = 3)
+## MST sequencing:
+tree2=slingshot(seqStats_,rep(1,nrow(seqStats_))); 
+cc_seq=slingshot::slingPseudotime(tree2)+1
+col=rainbow(max(cc_seq[rownames(seqStats_),1]))
+plot(seqStats_, asp = 1, pch=15-13*(!rownames(seqStats_) %in% g1cells_seq),col=col[round(cc_seq[rownames(seqStats_),1])])
+lines(as.SlingshotDataSet(tree2), type = 'c', lwd = 3)
 
-# plot together
-par(mfrow=c(2,2))
-sapply(colnames(seqStats), function(x) hist(seqStats[,x],xlab=x))
-sapply(colnames(imgStats), function(x) hist(imgStats[,x],xlab=x))
+## Calculate pseudotime difference to G1 cells
+d_i= sapply(cc_img, function(x) quantile(cc_img[g1cells_img,]-x,))
+d_s= sapply(cc_seq, function(x) quantile(cc_seq[g1cells_seq,]-x,))
+d_i= as.data.frame(t(d_i))
+d_s= as.data.frame(t(d_s))
+d_i$type="img"
+d_s$type="seq"
 
-
-## Overlay distributions
-##@TODO:  ensure they imgStats have same ncol as seqStats and that they are in desired order (which pair of features match)
-colnames(imgStats_)<-colnames(seqStats_)<-c("x","y")
-seqStatsMapped=list()
-for(i in 1:ncol(imgStats_)){
-  overlayHist(seqStats_[,i],imgStats_[,i])$p
-  seqStatsMapped[[colnames(imgStats_)[i]]]=overlayDistributions1D(seqStats_[,i],imgStats_[,i], q=c(0.1,0.5,0.9))
-}
-seqStatsMapped$x$p
-ggsave(filename = "~/Downloads/volumeFeature.png",width = 4,height = 3)
-## Overwrite seqStats
-seqStats_=as.data.frame(sapply(seqStatsMapped,function(x) x$dat$data))
-colnames(seqStats_)=colnames(imgStats_)
-seqStats_=seqStats_[sample(nrow(seqStats_),size = nrow(imgStats_)),]
 ## co-cluster image and sequencing stats
-imgStats_$type="img"
-seqStats_$type="seq"
-stats=rbind(imgStats_,seqStats_)
+stats=rbind(d_i,d_s)
 rownames(stats) = paste(rownames(stats), stats$type)
 dd = dist(stats[,1:2])
 tr = ape::nj(dd)
-plot(tr)
 col = rep("red", length(tr$tip.label))
 col[grep("img",tr$tip.label) ] = "blue"
 par(mfrow=c(1,1))
 plot(tr,show.tip.label = T, tip.color = col, cex=0.36)
-legend("topright",c("sequencing","imaging"),fill=c("red","blue"))
+legend("topright",c("sequenced cell","imaged cell"),fill=c("red","blue"),cex=1.8)

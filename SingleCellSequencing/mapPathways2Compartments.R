@@ -47,17 +47,21 @@ B01=paste0("../../data/GastricCancerCL/RNAsequencing/B01_220112_pathwayActivity"
 B02=paste0("../../data/GastricCancerCL/RNAsequencing/B02_220112_seqStats", filesep, CELLLINE)
 dir.create(OUTD,recursive = T)
 # cellID=251
-cellID=23
+cellID=145
+FoF="../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A06_multiSignals_Linked/FoF16_210818_fluorescent.cytoplasm/"
 
 ############################################################
 ### Load coordinates of various compartments for one cell ##
 # coord = get_Compartment_coordinates(300)
-coord = get_compartment_coordinates_FromAllen(nucleusF = paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/H05_multiOrganelles_Linked/nucleus.p_cell_",cellID,"_coordinates.csv"), mitoF = paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/H05_multiOrganelles_Linked/mito.p_cell_",cellID,"_coordinates.csv"),cytosolF = paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/H05_multiOrganelles_Linked/cytoplasm.p_cell_",cellID,"_coordinates.csv"), XYZCOLS = c("x","y","z"), size = 1);
+rgl::close3d()
+coord = get_compartment_coordinates_FromAllen(nucleusF = paste0(FoF,"nucleus.p_cell_",cellID,"_coordinates.csv"), 
+                                              mitoF = paste0(FoF,"mito.p_cell_",cellID,"_coordinates.csv"),
+                                              cytosolF = paste0(FoF,"cytoplasm.t_cell_",cellID,"_coordinates.csv"), XYZCOLS = c("x","y","z"), size = 1);
 # coord = get_compartment_coordinates_FromAllen(nucleusF = paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/H05_multiOrganelles_Linked/nucleus.p_cell_",cellID,"_coordinates.csv"), mitoF = paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/H05_multiOrganelles_Linked/mito.p_cell_",cellID,"_coordinates.csv"), XYZCOLS = c("x","y","z"), size = 3);
 rgl::movie3d(
   movie="~/Downloads/CellCompartmentsIn3D_Placeholder", 
-  rgl::spin3d( axis = c(1, 1, 1), rpm = 3),
-  duration = 20, 
+  rgl::spin3d( axis = c(1, 1, 1), rpm = 18),
+  duration = 3, 
   dir = "~/Downloads/",
   type = "gif", 
   clean = TRUE
@@ -129,7 +133,10 @@ save(file='~/Downloads/tmp_coord.RObj', list=c('coord','OUTD', 'lpp','pq','path2
 pathwayColors=rainbow(length(lpp))
 names(pathwayColors)=names(lpp)
 LOI=c("gray","pink","cyan")
-names(LOI)=c("nucleus","mitochondrion","cytosol")
+alpha=rep(0.05,length(LOI));
+names(alpha) <- names(LOI) <- c("nucleus","mitochondrion","cytosol")
+alpha["nucleus"]=1
+alpha["cytoplasm"]=0.01
 for (cellName in colnames(pq)[1]){
   dir.create(paste0(OUTD,filesep,cellName))
   pathwayExpressionPerCell <- pq[,cellName]/20
@@ -175,12 +182,11 @@ for (cellName in colnames(pq)[1]){
   }
   ##  Plot all pathways together
   rgl::close3d()
-  alpha=0.575
   for(compartment in names(LOI)){
     ii=which(coord[,compartment]==1)
-    hull=Plot_ConcaveHull(coord[ii,1], coord[ii,2], coord[ii,3], lcolor =LOI[compartment], alpha=alpha)
-    alpha=alpha-0.2
+    hull=Plot_ConcaveHull(coord[ii,1], coord[ii,2], coord[ii,3], lcolor =LOI[compartment], alpha=alpha[compartment])
   }
+  legend3d("topleft",names(LOI),fill=LOI)
   for(j in names(lpp)){
     pmap_ = pmap[pmap[,j]>0,]
     rgl::points3d(x=pmap_$x, y=pmap_$y, z=pmap_$z,add=F, size=8,col=pathwayColors[j], xlim=quantile(coord$x,c(0,1)), ylim=quantile(coord$y,c(0,1)), zlim=quantile(coord$z,c(0,1)), axes=F, xlab="",ylab="", zlab="", alpha=0.7)

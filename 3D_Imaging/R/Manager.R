@@ -114,9 +114,13 @@ signals_per_id=signals_per_id[!signals_per_id$x %in% toRM,]
 
 ## Read in linked organelles
 coord_=readOrganelleCoordinates(signals_per_id, names(signals), OUTLINKED_)
+save(file=paste0("~/Downloads/stats_",FoF,".RObj"),"coord_")
 coord=coord_
 
-## Visualize organelles
+
+##########################
+## Visualize organelles ##
+##########################
 tmp = quantile(coord_$z,c(0,1))
 space=tmp[2]-tmp[1]
 zlim=c(tmp[1]-space/2, tmp[2]+space/2)
@@ -129,7 +133,7 @@ alpha=list(cytoplasm.p=0.01,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=1,mito.t=0.1,
 for(s in names(signals)){
   X=coord_[coord_$signal==s,]
   if(s=="nucleus.p"){
-    rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[X$signal],alpha=alpha[[s]], add=F)
+    rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[X$signal],alpha=alpha[[s]], add=T)
   }else{
     rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[X$signal],alpha=alpha[[s]], add=T)
   }
@@ -148,8 +152,6 @@ rgl::plot3d(coord_$x, coord_$y, coord_$z, pch=20, zlim=zlim, size=2, axes=F, xla
 #   type = "gif",
 #   clean = TRUE
 # )
-
-
 
 ## Gather stats
 cells=unique(coord_$id)
@@ -180,10 +182,17 @@ imgStats$pixel_per_volume_mito=imgStats$pixels_mito.p/imgStats$vol_mito.p
 for(organelle in signals){
   imgStats[,paste0("pixels_per_volume_",organelle)]=imgStats[,paste0("pixels_",organelle)]/imgStats[,paste0("vol_",organelle)]
 }
-write.table(imgStats,file=paste0(OUTSTATS,filesep,FoF,"_stats.txt"),sep="\t",quote=F,row.names = F)
+imgStats$nuc_to_mito_plus_cyto = imgStats$vol_nucleus.p/(imgStats$vol_mito.p+imgStats$vol_cytoplasm.t)
+imgStats$nuc_to_cyto = imgStats$vol_nucleus.p/imgStats$vol_cytoplasm.t
+imgStats$nuc_to_mito = imgStats$vol_nucleus.p/imgStats$vol_mito.p
+imgStats$cyto_to_mito = imgStats$vol_cytoplasm.t/imgStats$vol_mito.p
+imgStats$nuc_vol_to_area=imgStats$vol_nucleus.p/imgStats$area_nucleus.p
+write.table(imgStats,file=paste0(OUTSTATS,filesep,FoF,"_stats.txt"),sep="\t",quote=F,row.names = T)
+
 
 ## Visualize stats
 imgStats=read.table(paste0(OUTSTATS,filesep,FoF,"_stats.txt"),header = T,sep="\t")
+## Z-score
 imgStats=apply(imgStats, 2, function(x) (x - mean(x,na.rm=T))/sd(x,na.rm=T))
 tmp=as.matrix(imgStats)
 tmp[!is.finite(tmp)]=NA

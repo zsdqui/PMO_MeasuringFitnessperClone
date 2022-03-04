@@ -1,5 +1,9 @@
 get_compartment_coordinates_FromAllen <-function(cytosolF="~/Downloads/fijitestout2.csv", mitoF="~/Downloads/fijitestout2.csv", nucleusF="~/Downloads/fijitestout3.csv",XYZCOLS = c("CX..pix.", "CY..pix.", "CZ..pix."), size=0.01){
   COMPCOLS = c("cytosol", "endoplasmic reticulum", "Golgi apparatus", "nucleus", "mitochondrion", "endosome", "lysosome", "peroxisome")
+  alpha=rep(1,length(COMPCOLS));
+  names(alpha)=COMPCOLS
+  alpha["nucleus"]=1
+  
   dummy =as.data.frame( matrix(0,1,length(COMPCOLS)))
   colnames(dummy) = COMPCOLS
   
@@ -34,7 +38,7 @@ get_compartment_coordinates_FromAllen <-function(cytosolF="~/Downloads/fijitesto
   for(o in names(colormap)){
     print(o)
     coord_ = coord[coord[,o]==1,]
-    rgl::points3d(coord_$x, coord_$y, coord_$z,col=colormap[o],add=T, size=size)
+    rgl::points3d(coord_$x, coord_$y, coord_$z,col=colormap[o],add=T, size=size,alpha=alpha[o])
     print(nrow(coord_))
   }
   rgl::legend3d("topleft", names(colormap), fill=colormap, bty='n',cex=1.7)
