@@ -2,7 +2,7 @@
 
 ## Command line arguments
 date=$1
-organelle=$2 # Choices: Nucleus, Cytoplasm, Mito
+organelle=$2
 source=$3
 channel=$4
 echo $date $organelle $source $channel

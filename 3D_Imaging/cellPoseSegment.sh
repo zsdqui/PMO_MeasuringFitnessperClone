@@ -11,8 +11,7 @@ mkdir $A04
 ## temp copy to cellpose folder
 cp $A03/*.tif $A04/
 
-
-## Segment each except for signal
+## Segment each 
 f=`ls $A04/*p.tif  $A04/*t.tif`
 conda activate cellpose
 for x in $f; do
@@ -24,9 +23,11 @@ for x in $f; do
   python3 $run_CellPose -imgPath $x -t $organelle -GPU 1
 done
 
-
 ## Move all coordinates one level up
-f=`find $A04/All_Cells_coordinates -type f -name *csv`
-mv $f $A04/All_Cells_coordinates/
+f=`find $A04/All_Cells_coordinates -type f -name *_cell_*csv`
+for x in $f; do 
+	mv $x $A04/All_Cells_coordinates/ ; 
+done
+#mv $f $A04/All_Cells_coordinates/
 torm=`ls -d $A04/All_Cells_coordinates/*/`
-rm -r $torm
+#rm -r $torm
