@@ -1,17 +1,19 @@
 # conda activate r_env
-# setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/R")
-setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
+setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/R")
+# setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
 source("CorrectCellposeSegmentation.R")
 source("assignCompartment2Nucleus.R")
 source("compareCells.R")
-# setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87")
-setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87")
+eps=read.table('../dbscan/eps.txt')
 library(matlab)
 library(rgl)
 library(geometry)
 
 
 ## Constants, Settings, Input and output folders:
+ROOT="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87"
+# ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87"
+setwd(ROOT)
 ZSTACK_DISTANCE=0.29
 r3dDefaults$windowRect=c(0,50, 800, 800) 
 INDIR="A04_CellposeOutput"
@@ -22,8 +24,8 @@ dir.create(OUTCORRECTED)
 dir.create(OUTLINKED)
 dir.create(OUTSTATS)
 ## Local helper functions
-correctSegmentations<-function(FoF, signals){
-  sapply(names(signals), function(x) CorrectCellposeSegmentation(FoF,signal=x,INDIR,OUTCORRECTED,doplot=F))
+correctSegmentations<-function(FoF, signals, eps){
+  sapply(names(signals), function(x) CorrectCellposeSegmentation(FoF,signal=x,INDIR,OUTCORRECTED,doplot=F,eps=eps[FoF,x]))
 }
 readOrganelleCoordinates<-function(signals_per_id, signals, IN){
   coord=c();
@@ -50,26 +52,31 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 ###############################################
 
 ## Input and output:
-FoF="FoF0_211007_fluorescent.nucleus"
+FoFs=c("FoF0_211007_fluorescent.nucleus", "FoF10_210803_fluorescent.nucleus")
 signals=list(nucleus.t="nucleus.t_Cells_Centers.csv", nucleus.p="nucleus.p_Cells_Centers.csv")
+stats=list()
+for(FoF in FoFs){
+  ## First correct segmentation output
+  correctSegmentations(FoF, signals, eps)
+  
+  ## Next link each predicted nucleus to its closest target nucleus
+  OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
+  setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
+  assignCompartment2Nucleus(signals$nucleus.p, signals$nucleus.t, OUTLINKED_)
+  setwd(ROOT)
+  
+  ## Compare each predicted to its linked target nucleus
+  stats[[FoF]]=compareCells(signals$nucleus.t, signals$nucleus.p, OUTLINKED_)
+}
+save(file="~/Downloads/stats.RObj","stats")
 
-## First correct segmentation output
-correctSegmentations(FoF, signals)
-
-## Next link each predicted nucleus to its closest target nucleus
-OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
-setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
-assignCompartment2Nucleus(signals[2], signals[1], OUTLINKED_)
-
-## Compare each predicted to its linked target nucleus
-stats=compareCells(signals[1], signals[2],OUTLINKED_)
-
-##Plot
-minmax=quantile(unlist(stats[,1:2]), c(0,1))
+##Plot stats for first FoF
+stats_=stats[[1]]
+minmax=quantile(unlist(stats_[,1:2]), c(0,1))
 par(mfrow=c(2,2))
-plot(stats$nucleus.t_NumPixels,stats$nucleus.p_NumPixels,pch=20,log="xy",xlim=minmax,ylim=minmax)
-hist(stats$nucleus.t_IntersectingPixels,col="cyan")
-hist(stats$nucleus.p_IntersectingPixels,col="cyan")
+plot(stats_$nucleus.t_NumPixels,stats_$nucleus.p_NumPixels,pch=20,log="xy",xlim=minmax,ylim=minmax)
+hist(stats_$nucleus.t_IntersectingPixels,col="cyan")
+hist(stats_$nucleus.p_IntersectingPixels,col="cyan")
 
 
 

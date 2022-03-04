@@ -1,4 +1,4 @@
-CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F){
+CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5){
   library(matlab)
   library(geometry)
   library(misc3d)
@@ -11,7 +11,7 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F){
   ############################################################
   ## Correct segmentation: merge ids belonging to same cell ##
   coord_=read.csv(paste0("./",INDIR,filesep,ID, "/Cells_center_coordinates/", signal, "_Cells_Centers.csv"))
-  o=dbscan::dbscan(coord_[,c("x","y","z")],eps = 2.5,minPts = 3)
+  o=dbscan::dbscan(coord_[,c("x","y","z")],eps = eps,minPts = 3)
   coord_$id=o$cluster
   fr=plyr::count(o$cluster)
   colnames(fr)[1]="newCellID"
