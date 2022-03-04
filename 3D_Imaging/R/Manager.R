@@ -91,7 +91,7 @@ signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Center
 OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
 
 ## First correct segmentation output
-eps=matrix(3,1,length(signals))
+eps=matrix(5,1,length(signals))
 rownames(eps)=FoF
 colnames(eps)=names(signals)
 correctSegmentations(FoF, signals["nucleus.p"], eps)
@@ -178,11 +178,14 @@ for(id in cells){
 imgStats$pixel_per_mito_avg=imgStats$pixels_mito.p/imgStats$count_mito.p
 imgStats$pixel_per_volume_mito=imgStats$pixels_mito.p/imgStats$vol_mito.p
 for(organelle in signals){
-  imgStats[,paste0("pixel_per_volume_",organelle)]=imgStats[,paste0("pixels_",organelle)]/imgStats[,paste0("vol_",organelle)]
+  imgStats[,paste0("pixels_per_volume_",organelle)]=imgStats[,paste0("pixels_",organelle)]/imgStats[,paste0("vol_",organelle)]
 }
 write.table(imgStats,file=paste0(OUTSTATS,filesep,FoF,"_stats.txt"),sep="\t",quote=F,row.names = F)
+
 ## Visualize stats
-tmp=as.matrix(log(imgStats))
+imgStats=read.table(paste0(OUTSTATS,filesep,FoF,"_stats.txt"),header = T,sep="\t")
+imgStats=apply(imgStats, 2, function(x) (x - mean(x,na.rm=T))/sd(x,na.rm=T))
+tmp=as.matrix(imgStats)
 tmp[!is.finite(tmp)]=NA
 hm = gplots::heatmap.2(tmp,trace = "none", margins = c(13, 6), symm = F)
 
