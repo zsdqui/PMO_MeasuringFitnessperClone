@@ -21,6 +21,8 @@ fnet predict --json $json --gpu_ids 1
 
 # Rename Allen Model output
 mv $A03/tifs/0_prediction_c0.$organelle".p.tif" $A03/$organelle".p.tif" 
-mv $A03/tifs/0_target.tif $A03/$target".t.tif"
-
+# Only if input includes fluorescence signal:
+if [ "$FoF" != "$target" ]; then
+	mv $A03/tifs/0_target.tif $A03/$target".t.tif"
+fi
 
