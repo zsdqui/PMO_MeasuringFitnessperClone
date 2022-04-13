@@ -1,4 +1,18 @@
 #!/bin/sh
+programname=$0
+
+usage() {
+	echo "usage: $programname date organelle source channel"
+	echo "  date:           acquisition date"
+	echo "  organelle:      origin of fluorescence signal (accepted values: Mito, Cytoplasm, Nucleus)"
+	echo "  source:         are images to be used as signal or target (accepted values: s, t for brightfield, fluorescence respectively)"
+	echo "  channel:        on which channel do we find the source (e.g. 00 for fluorescence, 01 for brightfield)"
+	exit 1
+	}
+
+if [ $# -ne 4 ] ; then
+	usage
+fi
 
 ## Command line arguments
 date=$1
