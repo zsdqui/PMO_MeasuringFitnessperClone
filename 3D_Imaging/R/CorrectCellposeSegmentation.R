@@ -11,7 +11,9 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5)
   ############################################################
   ## Correct segmentation: merge ids belonging to same cell ##
   coord_=read.csv(paste0("./",INDIR,filesep,ID, "/Cells_center_coordinates/", signal, "_Cells_Centers.csv"))
-  o=dbscan::dbscan(coord_[,c("x","y","z")],eps = eps,minPts = 3)
+  o=dbscan::dbscan(coord_[,c("x","y","z")],eps = eps,minPts = 2)
+  Sys.sleep(10)
+  file.remove("Rplots.pdf")
   coord_$id=o$cluster
   fr=plyr::count(o$cluster)
   colnames(fr)[1]="newCellID"
@@ -58,4 +60,5 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5)
       sapply(list.files(paste0(INDIR,filesep,ID,"/",res,"/"),pattern = other,full.names = T), function(x) file.copy(x,paste0(OUTDIR,filesep,ID, "/",res,"/",fileparts(x)$name,".csv")))
     }
   }
+
 }
