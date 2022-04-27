@@ -1,8 +1,21 @@
 #!/bin/sh
+programname=$0
 
+usage() {
+  echo "usage: $programname FoF"
+  echo "  FoF:           unique FoF ID associated with this acquisition"
+  exit 1
+  }
+
+if [ $# -ne 4 ] ; then
+  usage
+fi
+
+## Command line arguments
 FoF=$1
 # FoF='FoF1_211027_fluorescent.mito'
 
+## Cellpose path, root path and target path
 run_CellPose='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/run_CellPose_3D_v1.py'
 root='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87/'
 A03=$root/A03_allenModel/$FoF

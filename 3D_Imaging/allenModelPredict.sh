@@ -1,8 +1,22 @@
 #!/bin/sh
+programname=$0
 
+usage() {
+	echo "usage: $programname FoF organelle "
+	echo "  FoF:           unique FoF ID associated with this acquisition"
+	echo "  organelle:      origin of fluorescence signal (accepted values: mito, nucleus, cytoplasm)"
+	exit 1
+	}
+
+if [ $# -ne 4 ] ; then
+	usage
+fi
+
+## Command line arguments
 FoF=$1
 organelle=$2
 
+## Root path and target path
 A02="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87/A02_ometiffconversion"
 A03="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87/A03_allenModel/"$FoF
 json=$A02/$FoF.$organelle".json"

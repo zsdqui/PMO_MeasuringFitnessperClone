@@ -4,7 +4,7 @@ programname=$0
 usage() {
 	echo "usage: $programname date organelle source channel"
 	echo "  date:           acquisition date"
-	echo "  organelle:      origin of fluorescence signal (accepted values: Mito, Cytoplasm, Nucleus)"
+	echo "  organelle:      origin of fluorescence signal (accepted values: mito, nucleus, cytoplasm)"
 	echo "  source:         are images to be used as signal or target (accepted values: s, t for brightfield, fluorescence respectively)"
 	echo "  channel:        on which channel do we find the source (e.g. 00 for fluorescence, 01 for brightfield)"
 	exit 1
@@ -20,6 +20,7 @@ organelle=$2
 source=$3
 channel=$4
 echo $date $organelle $source $channel
+
 ## Root path and step ID
 root='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87'
 stepID='A01_rawData'
