@@ -11,18 +11,19 @@ ROOT="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricC
 setwd(ROOT)
 ZSTACK_DISTANCE=0.29
 r3dDefaults$windowRect=c(0,50, 800, 800) 
-INDIR="A04_CellposeOutput"
-OUTCORRECTED="B05_TestDBSCANsettings"
 FoFs="FoF12_211110_fluorescent.nucleus"
-eps = 8
-OUTSTATS=paste0("B06_Stats",filesep,FoF)
-dir.create(OUTCORRECTED)
+EPS=eps[1,1]
+INDIR="A04_CellposeOutput"
+OUTCORRECTED=paste0("B05_TestDBSCANsettings",filesep,FoFs,filesep,EPS)
+OUTSTATS=paste0("B06_Stats",filesep,FoFs)
+dir.create(OUTCORRECTED,recursive=T)
 dir.create(OUTSTATS)
 
 ## Local helper functions
 correctSegmentations<-function(FoF, signals, eps){
   sapply(names(signals), function(x) CorrectCellposeSegmentation(FoF,signal=x,INDIR,OUTCORRECTED,doplot=F,eps=eps[FoF,x]))
 }
+
 readOrganelleCoordinates<-function(signals_per_id, signals, IN){
   coord=c();
   for(cell in signals_per_id$x){
@@ -86,4 +87,8 @@ for(id in cells){
   }
 }
 
-write.table(imgStats,file=paste0(OUTSTATS,filesep,FoF,eps,"_stats.txt"),sep="\t",quote=F,row.names = T)
+# Add unique identifier columns for eps
+imgStats$eps = EPS
+
+# Save stats in csv
+write.csv(imgStats,file=paste0(OUTSTATS,filesep,EPS,"eps_stats.csv"), row.names = FALSE)
