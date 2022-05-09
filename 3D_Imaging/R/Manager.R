@@ -198,3 +198,21 @@ tmp=as.matrix(imgStats)
 tmp[!is.finite(tmp)]=NA
 hm = gplots::heatmap.2(tmp,trace = "none", margins = c(13, 6), symm = F)
 
+
+## Visualize segmentation stats for various DBSCAN runs
+library(ggplot2)
+library(patchwork)
+FoF="FoF12_211110_fluorescent.nucleus"
+setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87/D06_Stats")
+f=list.files()
+X=lapply(f, function(x) read.csv(paste0(x,filesep,FoF,"_stats.csv")))
+X_=sapply(X, function(x) x$vol_nucleus.t[x$vol_nucleus.t>0])
+names(X_)=f
+
+p=lapply(names(X_), function(x) ggplot(data.frame(X_[[x]]), aes(X_[[x]])) +
+           geom_histogram(bins = 32) + ggtitle(x)
+         + scale_x_continuous(trans = "log")         )
+
+p[[1]]+p[[2]]+p[[3]]#+p[[4]]+p[[5]]+p[[6]]+p[[7]]+p[[8]]+p[[9]]+p[[10]]
+p[[11]]+p[[12]]+p[[13]]+p[[14]]+p[[15]]
+

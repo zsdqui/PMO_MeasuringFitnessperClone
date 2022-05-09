@@ -1,4 +1,4 @@
-CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5){
+CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5, minPts = 2, IMPORTALLORGANELLES=T){
   library(matlab)
   library(geometry)
   library(misc3d)
@@ -11,7 +11,7 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5)
   ############################################################
   ## Correct segmentation: merge ids belonging to same cell ##
   coord_=read.csv(paste0("./",INDIR,filesep,ID, "/Cells_center_coordinates/", signal, "_Cells_Centers.csv"))
-  o=dbscan::dbscan(coord_[,c("x","y","z")],eps = eps,minPts = 2)
+  o=dbscan::dbscan(coord_[,c("x","y")],eps = eps, minPts = minPts)
   Sys.sleep(10)
   file.remove("Rplots.pdf")
   coord_$id=o$cluster
@@ -55,10 +55,12 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5)
   print(paste(nrow(coord_),"cell IDs merged into",length(newCellCoord),"unique IDs"))
   
   ## Also copy mitochondria and cytoplasm (if they exist):
-  for(other in c("mito","cyto")){
-    for(res in c("Cells_center_coordinates","All_Cells_coordinates")){
-      sapply(list.files(paste0(INDIR,filesep,ID,"/",res,"/"),pattern = other,full.names = T), function(x) file.copy(x,paste0(OUTDIR,filesep,ID, "/",res,"/",fileparts(x)$name,".csv")))
+  if(IMPORTALLORGANELLES){
+    for(other in c("mito","cyto")){
+      for(res in c("Cells_center_coordinates","All_Cells_coordinates")){
+        sapply(list.files(paste0(INDIR,filesep,ID,"/",res,"/"),pattern = other,full.names = T), function(x) file.copy(x,paste0(OUTDIR,filesep,ID, "/",res,"/",fileparts(x)$name,".csv")))
+      }
     }
   }
-
+  
 }
