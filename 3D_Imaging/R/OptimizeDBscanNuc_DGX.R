@@ -14,8 +14,9 @@ r3dDefaults$windowRect=c(0,50, 800, 800)
 FoFs="FoF12_211110_fluorescent.nucleus"
 EPS=eps[1,1]
 INDIR="A04_CellposeOutput"
-OUTCORRECTED=paste0("B05_TestDBSCANsettings",filesep,FoFs,filesep,EPS)
-OUTSTATS=paste0("B06_Stats",filesep,FoFs)
+#OUTCORRECTED=paste0("C05_TestDBSCANsettings",filesep,FoFs,filesep,EPS)
+OUTCORRECTED=paste0("C05_TestDBSCANsettings",filesep,FoFs,filesep,EPS)
+OUTSTATS=paste0("C06_Stats",filesep,FoFs)
 dir.create(OUTCORRECTED,recursive=T)
 dir.create(OUTSTATS)
 
@@ -54,7 +55,9 @@ for(FoF in FoFs){
   correctSegmentations(FoF, signals, eps)
 }
 
-OUTCORRECTED_=paste0(getwd(),filesep,OUTCORRECTED,filesep,FoF,filesep, "All_Cells_coordinates", filesep)
+OUTCORRECTED=paste0("C05_TestDBSCANsettings",filesep,FoFs,filesep,EPS)
+#filesep,OUTCORRECTED,filesep,FoF,filesep, 
+OUTCORRECTED_=paste0(getwd(),filesep,OUTCORRECTED,filesep,"All_Cells_coordinates")
 
 ## Keep only cells with one signal:
 f=list.files(OUTCORRECTED_,full.names = T, pattern="nucleus.t")
