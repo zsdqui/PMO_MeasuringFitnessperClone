@@ -82,18 +82,18 @@ imgStats_=as.data.frame(umap::umap(imgStats)$layout)
 seqStats_=as.data.frame(umap::umap(seqStats)$layout)
 
 ## MST imaging:
+col=c(brewer.pal(3,"Reds"),brewer.pal(6,"YlGn"),brewer.pal(3,"Blues"))
 par(mfrow=c(1,2))
 tree=slingshot(imgStats_,rep(1,nrow(imgStats_))); 
 cc_img=slingshot::slingPseudotime(tree)+1
-col=rainbow(max(cc_img[rownames(imgStats_),1]))
 plot(imgStats_, asp = 1,pch=15-13*(!rownames(imgStats_) %in% g1cells_img), col=col[round(cc_img[rownames(imgStats_),1])])
 lines(as.SlingshotDataSet(tree), type = 'c', lwd = 3)
 ## MST sequencing:
 tree2=slingshot(seqStats_,rep(1,nrow(seqStats_))); 
 cc_seq=slingshot::slingPseudotime(tree2)+1
-col=rainbow(max(cc_seq[rownames(seqStats_),1]))
 plot(seqStats_, asp = 1, pch=15-13*(!rownames(seqStats_) %in% g1cells_seq),col=col[round(cc_seq[rownames(seqStats_),1])])
 lines(as.SlingshotDataSet(tree2), type = 'c', lwd = 3)
+
 
 ## Calculate pseudotime difference to G1 cells
 d_i= sapply(cc_img, function(x) quantile(cc_img[g1cells_img,]-x,))
