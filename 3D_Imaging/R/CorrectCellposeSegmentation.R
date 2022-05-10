@@ -53,12 +53,16 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5,
   hist(fr$freq)
   ## Plot coordinates for cells of interest
   if(doplot){
+    o2=dbscan::dbscan(centroids[,c("x","y")],eps = eps*8, minPts = 2)
+    coi=rownames(centroids)[o2$cluster==3]
+    plot(centroids[,"x"],-centroids[,"y"],pch=20,col=1+(rownames(centroids) %in% coi))
+    # coi=fr$newCellID[seq(1,nrow(fr),by=20)]
     rgl::close3d()
-    coi=fr$newCellID[seq(1,nrow(fr),by=20)]
     for(cell in coi){
       a=newCellCoord[[as.character(cell)]]
-      hull=Plot_ConcaveHull(a$x, a$y, a$z, lcolor =which(cell==coi), alpha=0.5,add = T)
+      hull=Plot_ConcaveHull(a$x, -a$y, a$z, lcolor =which(cell==coi), alpha=0.5,add = T)
     }
+    view3d( theta = 0, phi = 0, fov=0)
   }
   ## Save output
   tmp=sapply(1:length(newCellCoord), function(id) write.csv(newCellCoord[[id]],file=paste0("./",OUTDIR,filesep,ID, "/All_Cells_coordinates/", signal, "_cell_",id,"_coordinates.csv"), row.names = F, quote = F))
@@ -73,5 +77,4 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5,
       }
     }
   }
-  
 }
