@@ -1,7 +1,7 @@
 # source("R/generateImageMask.R")
 # FoF="FoF1001_220407_brightfield";
 # generateImageMask(FoF)
-generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR="B06_OrganelleMasks", root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87"){
+generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR="B06_OrganelleMasks", root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87", targetcellids=NULL){
   library(matlab)
   OUTDIR=paste0(root,filesep,OUTDIR)
   olddir=getwd()
@@ -13,8 +13,15 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
   dir.create(paste0(OUTDIR,filesep,FoF))
   
   tmp=list.files()
-  cells=1:length(tmp)
+  cells=sample(length(tmp),length(tmp))
   names(cells)=tmp
+  ## mark filtered cells if applicable
+  if(!is.null(targetcellids)){
+    allids=sapply(strsplit(names(cells),"cell_"),"[[",2)
+    allids=sapply(strsplit(allids,"_"),"[[",1)
+    cells[!allids %in% targetcellids]=NA
+  }
+  
   zstack=70
   images=list()
   for(z in 1:zstack){
@@ -40,8 +47,11 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
   }
   
   ## animate at 2 frames per second
-  cmd=paste0("convert -delay 20 -loop 0 ",OUTDIR,filesep,FoF,filesep,"*.tif ",OUTDIR,filesep,FoF,".gif ")
+  prefix=paste0(OUTDIR,filesep,FoF)
+  cmd=paste0("convert -delay 20 -loop 0 ",prefix,filesep,"*.tif ",prefix,".gif ")
   system(cmd)
+  ## Clean up:
+  try(sapply(list.files(prefix, pattern=".tif", full.names=T), file.remove))
   
   setwd(olddir)
   # if(all(sapply(images,class)!="try-error")){

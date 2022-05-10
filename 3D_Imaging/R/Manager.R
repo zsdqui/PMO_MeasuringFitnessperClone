@@ -202,17 +202,33 @@ hm = gplots::heatmap.2(tmp,trace = "none", margins = c(13, 6), symm = F)
 ## Visualize segmentation stats for various DBSCAN runs
 library(ggplot2)
 library(patchwork)
-FoF="FoF12_211110_fluorescent.nucleus"
-setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87/D06_Stats")
-f=list.files()
-X=lapply(f, function(x) read.csv(paste0(x,filesep,FoF,"_stats.csv")))
-X_=sapply(X, function(x) x$vol_nucleus.t[x$vol_nucleus.t>0])
-names(X_)=f
+Y=list()
+# PIXEL2UM = 
+for(COI in c("zslices_nucleus.t","vol_nucleus.t")){
+  FoF="FoF12_211110_fluorescent.nucleus"
+  setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87/D06_Stats")
+  f=list.files()
+  X=lapply(f, function(x) read.csv(paste0(x,filesep,FoF,"_stats.csv")))
+  X_=sapply(X, function(x) x[x[,COI]>0, COI])
+  names(X_)=f
+  ## Sort by epsilon
+  eps=gsub("EPS","",sapply(strsplit(names(X_),"_"),"[[",1))
+  Y[[COI]]=X_[order(as.numeric(eps))]
+}
+## params & stats
+med=as.data.frame(sapply(Y, function(X_) sapply(X_, median)))
+plot(med$zslices_nucleus.t, med$vol_nucleus.t, pch=21, cex=2)
+text(med$zslices_nucleus.t-1, med$vol_nucleus.t+75,gsub("MINPTS","M",names(Y[[1]])),cex=0.7)
 
+
+X_=Y[[2]]
 p=lapply(names(X_), function(x) ggplot(data.frame(X_[[x]]), aes(X_[[x]])) +
-           geom_histogram(bins = 32) + ggtitle(x)
+         geom_histogram(bins = 32) + ggtitle(x)
          + scale_x_continuous(trans = "log")         )
 
-p[[1]]+p[[2]]+p[[3]]#+p[[4]]+p[[5]]+p[[6]]+p[[7]]+p[[8]]+p[[9]]+p[[10]]
-p[[11]]+p[[12]]+p[[13]]+p[[14]]+p[[15]]
+print(sapply(X_,median))
+p[[1]]+p[[2]]+p[[3]]+p[[4]]+p[[5]]+p[[6]]+p[[7]]+p[[8]]+p[[9]]
+p[[10]]+p[[11]]+p[[12]]+p[[13]]+p[[14]]+p[[15]]+p[[16]]+p[[17]]+p[[18]]
+p[[19]]+p[[20]]+p[[21]]+p[[22]]+p[[23]]+p[[24]]+p[[25]]+p[[26]]+p[[27]]
+p[[28]]+p[[29]]+p[[30]]
 
