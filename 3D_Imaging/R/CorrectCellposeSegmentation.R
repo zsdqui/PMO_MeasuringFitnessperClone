@@ -1,4 +1,4 @@
-CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5, minPts = 2, IMPORTALLORGANELLES=T){
+CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5, minPts = 2, IMPORTALLORGANELLES=T, MINZSLICES=0.4*70){
   library(matlab)
   library(geometry)
   library(misc3d)
@@ -22,6 +22,7 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5,
   
   fr$datapoints=NA
   newCellCoord=list()
+  allNewCellIDs = fr$newCellID
   for(newCell in fr$newCellID){
     ##Gather all coordinates associated with new cell
     oldCells=which(newCell==coord_$id)
@@ -31,10 +32,20 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5,
       dm_$oldid=oldid
       tmp=rbind(tmp,dm_)
     }
+    ## Filter by zstack representation
+    if(length(round(unique(tmp$z),1)) < MINZSLICES){
+      allNewCellIDs =setdiff(allNewCellIDs, newCell)
+      next
+    }
     newCellCoord[[as.character(newCell)]]=tmp
     ## Record # of coordinates:
     fr$datapoints[fr$newCellID==newCell]=nrow(tmp)
   }
+  if(isempty(allNewCellIDs)){
+    print("None of the cells have sufficient zstack representation. No cells saved")
+    return()
+  }
+  fr = fr[fr$newCellID %in% allNewCellIDs, ]
   ## Stats
   centroids=t(sapply(newCellCoord, function(x) apply(x[,c("x","y","z")],2,mean)))
   colnames(centroids)=c("x","y","z")
