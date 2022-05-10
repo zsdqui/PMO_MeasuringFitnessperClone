@@ -12,7 +12,8 @@ library(geometry)
 ROOT="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87"
 setwd(ROOT)
 ZSTACK_DISTANCE=0.29
-MINZSLICES = 0.6*70
+PIXEL2UM = lis(X=246.03/1024, Y=246.03/1024, Z=21/70)
+MINZSLICES = 0.4*70
 r3dDefaults$windowRect=c(0,50, 800, 800) 
 FoF="FoF12_211110_fluorescent.nucleus"
 INDIR="A04_CellposeOutput"
