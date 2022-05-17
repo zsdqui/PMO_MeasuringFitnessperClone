@@ -4,6 +4,7 @@ setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
 source("CorrectCellposeSegmentation.R")
 source("assignCompartment2Nucleus.R")
 source("compareCells.R")
+source("Utils.R")
 eps=read.table('../dbscan/eps.txt')
 library(matlab)
 library(rgl)
@@ -15,7 +16,9 @@ library(geometry)
 ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87"
 setwd(ROOT)
 ZSTACK_DISTANCE=0.29
-r3dDefaults$windowRect=c(0,50, 800, 800) 
+EPS=6
+MINPTS=4
+r3dDefaults$windowRect=c(0,50, 1600, 800) 
 INDIR="A04_CellposeOutput"
 OUTCORRECTED="A05_PostProcessCellposeOutput"
 OUTLINKED="A06_multiSignals_Linked"
@@ -52,12 +55,21 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 ###############################################
 
 ## Input and output:
-FoFs=c("FoF0_211007_fluorescent.nucleus", "FoF10_210803_fluorescent.nucleus")
-signals=list(nucleus.t="nucleus.t_Cells_Centers.csv", nucleus.p="nucleus.p_Cells_Centers.csv")
+FoFs=c("FoF1001_220407_brightfield", "FoF2001_220407_brightfield", "FoF3001_220407_brightfield", "FoF4001_220407_brightfield")
+signals=list(nucleus.p="nucleus.p_Cells_Centers.csv"); #nucleus.t="nucleus.t_Cells_Centers.csv", 
 stats=list()
+mfrow3d(nr = 1, nc = 4, sharedMouse = TRUE)  
 for(FoF in FoFs){
+  unlink(paste0(OUTCORRECTED,filesep,FoF),recursive=T)
+  
+  ###############################################
+  ###### Correcting Cellpose Segmentation #######
+  ###############################################
   ## First correct segmentation output
-  correctSegmentations(FoF, signals, eps)
+  # correctSegmentations(FoF, signals, eps)
+  CorrectCellposeSegmentation(FoF,signal=names(signals),INDIR,OUTCORRECTED,doplot=T,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
+  # rgl.snapshot("~/Downloads/Brightfield_Timeseries.png")
+  generateImageMask(FoF, INDIR=OUTCORRECTED, OUTDIR=OUTCORRECTED)
   
   ## Next link each predicted nucleus to its closest target nucleus
   OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
@@ -203,7 +215,6 @@ hm = gplots::heatmap.2(tmp,trace = "none", margins = c(13, 6), symm = F)
 library(ggplot2)
 library(patchwork)
 Y=list()
-# PIXEL2UM = 
 for(COI in c("zslices_nucleus.t","vol_nucleus.t")){
   FoF="FoF12_211110_fluorescent.nucleus"
   setwd("~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87/D06_Stats")
@@ -218,8 +229,7 @@ for(COI in c("zslices_nucleus.t","vol_nucleus.t")){
 ## params & stats
 med=as.data.frame(sapply(Y, function(X_) sapply(X_, median)))
 plot(med$zslices_nucleus.t, med$vol_nucleus.t, pch=21, cex=2)
-text(med$zslices_nucleus.t-1, med$vol_nucleus.t+75,gsub("MINPTS","M",names(Y[[1]])),cex=0.7)
-
+text(jitter(med$zslices_nucleus.t-1,5), jitter(med$vol_nucleus.t+5,50),gsub("MINPTS","M",names(Y[[1]])),cex=0.7)
 
 X_=Y[[2]]
 p=lapply(names(X_), function(x) ggplot(data.frame(X_[[x]]), aes(X_[[x]])) +

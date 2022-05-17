@@ -1,4 +1,4 @@
-CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5, minPts = 2, IMPORTALLORGANELLES=T, MINZSLICES=0.4*70){
+CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5, minPts = 2, IMPORTALLORGANELLES=T, MINZSLICES=0.4*70, doplotcentercoord=c(100,500)){
   library(matlab)
   library(geometry)
   library(misc3d)
@@ -50,17 +50,19 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5,
   centroids=t(sapply(newCellCoord, function(x) apply(x[,c("x","y","z")],2,mean)))
   colnames(centroids)=c("x","y","z")
   fr=fr[order(fr$datapoints),]
-  hist(fr$freq)
+  # hist(fr$freq)
   ## Plot coordinates for cells of interest
   if(doplot){
-    o2=dbscan::dbscan(centroids[,c("x","y")],eps = eps*8, minPts = 2)
-    coi=rownames(centroids)[o2$cluster==3]
+    o2=flexclust::dist2(centroids[,c("x","y")],doplotcentercoord)
+    coi=rownames(centroids)[order(o2)[1:5]]
     plot(centroids[,"x"],-centroids[,"y"],pch=20,col=1+(rownames(centroids) %in% coi))
     # coi=fr$newCellID[seq(1,nrow(fr),by=20)]
-    rgl::close3d()
+    # rgl::open3d()
+    add = F
     for(cell in coi){
       a=newCellCoord[[as.character(cell)]]
-      hull=Plot_ConcaveHull(a$x, -a$y, a$z, lcolor =which(cell==coi), alpha=0.5,add = T)
+      hull=Plot_ConcaveHull(a$x, -a$y, a$z, lcolor =which(cell==coi), alpha=0.5,add = add)
+      add = T
     }
     view3d( theta = 0, phi = 0, fov=0)
   }

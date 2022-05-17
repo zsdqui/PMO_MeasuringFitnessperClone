@@ -11,8 +11,8 @@ library(geometry)
 ## Constants, Settings, Input and output folders:
 ROOT="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87"
 setwd(ROOT)
-ZSTACK_DISTANCE=0.29
-PIXEL2UM = lis(X=246.03/1024, Y=246.03/1024, Z=21/70)
+# ZSTACK_DISTANCE=0.29
+PIXEL2UM = list(X=246.03/1024, Y=246.03/1024, Z=21/70)
 MINZSLICES = 0.4*70
 r3dDefaults$windowRect=c(0,50, 800, 800) 
 FoF="FoF12_211110_fluorescent.nucleus"
@@ -38,7 +38,7 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
     }
   }
   coord$id=as.numeric(coord$id)
-  coord$z=coord$z*ZSTACK_DISTANCE
+  # coord$z=coord$z*ZSTACK_DISTANCE
   return(coord)
 }
 visualize3Dsegmentations<-function(coord_,prefix){
@@ -73,7 +73,7 @@ visualize3Dsegmentations<-function(coord_,prefix){
 eps[,2:10]=seq(1,18,by=2)
 minpts=t(as.data.frame(seq(2,4, by=1)))
 rownames(minpts) = rownames(eps)
-for(EPS in sort(eps[FoF,],decreasing = T)){
+for(EPS in sort(eps[FoF,],decreasing = F)){
   for(MINPTS in minpts[FoF,]){
     OUTCORRECTED=paste0("D05_TestDBSCANsettings",filesep,"EPS",EPS,"_MINPTS",MINPTS)
     OUTSTATS=paste0("D06_Stats",filesep,"EPS",EPS,"_MINPTS",MINPTS)
@@ -101,6 +101,11 @@ for(EPS in sort(eps[FoF,],decreasing = T)){
     coord_=readOrganelleCoordinates(signals_per_id, names(signals), OUTCORRECTED_)
     coord=coord_
     visualize3Dsegmentations(coord_,prefix=paste0(OUTSTATS,filesep,FoF))
+    
+    ## pixel2um conversion
+    coord_$x = coord_$x*PIXEL2UM$X
+    coord_$y = coord_$y*PIXEL2UM$Y
+    coord_$z = coord_$z*PIXEL2UM$Z
     
     ## Gather stats
     cells=unique(coord_$id)
