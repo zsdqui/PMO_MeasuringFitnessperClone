@@ -19,7 +19,7 @@ devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R
 setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
 # setwd("/mnt/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/SingleCellSequencing")
 source("get_compartment_coordinates.R")
-source("get_compartment_coordinates_FromAllen.R")
+source("../3D_Imaging/R/Utils.R")
 Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, level=0.5/length(xx)) {
   library(MASS) 
   ##Remove outliers
@@ -46,9 +46,12 @@ OUTD=paste0("../../results/pathwayCoordinates_3D", filesep, CELLLINE)
 B01=paste0("../../data/GastricCancerCL/RNAsequencing/B01_220112_pathwayActivity", filesep, CELLLINE)
 B02=paste0("../../data/GastricCancerCL/RNAsequencing/B02_220112_seqStats", filesep, CELLLINE)
 dir.create(OUTD,recursive = T)
+LOI=c("gray","pink","cyan")
+alpha=rep(0.05,length(LOI));
+names(alpha) <- names(LOI) <- c("nucleus","mitochondrion","cytosol")
 # cellID=251
-cellID=145
-FoF="../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A06_multiSignals_Linked/FoF16_210818_fluorescent.cytoplasm/"
+cellID=c(37,35,15)[1]
+FoF="../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A06_multiSignals_Linked/FoF13_220228_fluorescent.cytoplasm/"
 
 ############################################################
 ### Load coordinates of various compartments for one cell ##
@@ -70,6 +73,14 @@ rgl.close()
 ## Calculate volume
 hull <- convhulln(coord[coord$nucleus==1,1:3], options = "FA")
 print(hull$vol)
+## Plot organelle hulls
+rgl::close3d()
+for(compartment in names(LOI)){
+  ii=which(coord[,compartment]==1)
+  hull=Plot_ConcaveHull(coord[ii,1], coord[ii,2], coord[ii,3], lcolor =LOI[compartment], alpha=alpha[compartment])
+}
+legend3d("topleft",names(LOI),fill=LOI)
+
 
 # Expression profiles of all detected genes for clone 9 in the cell line.
 cID = 2
@@ -132,9 +143,6 @@ save(file='~/Downloads/tmp_coord.RObj', list=c('coord','OUTD', 'lpp','pq','path2
 ## Calculate 3D pathway activity maps
 pathwayColors=rainbow(length(lpp))
 names(pathwayColors)=names(lpp)
-LOI=c("gray","pink","cyan")
-alpha=rep(0.05,length(LOI));
-names(alpha) <- names(LOI) <- c("nucleus","mitochondrion","cytosol")
 alpha["nucleus"]=1
 alpha["cytoplasm"]=0.01
 for (cellName in colnames(pq)[1]){
@@ -189,7 +197,7 @@ for (cellName in colnames(pq)[1]){
   legend3d("topleft",names(LOI),fill=LOI)
   for(j in names(lpp)){
     pmap_ = pmap[pmap[,j]>0,]
-    rgl::points3d(x=pmap_$x, y=pmap_$y, z=pmap_$z,add=F, size=8,col=pathwayColors[j], xlim=quantile(coord$x,c(0,1)), ylim=quantile(coord$y,c(0,1)), zlim=quantile(coord$z,c(0,1)), axes=F, xlab="",ylab="", zlab="", alpha=0.7)
+    rgl::points3d(x=pmap_$x, y=pmap_$y, z=pmap_$z,add=F, size=5,col=pathwayColors[j], xlim=quantile(coord$x,c(0,1)), ylim=quantile(coord$y,c(0,1)), zlim=quantile(coord$z,c(0,1)), axes=F, xlab="",ylab="", zlab="", alpha=0.7)
   }
   legend3d("topright",names(lpp),fill=pathwayColors[names(lpp)])
   

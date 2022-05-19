@@ -4,6 +4,7 @@ setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
 source("CorrectCellposeSegmentation.R")
 source("assignCompartment2Nucleus.R")
 source("compareCells.R")
+source("generateImageMask.R")
 source("Utils.R")
 eps=read.table('../dbscan/eps.txt')
 library(matlab)
@@ -59,17 +60,19 @@ FoFs=c("FoF1001_220407_brightfield", "FoF2001_220407_brightfield", "FoF3001_2204
 signals=list(nucleus.p="nucleus.p_Cells_Centers.csv"); #nucleus.t="nucleus.t_Cells_Centers.csv", 
 stats=list()
 mfrow3d(nr = 1, nc = 4, sharedMouse = TRUE)  
+images=list()
 for(FoF in FoFs){
-  unlink(paste0(OUTCORRECTED,filesep,FoF),recursive=T)
+  # unlink(paste0(OUTCORRECTED,filesep,FoF),recursive=T)
   
   ###############################################
   ###### Correcting Cellpose Segmentation #######
   ###############################################
   ## First correct segmentation output
   # correctSegmentations(FoF, signals, eps)
-  CorrectCellposeSegmentation(FoF,signal=names(signals),INDIR,OUTCORRECTED,doplot=T,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
+  # CorrectCellposeSegmentation(FoF,signal=names(signals),INDIR,OUTCORRECTED,doplot=T,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
   # rgl.snapshot("~/Downloads/Brightfield_Timeseries.png")
-  generateImageMask(FoF, INDIR=OUTCORRECTED, OUTDIR=OUTCORRECTED)
+  images[[FoF]]=generateImageMask(FoF, INDIR=OUTCORRECTED, OUTDIR=OUTCORRECTED,root = ROOT)
+
   
   ## Next link each predicted nucleus to its closest target nucleus
   OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)

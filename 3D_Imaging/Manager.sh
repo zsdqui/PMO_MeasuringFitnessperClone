@@ -1,10 +1,12 @@
 code='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code'
+root='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87/'
+A03=$root/A03_allenModel/
 
 # ## Renome data
-# cd /raid/crdlab/ix2/andrew/PMO_MeasuringFitnessperClone/3D_Imaging/Project_Nucleus/Data_Images/210803_Nuclear/Images/
+# cd /raid/crdlab/ix2/andrew/PMO_MeasuringFitnessperClone/3D_Imaging/Project_Cyto/Data_Images/210818_Cyto/Images
 # renameRawData=$code/renameRawData.sh
-# date='210803'
-# organelle='Nucleus'
+# date='210928'
+# organelle='Mito'
 # source='t'
 # channel='00' #fluorescense
 # $renameRawData $date $organelle $source $channel
@@ -14,8 +16,8 @@ code='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code'
 
 ##################
 ####Single FoF####
-# FoF='FoF5_210803_fluorescent.nucleus'
-FoF='FoF11_211215_fluorescent.mito'
+# FoF='FoF1001_220407_brightfield'
+FoF='FoF9_211110_fluorescent.nucleus'
 # FoF='FoF13_220228_fluorescent.cytoplasm'
 
 ## @TODO ome.tiff conversion
@@ -33,18 +35,30 @@ cd /raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCanc
 
 ## ome.tiff conversion
 # python $code/stack2ometiff_conversion.py
-f=`ls -d *cyto*ome.tif`
 
-## AllenModel
-for x in $f; do 
-  FoF="$(basename -- $x .ome.tif)"
-  $code/allenModelPredict.sh $FoF nucleus
-  $code/cellPoseSegment.sh $FoF
-  # $code/allenModelPredict.sh $FoF mito
+declare -a dates=(210803 211110 211215) #211104 210818 220228 210928 211027 
+for date in "${dates[@]}"; do
+  f=`ls -d *$date*ome.tif`
+
+  ## AllenModel
+  for x in $f; do 
+    FoF="$(basename -- $x .ome.tif)"
+    echo $FoF
+    $code/allenModelPredict.sh $FoF nucleus
+    $code/allenModelPredict.sh $FoF mito
+    $code/allenModelPredict.sh $FoF cytoplasm
+    # $code/cellPoseSegment.sh $FoF
+  done
 done
 
-# ## CellPose
-# for x in $f; do 
+
+## CellPose
+while read FoF; do
+   ls -d $A03/$FoF
+   $code/cellPoseSegment.sh $FoF
+done <~/Downloads/fois_nuc
+
+# for x in $f; do
 #   FoF="$(basename -- $x .ome.tif)"
 #   $code/cellPoseSegment.sh $FoF
 # done

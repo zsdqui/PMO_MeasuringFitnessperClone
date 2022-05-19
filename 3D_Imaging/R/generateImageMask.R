@@ -3,7 +3,9 @@
 # generateImageMask(FoF)
 generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR="B06_OrganelleMasks", root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87", targetcellids=NULL){
   library(matlab)
+  library("rhdf5")
   OUTDIR=paste0(root,filesep,OUTDIR)
+  H5OUT=paste0(OUTDIR,filesep,FoF,".h5")
   olddir=getwd()
   success=try(setwd(paste0(root,filesep,INDIR,"/",FoF,"/All_Cells_coordinates")),silent = T)
   if(class(success)=="try-error"){
@@ -23,7 +25,7 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
   }
   
   zstack=70
-  images=list()
+  images <- h5 <- list()
   for(z in 1:zstack){
     img=matrix(NA,1024,1024)
     for(cell in names(cells)){
@@ -44,7 +46,14 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
     dev.off()
     ## save for gif
     images[[z]]=try(magick::image_read(iout),silent = T)
+    h5[[z]]=img
   }
+  ## save for h5
+  file.remove(H5OUT)
+  h5createFile(H5OUT)
+  h5=do.call(abind,c(h5,along=3))
+  h5write(h5, file = H5OUT, 'foo')
+  h5closeAll()
   
   ## animate at 2 frames per second
   prefix=paste0(OUTDIR,filesep,FoF)
@@ -61,4 +70,5 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
   # }else{
   #   print("Magick not installed. No .gif output generated")
   # }
+  return(h5)
 }
