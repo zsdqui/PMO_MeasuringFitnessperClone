@@ -46,6 +46,7 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
     dev.off()
     ## save for gif
     images[[z]]=try(magick::image_read(iout),silent = T)
+    img[is.na(img)]=0
     h5[[z]]=img
   }
   ## save for h5
