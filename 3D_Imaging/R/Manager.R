@@ -19,6 +19,7 @@ setwd(ROOT)
 ZSTACK_DISTANCE=0.29
 EPS=6
 MINPTS=4
+xydim = 255
 r3dDefaults$windowRect=c(0,50, 1600, 800) 
 INDIR="A04_CellposeOutput"
 OUTCORRECTED="A05_PostProcessCellposeOutput"
@@ -60,7 +61,7 @@ FoFs=c("FoF1001_220407_brightfield", "FoF2001_220407_brightfield", "FoF3001_2204
 signals=list(nucleus.p="nucleus.p_Cells_Centers.csv"); #nucleus.t="nucleus.t_Cells_Centers.csv", 
 stats=list()
 mfrow3d(nr = 1, nc = 4, sharedMouse = TRUE)  
-images=list()
+rawimges <- images <- list()
 for(FoF in FoFs){
   # unlink(paste0(OUTCORRECTED,filesep,FoF),recursive=T)
   
@@ -71,8 +72,11 @@ for(FoF in FoFs){
   # correctSegmentations(FoF, signals, eps)
   # CorrectCellposeSegmentation(FoF,signal=names(signals),INDIR,OUTCORRECTED,doplot=T,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
   # rgl.snapshot("~/Downloads/Brightfield_Timeseries.png")
-  images[[FoF]]=generateImageMask(FoF, INDIR=OUTCORRECTED, OUTDIR=OUTCORRECTED,root = ROOT)
-
+  images[[FoF]]=generateImageMask(FoF, INDIR=OUTCORRECTED, OUTDIR=OUTCORRECTED,root = ROOT, xydim = xydim)
+  img=bioimagetools::readTIF(paste0("A04_CellposeOutput/",FoF,"/nucleus.p.tif"))
+  img=img[fliplr(1:nrow(img)),,1:20]
+  img=EBImage::rotate(img,-90)
+  rawimges[[FoF]]=EBImage::resize(img,h = xydim, w=xydim)
   
   ## Next link each predicted nucleus to its closest target nucleus
   OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
@@ -84,6 +88,26 @@ for(FoF in FoFs){
   stats[[FoF]]=compareCells(signals$nucleus.t, signals$nucleus.p, OUTLINKED_)
 }
 save(file="~/Downloads/stats.RObj","stats")
+## save as h5 for Ilastik
+saveAsH5<-function(images, H5OUT, binary=F, normalize=F){
+  h5=do.call(abind,c(images,along=4))
+  # h5=aperm(h5,c(4,1,2,3))
+  h5=round(h5,5)
+  if(binary){
+    h5[h5>0]=1
+  }
+  if(normalize){
+    h5=h5/max(h5)
+  }
+  file.remove(H5OUT)
+  h5createFile(H5OUT)
+  h5createDataset(H5OUT, dataset = fileparts(H5OUT)$name, dims = dim(h5), storage.mode="double")
+  h5write(h5, file = H5OUT, fileparts(H5OUT)$name)
+  h5closeAll()
+  return(h5)
+}
+h5=saveAsH5(rawimges,"~/Downloads/FoF001_220407_brightfield.h5")
+h5=saveAsH5(images,"~/Downloads/FoF001_220407_brightfield_mask.h5",binary=F,normalize = T)
 
 ##Plot stats for first FoF
 stats_=stats[[1]]

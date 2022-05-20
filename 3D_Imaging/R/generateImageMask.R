@@ -1,9 +1,10 @@
 # source("R/generateImageMask.R")
 # FoF="FoF1001_220407_brightfield";
 # generateImageMask(FoF)
-generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR="B06_OrganelleMasks", root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87", targetcellids=NULL){
+generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR="B06_OrganelleMasks", root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87", targetcellids=NULL, xydim=1024){
   library(matlab)
   library("rhdf5")
+  xydim = min(1024, xydim)
   OUTDIR=paste0(root,filesep,OUTDIR)
   H5OUT=paste0(OUTDIR,filesep,FoF,".h5")
   olddir=getwd()
@@ -24,7 +25,7 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
     cells[!allids %in% targetcellids]=NA
   }
   
-  zstack=70
+  zstack=20
   images <- h5 <- list()
   for(z in 1:zstack){
     img=matrix(NA,1024,1024)
@@ -47,7 +48,7 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
     ## save for gif
     images[[z]]=try(magick::image_read(iout),silent = T)
     img[is.na(img)]=0
-    h5[[z]]=img
+    h5[[z]]=EBImage::resize(img,h = xydim, w=xydim)
   }
   ## save for h5
   file.remove(H5OUT)
