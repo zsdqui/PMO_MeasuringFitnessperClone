@@ -89,25 +89,27 @@ for(FoF in FoFs){
 }
 save(file="~/Downloads/stats.RObj","stats")
 ## save as h5 for Ilastik
-saveAsH5<-function(images, H5OUT, binary=F, normalize=F){
+saveAsH5<-function(images, H5OUT, binary=F, dotrim=F){
   h5=do.call(abind,c(images,along=4))
   # h5=aperm(h5,c(4,1,2,3))
-  h5=round(h5,5)
   if(binary){
     h5[h5>0]=1
   }
-  if(normalize){
-    h5=h5/max(h5)
-  }
   file.remove(H5OUT)
-  h5createFile(H5OUT)
-  h5createDataset(H5OUT, dataset = fileparts(H5OUT)$name, dims = dim(h5), storage.mode="double")
+  h5createFile(H5OUT)  
+  if(dotrim){
+    h5=255*h5
+    h5=h5-min(h5)
+  }
+  h5=round(h5)
+  h5createDataset(H5OUT, dataset = fileparts(H5OUT)$name, dims=dim(h5), H5type="H5T_NATIVE_UINT32")
   h5write(h5, file = H5OUT, fileparts(H5OUT)$name)
   h5closeAll()
   return(h5)
 }
-h5=saveAsH5(rawimges,"~/Downloads/FoF001_220407_brightfield.h5")
-h5=saveAsH5(images,"~/Downloads/FoF001_220407_brightfield_mask.h5",binary=F,normalize = T)
+h5=saveAsH5(rawimges,"~/Downloads/FoF001_220407_brightfield.h5",dotrim=T)
+h5=saveAsH5(images,"~/Downloads/FoF001_220407_brightfield_mask.h5")
+
 
 ##Plot stats for first FoF
 stats_=stats[[1]]
@@ -260,7 +262,7 @@ text(jitter(med$zslices_nucleus.t-1,5), jitter(med$vol_nucleus.t+5,50),gsub("MIN
 
 X_=Y[[2]]
 p=lapply(names(X_), function(x) ggplot(data.frame(X_[[x]]), aes(X_[[x]])) +
-         geom_histogram(bins = 32) + ggtitle(x)
+           geom_histogram(bins = 32) + ggtitle(x)
          + scale_x_continuous(trans = "log")         )
 
 print(sapply(X_,median))
