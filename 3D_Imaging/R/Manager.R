@@ -7,6 +7,7 @@ source("compareCells.R")
 source("generateImageMask.R")
 source("Utils.R")
 eps=read.table('../dbscan/eps.txt')
+library(abind)
 library(matlab)
 library(rgl)
 library(geometry)
@@ -15,6 +16,7 @@ library(geometry)
 ## Constants, Settings, Input and output folders:
 # ROOT="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87"
 ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87"
+# ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/SUM-159"
 setwd(ROOT)
 ZSTACK_DISTANCE=0.29
 EPS=6
@@ -23,11 +25,13 @@ xydim = 255
 r3dDefaults$windowRect=c(0,50, 1600, 800) 
 INDIR="A04_CellposeOutput"
 OUTCORRECTED="A05_PostProcessCellposeOutput"
-OUTLINKED="A06_multiSignals_Linked"
-OUTSTATS="A07_LinkedSignals_Stats"
+ILASTIKINPUT="G06_IlastikInput"
+# OUTLINKED="A06_multiSignals_Linked"
+# OUTSTATS="A07_LinkedSignals_Stats"
 dir.create(OUTCORRECTED)
-dir.create(OUTLINKED)
-dir.create(OUTSTATS)
+# dir.create(OUTLINKED)
+# dir.create(OUTSTATS)
+dir.create(ILASTIKINPUT)
 ## Local helper functions
 correctSegmentations<-function(FoF, signals, eps){
   sapply(names(signals), function(x) CorrectCellposeSegmentation(FoF,signal=x,INDIR,OUTCORRECTED,doplot=F,eps=eps[FoF,x]))
@@ -57,24 +61,26 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 ###############################################
 
 ## Input and output:
-FoFs=c("FoF1001_220407_brightfield", "FoF2001_220407_brightfield", "FoF3001_220407_brightfield", "FoF4001_220407_brightfield")
-signals=list(nucleus.p="nucleus.p_Cells_Centers.csv"); #nucleus.t="nucleus.t_Cells_Centers.csv", 
+FoFs=c("FoF1001_220523_brightfield", "FoF2001_220523_brightfield", "FoF3001_220523_brightfield", "FoF4001_220523_brightfield", "FoF5001_220523_brightfield")
+# FoFs=c("FoF4_220520_fluorescent.nucleus")
+signals=list(nucleus.p="nucleus.p_Cells_Centers.csv"); #nucleus.t="nucleus.t_Cells_Centers.csv",
+# signals=list(nucleus.t="nucleus.t_Cells_Centers.csv"); 
 stats=list()
 mfrow3d(nr = 1, nc = 4, sharedMouse = TRUE)  
 rawimges <- images <- list()
 for(FoF in FoFs){
-  # unlink(paste0(OUTCORRECTED,filesep,FoF),recursive=T)
+  unlink(paste0(OUTCORRECTED,filesep,FoF),recursive=T)
   
   ###############################################
   ###### Correcting Cellpose Segmentation #######
   ###############################################
   ## First correct segmentation output
   # correctSegmentations(FoF, signals, eps)
-  # CorrectCellposeSegmentation(FoF,signal=names(signals),INDIR,OUTCORRECTED,doplot=T,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
+  CorrectCellposeSegmentation(FoF,signal=names(signals),INDIR,OUTCORRECTED,doplot=F,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
   # rgl.snapshot("~/Downloads/Brightfield_Timeseries.png")
   images[[FoF]]=generateImageMask(FoF, INDIR=OUTCORRECTED, OUTDIR=OUTCORRECTED,root = ROOT, xydim = xydim)
-  img=bioimagetools::readTIF(paste0("A04_CellposeOutput/",FoF,"/nucleus.p.tif"))
-  img=img[fliplr(1:nrow(img)),,1:20]
+  img=bioimagetools::readTIF(paste0(INDIR,filesep,FoF,filesep,names(signals),".tif"))
+  img=img[fliplr(1:nrow(img)),,1:dim(images[[FoF]])[3]]
   img=EBImage::rotate(img,-90)
   rawimges[[FoF]]=EBImage::resize(img,h = xydim, w=xydim)
   
@@ -107,8 +113,9 @@ saveAsH5<-function(images, H5OUT, binary=F, dotrim=F){
   h5closeAll()
   return(h5)
 }
-h5=saveAsH5(rawimges,"~/Downloads/FoF001_220407_brightfield.h5",dotrim=T)
-h5=saveAsH5(images,"~/Downloads/FoF001_220407_brightfield_mask.h5")
+tmp=gsub(substr(FoF,1,4), "FoFX",FoF)
+h5=saveAsH5(rawimges,paste0(ILASTIKINPUT,filesep,tmp,".h5"),dotrim=T)
+h5=saveAsH5(images,paste0(ILASTIKINPUT,filesep,tmp,"_mask.h5"))
 
 
 ##Plot stats for first FoF

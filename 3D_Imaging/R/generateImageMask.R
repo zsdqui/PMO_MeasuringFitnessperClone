@@ -25,7 +25,7 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
     cells[!allids %in% targetcellids]=NA
   }
   
-  zstack=20
+  zstack=70
   images <- h5 <- list()
   for(z in 1:zstack){
     img=matrix(NA,1024,1024)
