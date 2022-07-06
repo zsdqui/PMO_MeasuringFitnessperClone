@@ -6,7 +6,7 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5,
   r3dDefaults$windowRect=c(0,50, 800, 800) 
   
   ## Create output folders
-  sapply(c("Cells_center_coordinates","All_Cells_coordinates"), function(x) dir.create(paste0(OUTDIR,filesep,ID,filesep,x), recursive = T  ))
+  sapply(c("Cells_center_coordinates","All_Cells_coordinates"), function(x) dirCreate(paste0(OUTDIR,filesep,ID,filesep,x), recursive = T,  permission = "a+w"))
   
   ############################################################
   ## Correct segmentation: merge ids belonging to same cell ##

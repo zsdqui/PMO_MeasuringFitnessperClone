@@ -77,8 +77,8 @@ for(EPS in sort(eps[FoF,],decreasing = F)){
   for(MINPTS in minpts[FoF,]){
     OUTCORRECTED=paste0("D05_TestDBSCANsettings",filesep,"EPS",EPS,"_MINPTS",MINPTS)
     OUTSTATS=paste0("D06_Stats",filesep,"EPS",EPS,"_MINPTS",MINPTS)
-    dir.create(OUTCORRECTED,recursive=T)
-    dir.create(OUTSTATS,recursive=T)
+    dirCreate(OUTCORRECTED,recursive=T,permission = "a+w")
+    dirCreate(OUTSTATS,recursive=T,permission = "a+w")
     unlink(paste0(OUTCORRECTED,filesep,FoF),recursive=T)
     unlink(paste0(OUTSTATS,filesep,FoF),recursive=T)
     

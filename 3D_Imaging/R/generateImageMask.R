@@ -13,7 +13,7 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
     print(paste("No output found for",FoF,"under",INDIR,". Postprocess segmentation first."))
     return()
   }
-  dir.create(paste0(OUTDIR,filesep,FoF))
+  dirCreate(paste0(OUTDIR,filesep,FoF), permission = "a+w")
   
   tmp=list.files()
   cells=sample(length(tmp),length(tmp))

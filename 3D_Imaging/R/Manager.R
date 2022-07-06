@@ -25,13 +25,14 @@ xydim = 255
 r3dDefaults$windowRect=c(0,50, 1600, 800) 
 INDIR="A04_CellposeOutput"
 OUTCORRECTED="A05_PostProcessCellposeOutput"
-ILASTIKINPUT="G06_IlastikInput"
-# OUTLINKED="A06_multiSignals_Linked"
-# OUTSTATS="A07_LinkedSignals_Stats"
-dir.create(OUTCORRECTED)
-# dir.create(OUTLINKED)
-# dir.create(OUTSTATS)
-dir.create(ILASTIKINPUT)
+dirCreate(OUTCORRECTED, permission = "a+w")
+# ILASTIKINPUT="G06_IlastikInput"
+# dirCreate(ILASTIKINPUT, permission = "a+w")
+OUTLINKED="A06_multiSignals_Linked"
+OUTSTATS="A07_LinkedSignals_Stats"
+dirCreate(OUTLINKED, permission = "a+w")
+dirCreate(OUTSTATS, permission = "a+w")
+
 ## Local helper functions
 correctSegmentations<-function(FoF, signals, eps){
   sapply(names(signals), function(x) CorrectCellposeSegmentation(FoF,signal=x,INDIR,OUTCORRECTED,doplot=F,eps=eps[FoF,x]))
@@ -131,39 +132,88 @@ hist(stats_$nucleus.p_IntersectingPixels,col="cyan")
 #################################
 ###### Linking organelles #######
 #################################
-
-## Input and output:
-# FoF="FoF13_220228_fluorescent.cytoplasm"
-FoF="FoF16_210818_fluorescent.cytoplasm"
+FoFs=c("FoF13_220228_fluorescent.cytoplasm","FoF16_210818_fluorescent.cytoplasm")
 signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv",cytoplasm.t="cytoplasm.t_Cells_Centers.csv")
-OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
-
-## First correct segmentation output
-eps=matrix(5,1,length(signals))
-rownames(eps)=FoF
-colnames(eps)=names(signals)
-correctSegmentations(FoF, signals["nucleus.p"], eps)
-
-## Next link each predicted nucleus to its closest target nucleus
-setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
-assignCompartment2Nucleus(signals$mito.p, signals$nucleus.p, OUTLINKED_)
-assignCompartment2Nucleus(signals$cytoplasm.t, signals$nucleus.p, OUTLINKED_)
-setwd(ROOT)
-
-## keep only cells with all three signals:
-f=list.files(OUTLINKED_,full.names = T)
-signals_per_id=plyr::count(sapply(strsplit(f,"_"), function(x) x[length(x)-1]))
-toRM=signals_per_id$x[signals_per_id$freq<length(signals)]
-for(x in toRM){
-  y=list.files(OUTLINKED_,full.names = T,pattern = paste0("_",x,"_"))
-  file.remove(y)
+signals_per_id=list()
+## Input and output:
+for(FoF in FoFs){
+  OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
+  
+  ## link each predicted nucleus to its closest target nucleus
+  setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
+  assignCompartment2Nucleus(signals$mito.p, signals$nucleus.p, OUTLINKED_)
+  # assignCompartment2Nucleus(signals$cytoplasm.t, signals$nucleus.p, OUTLINKED_)
+  setwd(ROOT)
+  
+  ## keep only cells with all three signals:
+  f=list.files(OUTLINKED_,full.names = T)
+  signals_per_id_=plyr::count(sapply(strsplit(f,"_"), function(x) x[length(x)-1]))
+  toRM=signals_per_id_$x[signals_per_id_$freq<length(signals)]
+  for(x in toRM){
+    y=list.files(OUTLINKED_,full.names = T,pattern = paste0("_",x,"_"))
+    file.remove(y)
+  }
+  signals_per_id[[FoF]]=signals_per_id_[!signals_per_id_$x %in% toRM,]
 }
-signals_per_id=signals_per_id[!signals_per_id$x %in% toRM,]
 
-## Read in linked organelles
-coord_=readOrganelleCoordinates(signals_per_id, names(signals), OUTLINKED_)
-save(file=paste0("~/Downloads/stats_",FoF,".RObj"),"coord_")
-coord=coord_
+
+###########################
+## Calculate image stats ##
+###########################
+for(FoF in names(signals_per_id)){
+  OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
+  
+  ## Read in linked organelles
+  coord_=readOrganelleCoordinates(signals_per_id[[FoF]], names(signals), OUTLINKED_)
+  save(file=paste0("~/Downloads/stats_",FoF,".RObj"),"coord_")
+  coord=coord_
+  
+  ## Gather stats
+  cells=unique(coord_$id)
+  thesignals=unique(coord_$signal)
+  imgStats=as.data.frame(matrix(NA,length(cells),3+4*length(thesignals)))
+  rownames(imgStats)=as.character(cells)
+  colnames(imgStats)=c(sapply(c("vol_","area_","pixels_","count_"),paste0,thesignals),"x","y","z")
+  for(id in cells){
+    # print(paste("cell",id))
+    a=coord_[coord_$id==id,]
+    imgStats[as.character(id),c("x","y","z")]=apply(a[a$signal=="nucleus.p",c("x","y","z")],2,median)
+    for(signal in thesignals){
+      stats_=list(area_=NA,vol_=NA,pixels_=NA)
+      for(organelle in unique(a$organelle)){
+        a_=a[a$organelle==organelle & a$signal==signal,]
+        hull <- try(convhulln(a_[,c("x","y","z")], options = "FA"),silent = T)
+        if(class(hull)!="try-error"){
+          stats_$area_=c(stats_$area_,hull$area)
+          stats_$vol_=c(stats_$vol_,hull$vol)
+          stats_$pixels_=c(stats_$pixels_,nrow(a_))
+        }
+      }
+      imgStats[as.character(id),paste0(c(names(stats_),"count_"),signal)]=c(sapply(stats_,sum,na.rm=T),length(stats_$area_)-1)
+    }
+  }
+  ## Add more stats and save 
+  imgStats$pixel_per_mito_avg=imgStats$pixels_mito.p/imgStats$count_mito.p
+  imgStats$pixel_per_volume_mito=imgStats$pixels_mito.p/imgStats$vol_mito.p
+  for(organelle in thesignals){
+    imgStats[,paste0("pixels_per_volume_",organelle)]=imgStats[,paste0("pixels_",organelle)]/imgStats[,paste0("vol_",organelle)]
+  }
+  imgStats$nuc_to_mito_plus_cyto = imgStats$vol_nucleus.p/(imgStats$vol_mito.p+imgStats$vol_cytoplasm.t)
+  imgStats$nuc_to_cyto = imgStats$vol_nucleus.p/imgStats$vol_cytoplasm.t
+  imgStats$nuc_to_mito = imgStats$vol_nucleus.p/imgStats$vol_mito.p
+  imgStats$cyto_to_mito = imgStats$vol_cytoplasm.t/imgStats$vol_mito.p
+  imgStats$nuc_vol_to_area=imgStats$vol_nucleus.p/imgStats$area_nucleus.p
+  write.table(imgStats,file=paste0(OUTSTATS,filesep,FoF,"_stats.txt"),sep="\t",quote=F,row.names = T)
+  
+  
+  ## Visualize stats
+  imgStats=read.table(paste0(OUTSTATS,filesep,FoF,"_stats.txt"),header = T,sep="\t")
+  ## Z-score
+  imgStats=apply(imgStats, 2, function(x) (x - mean(x,na.rm=T))/sd(x,na.rm=T))
+  tmp=as.matrix(imgStats)
+  tmp[!is.finite(tmp)]=NA
+  hm = gplots::heatmap.2(tmp,trace = "none", margins = c(13, 6), symm = F)
+}
 
 
 ##########################
@@ -201,50 +251,6 @@ rgl::plot3d(coord_$x, coord_$y, coord_$z, pch=20, zlim=zlim, size=2, axes=F, xla
 #   clean = TRUE
 # )
 
-## Gather stats
-cells=unique(coord_$id)
-signals=unique(coord_$signal)
-imgStats=as.data.frame(matrix(NA,length(cells),4*length(signals)))
-rownames(imgStats)=as.character(cells)
-colnames(imgStats)=c(sapply(c("vol_","area_","pixels_","count_"),paste0,signals))
-for(id in cells){
-  # print(paste("cell",id))
-  a=coord_[coord_$id==id,]
-  for(signal in signals){
-    stats_=list(area_=NA,vol_=NA,pixels_=NA)
-    for(organelle in unique(a$organelle)){
-      a_=a[a$organelle==organelle & a$signal==signal,]
-      hull <- try(convhulln(a_[,c("x","y","z")], options = "FA"),silent = T)
-      if(class(hull)!="try-error"){
-        stats_$area_=c(stats_$area_,hull$area)
-        stats_$vol_=c(stats_$vol_,hull$vol)
-        stats_$pixels_=c(stats_$pixels_,nrow(a_))
-      }
-    }
-    imgStats[as.character(id),paste0(c(names(stats_),"count_"),signal)]=c(sapply(stats_,sum,na.rm=T),length(stats_$area_)-1)
-  }
-}
-## Add more stats and save 
-imgStats$pixel_per_mito_avg=imgStats$pixels_mito.p/imgStats$count_mito.p
-imgStats$pixel_per_volume_mito=imgStats$pixels_mito.p/imgStats$vol_mito.p
-for(organelle in signals){
-  imgStats[,paste0("pixels_per_volume_",organelle)]=imgStats[,paste0("pixels_",organelle)]/imgStats[,paste0("vol_",organelle)]
-}
-imgStats$nuc_to_mito_plus_cyto = imgStats$vol_nucleus.p/(imgStats$vol_mito.p+imgStats$vol_cytoplasm.t)
-imgStats$nuc_to_cyto = imgStats$vol_nucleus.p/imgStats$vol_cytoplasm.t
-imgStats$nuc_to_mito = imgStats$vol_nucleus.p/imgStats$vol_mito.p
-imgStats$cyto_to_mito = imgStats$vol_cytoplasm.t/imgStats$vol_mito.p
-imgStats$nuc_vol_to_area=imgStats$vol_nucleus.p/imgStats$area_nucleus.p
-write.table(imgStats,file=paste0(OUTSTATS,filesep,FoF,"_stats.txt"),sep="\t",quote=F,row.names = T)
-
-
-## Visualize stats
-imgStats=read.table(paste0(OUTSTATS,filesep,FoF,"_stats.txt"),header = T,sep="\t")
-## Z-score
-imgStats=apply(imgStats, 2, function(x) (x - mean(x,na.rm=T))/sd(x,na.rm=T))
-tmp=as.matrix(imgStats)
-tmp[!is.finite(tmp)]=NA
-hm = gplots::heatmap.2(tmp,trace = "none", margins = c(13, 6), symm = F)
 
 
 ## Visualize segmentation stats for various DBSCAN runs
