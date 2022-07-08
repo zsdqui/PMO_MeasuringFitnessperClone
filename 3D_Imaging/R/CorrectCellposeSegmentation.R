@@ -1,4 +1,4 @@
-CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5){
+CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5, minPts = 2, IMPORTALLORGANELLES=T, MINZSLICES=0.4*70, doplotcentercoord=c(100,500)){
   library(matlab)
   library(geometry)
   library(misc3d)
@@ -6,12 +6,12 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5)
   r3dDefaults$windowRect=c(0,50, 800, 800) 
   
   ## Create output folders
-  sapply(c("Cells_center_coordinates","All_Cells_coordinates"), function(x) dir.create(paste0(OUTDIR,filesep,ID,filesep,x), recursive = T  ))
+  sapply(c("Cells_center_coordinates","All_Cells_coordinates"), function(x) dirCreate(paste0(OUTDIR,filesep,ID,filesep,x), recursive = T,  permission = "a+w"))
   
   ############################################################
   ## Correct segmentation: merge ids belonging to same cell ##
   coord_=read.csv(paste0("./",INDIR,filesep,ID, "/Cells_center_coordinates/", signal, "_Cells_Centers.csv"))
-  o=dbscan::dbscan(coord_[,c("x","y","z")],eps = eps,minPts = 2)
+  o=dbscan::dbscan(coord_[,c("x","y")],eps = eps, minPts = minPts)
   Sys.sleep(10)
   file.remove("Rplots.pdf")
   coord_$id=o$cluster
@@ -22,6 +22,7 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5)
   
   fr$datapoints=NA
   newCellCoord=list()
+  allNewCellIDs = fr$newCellID
   for(newCell in fr$newCellID){
     ##Gather all coordinates associated with new cell
     oldCells=which(newCell==coord_$id)
@@ -31,23 +32,39 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5)
       dm_$oldid=oldid
       tmp=rbind(tmp,dm_)
     }
+    ## Filter by zstack representation
+    if(length(round(unique(tmp$z),1)) < MINZSLICES){
+      allNewCellIDs =setdiff(allNewCellIDs, newCell)
+      next
+    }
     newCellCoord[[as.character(newCell)]]=tmp
     ## Record # of coordinates:
     fr$datapoints[fr$newCellID==newCell]=nrow(tmp)
   }
+  if(isempty(allNewCellIDs)){
+    print("None of the cells have sufficient zstack representation. No cells saved")
+    return()
+  }
+  fr = fr[fr$newCellID %in% allNewCellIDs, ]
   ## Stats
   centroids=t(sapply(newCellCoord, function(x) apply(x[,c("x","y","z")],2,mean)))
   colnames(centroids)=c("x","y","z")
   fr=fr[order(fr$datapoints),]
-  hist(fr$freq)
+  # hist(fr$freq)
   ## Plot coordinates for cells of interest
   if(doplot){
-    rgl::close3d()
-    coi=fr$newCellID[seq(1,nrow(fr),by=20)]
+    o2=flexclust::dist2(centroids[,c("x","y")],doplotcentercoord)
+    coi=rownames(centroids)[order(o2)[1:5]]
+    plot(centroids[,"x"],-centroids[,"y"],pch=20,col=1+(rownames(centroids) %in% coi))
+    # coi=fr$newCellID[seq(1,nrow(fr),by=20)]
+    # rgl::open3d()
+    add = F
     for(cell in coi){
       a=newCellCoord[[as.character(cell)]]
-      hull=Plot_ConcaveHull(a$x, a$y, a$z, lcolor =which(cell==coi), alpha=0.5,add = T)
+      hull=Plot_ConcaveHull(a$x, -a$y, a$z, lcolor =which(cell==coi), alpha=0.5,add = add)
+      add = T
     }
+    view3d( theta = 0, phi = 0, fov=0)
   }
   ## Save output
   tmp=sapply(1:length(newCellCoord), function(id) write.csv(newCellCoord[[id]],file=paste0("./",OUTDIR,filesep,ID, "/All_Cells_coordinates/", signal, "_cell_",id,"_coordinates.csv"), row.names = F, quote = F))
@@ -55,10 +72,11 @@ CorrectCellposeSegmentation<- function(ID,signal,INDIR,OUTDIR,doplot=F, eps=2.5)
   print(paste(nrow(coord_),"cell IDs merged into",length(newCellCoord),"unique IDs"))
   
   ## Also copy mitochondria and cytoplasm (if they exist):
-  for(other in c("mito","cyto")){
-    for(res in c("Cells_center_coordinates","All_Cells_coordinates")){
-      sapply(list.files(paste0(INDIR,filesep,ID,"/",res,"/"),pattern = other,full.names = T), function(x) file.copy(x,paste0(OUTDIR,filesep,ID, "/",res,"/",fileparts(x)$name,".csv")))
+  if(IMPORTALLORGANELLES){
+    for(other in c("mito","cyto")){
+      for(res in c("Cells_center_coordinates","All_Cells_coordinates")){
+        sapply(list.files(paste0(INDIR,filesep,ID,"/",res,"/"),pattern = other,full.names = T), function(x) file.copy(x,paste0(OUTDIR,filesep,ID, "/",res,"/",fileparts(x)$name,".csv")))
+      }
     }
   }
-
 }

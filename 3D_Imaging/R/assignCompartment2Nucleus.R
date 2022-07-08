@@ -1,5 +1,5 @@
 assignCompartment2Nucleus<-function(other_center_coord, nuc_center_coord,OUTD){
-  dir.create(OUTD, recursive = T)
+  dirCreate(OUTD, recursive = T, permission = "a+w")
   ZSTACK_DISTANCE=0.29
   other_coord=read.csv(file=other_center_coord,check.names = F,stringsAsFactors = F)
   nuc_coord=read.csv(file=nuc_center_coord,check.names = F,stringsAsFactors = F)

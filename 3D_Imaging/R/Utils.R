@@ -1,3 +1,23 @@
+Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, level=0.5/length(xx)) {
+  library(MASS)
+  ##Remove outliers
+  hQ=0.975; lQ=0.025
+  iK1=which(xx<=quantile(xx,hQ) & xx>=quantile(xx,lQ))
+  iK2=which(yy<=quantile(yy,hQ) & yy>=quantile(yy,lQ))
+  iK3=which(zz<=quantile(zz,hQ) & zz>=quantile(zz,lQ))
+  iK=intersect(iK1,iK2)
+  iK=intersect(iK,iK3)
+  xx=xx[iK]; yy=yy[iK]; zz = zz[iK]
+  
+  ##Contour
+  dens2 <- kde3d(xx, yy, zz, lims=c(min(xx)-sd(xx), max(xx)+sd(xx),
+                                    min(yy)-sd(yy), max(yy)+sd(yy),
+                                    min(zz)-sd(zz), max(zz)+sd(zz) ),n=55  )
+  misc3d::contour3d(dens2$d, level=level, dens2$x, dens2$y, dens2$z, color=lcolor, add=add, alpha=alpha); #,drawlabels=F,lwd=2
+  # return(cbind(dens2$x,dens2$y, dens2$z))
+}
+
+
 get_compartment_coordinates_FromAllen <-function(cytosolF="~/Downloads/fijitestout2.csv", mitoF="~/Downloads/fijitestout2.csv", nucleusF="~/Downloads/fijitestout3.csv",XYZCOLS = c("CX..pix.", "CY..pix.", "CZ..pix."), size=0.01){
   COMPCOLS = c("cytosol", "endoplasmic reticulum", "Golgi apparatus", "nucleus", "mitochondrion", "endosome", "lysosome", "peroxisome")
   alpha=rep(1,length(COMPCOLS));
@@ -44,4 +64,27 @@ get_compartment_coordinates_FromAllen <-function(cytosolF="~/Downloads/fijitesto
   rgl::legend3d("topleft", names(colormap), fill=colormap, bty='n',cex=1.7)
   
   return(coord)
+}
+
+dirCreate<-function(dname, recursive=T, permission=NULL){
+  dir.create(dname, recursive = recursive)
+  if(!is.null(permission)){
+    system(paste("chmod -R", permission, dname))
+  }
+}
+
+
+
+resize4Ilastik<-function(img, xydim = 255){
+  img=EBImage::resize(img,h = xydim, w=xydim)
+  return(img)
+}
+
+
+##@TODO: test
+reverseResize4Ilastik<-function(df, xydim_from=255, xydim_to = 1024){
+  XY=c("Center_of_the_object_0","Center_of_the_object_1")
+  fac=xydim_to/xydim_from
+  df[,XY]=df[,XY]*fac
+  return(df)
 }

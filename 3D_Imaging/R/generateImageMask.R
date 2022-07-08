@@ -1,22 +1,32 @@
 # source("R/generateImageMask.R")
 # FoF="FoF1001_220407_brightfield";
 # generateImageMask(FoF)
-generateImageMask <- function(FoF, root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87"){
+generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR="B06_OrganelleMasks", root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87", targetcellids=NULL, xydim=1024){
   library(matlab)
-  A05="A05_PostProcessCellposeOutput"
-  B06=paste0(root,filesep,"B06_OrganelleMasks")
-  success=try(setwd(paste0(root,filesep,A05,"/",FoF,"/All_Cells_coordinates")),silent = T)
+  library("rhdf5")
+  xydim = min(1024, xydim)
+  OUTDIR=paste0(root,filesep,OUTDIR)
+  H5OUT=paste0(OUTDIR,filesep,FoF,".h5")
+  olddir=getwd()
+  success=try(setwd(paste0(root,filesep,INDIR,"/",FoF,"/All_Cells_coordinates")),silent = T)
   if(class(success)=="try-error"){
-    print(paste("No output found for",FoF,"under",A05,". Postprocess segmentation first."))
+    print(paste("No output found for",FoF,"under",INDIR,". Postprocess segmentation first."))
     return()
   }
-  dir.create(paste0(B06,filesep,FoF))
+  dirCreate(paste0(OUTDIR,filesep,FoF), permission = "a+w")
   
   tmp=list.files()
-  cells=1:length(tmp)
+  cells=sample(length(tmp),length(tmp))
   names(cells)=tmp
+  ## mark filtered cells if applicable
+  if(!is.null(targetcellids)){
+    allids=sapply(strsplit(names(cells),"cell_"),"[[",2)
+    allids=sapply(strsplit(allids,"_"),"[[",1)
+    cells[!allids %in% targetcellids]=NA
+  }
+  
   zstack=70
-  images=list()
+  images <- h5 <- list()
   for(z in 1:zstack){
     img=matrix(NA,1024,1024)
     for(cell in names(cells)){
@@ -27,20 +37,40 @@ generateImageMask <- function(FoF, root="/raid/crdlab/ix1/Projects/M005_Measurin
     }
     
     ## write image
-    iout=paste0(B06,filesep,FoF,filesep,FoF,"_z",z,".tif")
+    z_=z
+    if(z<10){
+      z_=paste0("0",z)
+    }
+    iout=paste0(OUTDIR,filesep,FoF,filesep,FoF,"_z",z_,".tif")
     tiff(iout)
     par(mai=c(0,0,0,0)); image(img,frame.plot=F,axes=F)
     dev.off()
     ## save for gif
     images[[z]]=try(magick::image_read(iout),silent = T)
+    img[is.na(img)]=0
+    h5[[z]]=EBImage::resize(img,h = xydim, w=xydim)
   }
+  ## save for h5
+  file.remove(H5OUT)
+  h5createFile(H5OUT)
+  h5=do.call(abind,c(h5,along=3))
+  h5write(h5, file = H5OUT, 'foo')
+  h5closeAll()
   
   ## animate at 2 frames per second
-  if(all(sapply(images,class)!="try-error")){
-    img_joined <- image_join(images)
-    img_animated <- image_animate(img_joined, fps = 1)
-    image_write(image = img_animated, path = paste0(B06,filesep,FoF,".gif"))
-  }else{
-    print("Magick not installed. No .gif output generated")
-  }
+  prefix=paste0(OUTDIR,filesep,FoF)
+  cmd=paste0("convert -delay 20 -loop 0 ",prefix,filesep,"*.tif ",prefix,".gif ")
+  system(cmd)
+  ## Clean up:
+  try(sapply(list.files(prefix, pattern=".tif", full.names=T), file.remove))
+  
+  setwd(olddir)
+  # if(all(sapply(images,class)!="try-error")){
+  #   img_joined <- image_join(images)
+  #   img_animated <- image_animate(img_joined, fps = 1)
+  #   image_write(image = img_animated, path = paste0(OUTDIR,filesep,FoF,".gif"))
+  # }else{
+  #   print("Magick not installed. No .gif output generated")
+  # }
+  return(h5)
 }
