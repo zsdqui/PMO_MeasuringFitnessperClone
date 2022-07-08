@@ -72,3 +72,19 @@ dirCreate<-function(dname, recursive=T, permission=NULL){
     system(paste("chmod -R", permission, dname))
   }
 }
+
+
+
+resize4Ilastik<-function(img, xydim = 255){
+  img=EBImage::resize(img,h = xydim, w=xydim)
+  return(img)
+}
+
+
+##@TODO: test
+reverseResize4Ilastik<-function(df, xydim_from=255, xydim_to = 1024){
+  XY=c("Center_of_the_object_0","Center_of_the_object_1")
+  fac=xydim_to/xydim_from
+  df[,XY]=df[,XY]*fac
+  return(df)
+}

@@ -62,9 +62,10 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 ###############################################
 
 ## Input and output:
-FoFs=c("FoF1001_220523_brightfield", "FoF2001_220523_brightfield", "FoF3001_220523_brightfield", "FoF4001_220523_brightfield", "FoF5001_220523_brightfield")
-# FoFs=c("FoF4_220520_fluorescent.nucleus")
-signals=list(nucleus.p="nucleus.p_Cells_Centers.csv"); #nucleus.t="nucleus.t_Cells_Centers.csv",
+# FoFs=c("FoF1001_220523_brightfield", "FoF2001_220523_brightfield", "FoF3001_220523_brightfield", "FoF4001_220523_brightfield", "FoF5001_220523_brightfield")
+FoFs=paste0("FoF",1:5,"007_220523_brightfield")
+signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv")
+# signals=list(nucleus.p="nucleus.p_Cells_Centers.csv"); #nucleus.t="nucleus.t_Cells_Centers.csv",
 # signals=list(nucleus.t="nucleus.t_Cells_Centers.csv"); 
 stats=list()
 mfrow3d(nr = 1, nc = 4, sharedMouse = TRUE)  
@@ -83,12 +84,14 @@ for(FoF in FoFs){
   img=bioimagetools::readTIF(paste0(INDIR,filesep,FoF,filesep,names(signals),".tif"))
   img=img[fliplr(1:nrow(img)),,1:dim(images[[FoF]])[3]]
   img=EBImage::rotate(img,-90)
-  rawimges[[FoF]]=EBImage::resize(img,h = xydim, w=xydim)
+  rawimges[[FoF]]=resize4Ilastik(img, xydim = xydim)
+  
   
   ## Next link each predicted nucleus to its closest target nucleus
   OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
   setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
-  assignCompartment2Nucleus(signals$nucleus.p, signals$nucleus.t, OUTLINKED_)
+  # assignCompartment2Nucleus(signals$nucleus.p, signals$nucleus.t, OUTLINKED_)
+  assignCompartment2Nucleus(signals$mito.p, signals$nucleus.p, OUTLINKED_)
   setwd(ROOT)
   
   ## Compare each predicted to its linked target nucleus
@@ -132,18 +135,19 @@ hist(stats_$nucleus.p_IntersectingPixels,col="cyan")
 #################################
 ###### Linking organelles #######
 #################################
-FoFs=c("FoF13_220228_fluorescent.cytoplasm","FoF16_210818_fluorescent.cytoplasm")
-signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv",cytoplasm.t="cytoplasm.t_Cells_Centers.csv")
+# FoFs=c("FoF13_220228_fluorescent.cytoplasm","FoF16_210818_fluorescent.cytoplasm")
+FoFs=paste0("FoF",1:5,"007_220523_brightfield")
+signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv"); #,cytoplasm.t="cytoplasm.t_Cells_Centers.csv")
 signals_per_id=list()
 ## Input and output:
 for(FoF in FoFs){
   OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
   
-  ## link each predicted nucleus to its closest target nucleus
-  setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
-  assignCompartment2Nucleus(signals$mito.p, signals$nucleus.p, OUTLINKED_)
-  # assignCompartment2Nucleus(signals$cytoplasm.t, signals$nucleus.p, OUTLINKED_)
-  setwd(ROOT)
+  # ## link each predicted nucleus to its closest target nucleus
+  # setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
+  # assignCompartment2Nucleus(signals$mito.p, signals$nucleus.p, OUTLINKED_)
+  # # assignCompartment2Nucleus(signals$cytoplasm.t, signals$nucleus.p, OUTLINKED_)
+  # setwd(ROOT)
   
   ## keep only cells with all three signals:
   f=list.files(OUTLINKED_,full.names = T)
@@ -161,6 +165,7 @@ for(FoF in FoFs){
 ## Calculate image stats ##
 ###########################
 for(FoF in names(signals_per_id)){
+  print(FoF)
   OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
   
   ## Read in linked organelles
@@ -198,11 +203,14 @@ for(FoF in names(signals_per_id)){
   for(organelle in thesignals){
     imgStats[,paste0("pixels_per_volume_",organelle)]=imgStats[,paste0("pixels_",organelle)]/imgStats[,paste0("vol_",organelle)]
   }
-  imgStats$nuc_to_mito_plus_cyto = imgStats$vol_nucleus.p/(imgStats$vol_mito.p+imgStats$vol_cytoplasm.t)
-  imgStats$nuc_to_cyto = imgStats$vol_nucleus.p/imgStats$vol_cytoplasm.t
+  if("cytoplasm.t" %in% names(signals)){
+    imgStats$nuc_to_mito_plus_cyto = imgStats$vol_nucleus.p/(imgStats$vol_mito.p+imgStats$vol_cytoplasm.t)
+    imgStats$nuc_to_cyto = imgStats$vol_nucleus.p/imgStats$vol_cytoplasm.t
+    imgStats$cyto_to_mito = imgStats$vol_cytoplasm.t/imgStats$vol_mito.p
+  }
   imgStats$nuc_to_mito = imgStats$vol_nucleus.p/imgStats$vol_mito.p
-  imgStats$cyto_to_mito = imgStats$vol_cytoplasm.t/imgStats$vol_mito.p
   imgStats$nuc_vol_to_area=imgStats$vol_nucleus.p/imgStats$area_nucleus.p
+  imgStats$z=imgStats$z/ZSTACK_DISTANCE
   write.table(imgStats,file=paste0(OUTSTATS,filesep,FoF,"_stats.txt"),sep="\t",quote=F,row.names = T)
   
   
