@@ -7,10 +7,11 @@ usage() {
 	echo "  organelle:      origin of fluorescence signal (accepted values: mito, nucleus, cytoplasm)"
 	echo "  source:         are images to be used as signal or target (accepted values: s, t for brightfield, fluorescence respectively)"
 	echo "  channel:        on which channel do we find the source (e.g. 00 for fluorescence, 01 for brightfield)"
+	echo "  cellLine:      cell line (default: NCI-N87)"
 	exit 1
 	}
 
-if [ $# -ne 4 ] ; then
+if [ $# -lt 4 ] ; then
 	usage
 fi
 
@@ -19,10 +20,14 @@ date=$1
 organelle=$2
 source=$3
 channel=$4
-echo $date $organelle $source $channel
+cellLine='NCI-N87'
+if [ "$#" -eq 5 ]; then
+   cellLine=$5
+fi
+echo $date $organelle $source $channel $cellLine
 
 ## Root path and step ID
-root='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87'
+root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/"$cellLine
 stepID='A01_rawData'
 
 ## Fields of view

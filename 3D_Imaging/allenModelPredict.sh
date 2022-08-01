@@ -2,9 +2,13 @@
 
 FoF=$1
 organelle=$2
+cellLine='NCI-N87'
+if [ "$#" -eq 3 ]; then
+   cellLine=$3
+fi
 
-A02="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87/A02_ometiffconversion"
-A03="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87/A03_allenModel/"$FoF
+A02="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/$cellLine/A02_ometiffconversion"
+A03="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/$cellLine/A03_allenModel/"$FoF
 json=$A02/$FoF.$organelle".json"
 csv=$A02/$FoF".csv"
 target=${FoF##*.}
@@ -15,6 +19,8 @@ cp /raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/allenModel/
 sed -i "s/organelleXX/$organelle/g" $json
 sed -i "s/FoFXX/$FoF/g" $json
 sed -i "s/FoFXX/$FoF/g" $csv
+sed -i "s/cellLineXX/$cellLine/g" $json
+sed -i "s/cellLineXX/$cellLine/g" $csv
 
 # Run the predict function. The test images path must be present in $csv file. 
 fnet predict --json $json --gpu_ids 1
@@ -28,3 +34,5 @@ fi
 
 # Writing permissions to output FoF folder
 chmod -R a+w $A03
+chmod a+w $A03/tifs/*
+chmod a+w $A03/*
