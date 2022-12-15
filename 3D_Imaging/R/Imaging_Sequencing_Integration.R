@@ -27,8 +27,8 @@ ccState=sapply(colnames(pq), function(x) cloneid::getAttribute(x,"TranscriptomeP
 seqStats=t(pq)
 
 ## read imaging stats (if timeseries, FoFs must be sorted in ascending temporal order)
-FoFs=gsub("_stats.txt","",list.files(INSTATS,pattern = "002006_221018_brightfield"))
-# FoFs=gsub("_stats.txt","",list.files(INSTATS,pattern = "001005_221018_brightfield"))
+# FoFs=grep("00200", gsub("_stats.txt","",list.files(INSTATS,pattern = "_221018_brightfield")), value=T)
+FoFs=grep("00100", gsub("_stats.txt","",list.files(INSTATS,pattern = "_221018_brightfield")), value=T)
 # FoFs=paste0("FoF",1:5,"003_220721_brightfield")
 imgStats=list()
 for(FoF in FoFs){
@@ -50,12 +50,12 @@ coi=setdiff(colnames(imgStats),c("FoF","frame","ID","count_nucleus.p",xyz)); #
 imgStats[,coi]=sweep(imgStats[,coi], 2, STATS = apply(imgStats[,coi],2,median),FUN = "/")
 
 ## Same number of sequenced and imaged cells:
-seqStats=seqStats[sample(nrow(seqStats),size = nrow(imgStats)),]
-g1cells_seq=rownames(seqStats)[ccState[rownames(seqStats)]=="G0G1"]
+# seqStats=seqStats[sample(nrow(seqStats),size = nrow(imgStats)),]
+# g1cells_seq=rownames(seqStats)[ccState[rownames(seqStats)]=="G0G1"]
 
 ## UMAP
 imgStats_=as.data.frame(umap::umap(apply(imgStats[,coi],2,as.numeric))$layout)
-seqStats_=as.data.frame(umap::umap(seqStats)$layout)
+# seqStats_=as.data.frame(umap::umap(seqStats)$layout)
 
 ## MST imaging:
 tree=slingshot(imgStats_,rep(1,nrow(imgStats_))); 
@@ -75,13 +75,14 @@ write.csv(pseudotime_img,   file=paste0(OUTPSEUDOTIME,filesep,FoV,".csv"),row.na
 pdf(paste0("~/Downloads/",FoV,"_slingshot_imaging.pdf"))
 par(mfrow=c(2,2))
 pseudotime_img$col=round(pseudotime_img[rownames(imgStats_),1])
-col=imgStats$frame+1
-plot(imgStats_, asp = 1,pch=15-13, col=col)
+col=rainbow(max(pseudotime_img$hour)*1.2)
+col=col[round(pseudotime_img$hour)]
+plot(imgStats_, asp = 1,pch=20, col=col)
 lines(as.SlingshotDataSet(tree), type = 'c', lwd = 3)
-color.bar(unique(col),min=1,max = max(col),nticks = length(unique(col)),title = "real order")
+color.bar(unique(col),min=min(round(pseudotime_img$hour)),max = max(round(pseudotime_img$hour)),nticks = length(unique(pseudotime_img$hour)),title = "real order")
 col=c(brewer.pal(9,"Reds")[3:9],brewer.pal(9,"YlGn")[3:9],brewer.pal(9,"Blues")[3:9])[1:max(pseudotime_img$col)]
 # plot(imgStats_, asp = 1,pch=15-13*(!rownames(imgStats_) %in% g1cells_img), col=col[pseudotime_img$col])
-plot(imgStats_, asp = 1,pch=2, col=col[pseudotime_img$col])
+plot(imgStats_, asp = 1,pch=20, col=col[pseudotime_img$col])
 lines(as.SlingshotDataSet(tree), type = 'c', lwd = 3)
 color.bar(col,min=1,max = length(col),title = "pseudo order")
 dev.off()
@@ -180,16 +181,26 @@ write.csv(jointTimes,file=paste0(OUTPSEUDOTIME,filesep,FoV,".csv"),row.names = F
 ## Read in data after shifting pseudotime by cross correlation
 jointTimes=read.csv(file=paste0(OUTPSEUDOTIME,filesep,FoV,"_matlabOut.csv"),check.names = F,stringsAsFactors = F)
 # te=cor.test(jointTimes$time_since_division,jointTimes$pseudotime_shifted,method = "spearman")
-te=cor.test(jointTimes$hour_shifted,jointTimes$pseudotime,method = "spearman")
-RES=2.5
-fr=grpstats(jointTimes[,"hour",drop=F], round(jointTimes$pseudotime/RES), "median")$median
-fr[,1]=round(1+fr[,1]-min(fr[,1]))
-fr=fr[order(as.numeric(rownames(fr))),,drop=F]
-col=rainbow(max(fr)*1.3)[1:max(fr)]
+te=cor.test(jointTimes$hour,jointTimes$pseudotime_shifted,method = "spearman")
+fr=grpstats(jointTimes[,"pseudotime",drop=F], round(jointTimes$hour), "median")$median
+fr[,1]=round(10*(fr[,1]-min(fr[,1])))
+col=rainbow(max(fr)*1.2)[1:max(fr)]
 col=col[fr]
 # pdf("~/Downloads/realtime_vs_pseudotime.pdf",width = 4.5,height = 4.5)
-vioplot::vioplot(jointTimes$hour_shifted ~ round(jointTimes$pseudotime/RES), col=col)
-legend("topleft",as.character(fr[,1]), fill=col, title="hour")
+vioplot::vioplot(jointTimes$pseudotime_shifted ~ round(jointTimes$hour), col=col)
+legend("topleft",as.character(fr[,1]), fill=col, title="pseudotime")
 # dev.off()
 
 
+## Shifting real time instead of pseudotime
+# jointTimes=read.csv(file=paste0(OUTPSEUDOTIME,filesep,FoV,"_matlabOut.csv"),check.names = F,stringsAsFactors = F)
+# # te=cor.test(jointTimes$time_since_division,jointTimes$pseudotime_shifted,method = "spearman")
+# te=cor.test(jointTimes$hour_shifted,jointTimes$pseudotime,method = "spearman")
+# RES=.5
+# fr=grpstats(jointTimes[,"hour",drop=F], round(jointTimes$pseudotime/RES), "median")$median
+# fr[,1]=round(1+fr[,1]-min(fr[,1]))
+# fr=fr[order(as.numeric(rownames(fr))),,drop=F]
+# col=rainbow(max(fr)*1.3)[1:max(fr)]
+# col=col[fr]
+# vioplot::vioplot(jointTimes$hour_shifted ~ round(jointTimes$pseudotime/RES), col=col)
+# legend("topleft",as.character(fr[,1]), fill=col, title="hour")
