@@ -137,8 +137,13 @@ hist(stats_$nucleus.p_IntersectingPixels,col="cyan")
 #################################
 ###### Linking organelles #######
 #################################
-# FoFs=paste0("FoF",1:5,"007_220523_brightfield")
-FoFs=paste0("FoF",1:5,"003_220721_brightfield")
+# 2005, 2006, 1005, 1003
+# 1 = unsynchronized, 2 = synchronized
+FoFs=list.files(OUTLINKED, pattern="001003_221018_brightfield")
+# FoFs=list.files(OUTLINKED, pattern="002006_221018_brightfield")
+# FoFs=list.files(OUTLINKED, pattern="002005_221018_brightfield")
+# FoFs=list.files(OUTLINKED, pattern="001005_221018_brightfield")
+# FoFs=paste0("FoF",1:5,"003_220721_brightfield")
 signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv"); #,cytoplasm.t="cytoplasm.t_Cells_Centers.csv")
 signals_per_id=list()
 ## Input and output:
@@ -199,6 +204,7 @@ for(FoF in names(signals_per_id)){
       imgStats[as.character(id),paste0(c(names(stats_),"count_"),signal)]=c(sapply(stats_,sum,na.rm=T),length(stats_$area_)-1)
     }
   }
+  
   ## Add more stats and save 
   imgStats$pixel_per_mito_avg=imgStats$pixels_mito.p/imgStats$count_mito.p
   imgStats$pixel_per_volume_mito=imgStats$pixels_mito.p/imgStats$vol_mito.p

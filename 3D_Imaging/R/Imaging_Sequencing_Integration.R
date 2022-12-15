@@ -4,6 +4,7 @@ library(flexclust)
 library(ggplot2)
 library(slingshot)
 source("~/Projects/code/RCode/scripts/color.bar.R")
+devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
 setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
 ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87"
 A01=paste0(ROOT,filesep,"A01_rawData")
@@ -26,8 +27,9 @@ ccState=sapply(colnames(pq), function(x) cloneid::getAttribute(x,"TranscriptomeP
 seqStats=t(pq)
 
 ## read imaging stats (if timeseries, FoFs must be sorted in ascending temporal order)
-# FoFs=paste0("FoF",1:4,"007_220523_brightfield")
-FoFs=paste0("FoF",1:5,"003_220721_brightfield")
+FoFs=gsub("_stats.txt","",list.files(INSTATS,pattern = "002006_221018_brightfield"))
+# FoFs=gsub("_stats.txt","",list.files(INSTATS,pattern = "001005_221018_brightfield"))
+# FoFs=paste0("FoF",1:5,"003_220721_brightfield")
 imgStats=list()
 for(FoF in FoFs){
   imgStats_=read.table(paste0(INSTATS,filesep,FoF,"_stats.txt"),sep="\t",check.names = F,stringsAsFactors = F,header = T)
@@ -43,9 +45,9 @@ for(FoF in FoFs){
 imgStats=do.call(rbind, imgStats)
 print(paste("Found",nrow(imgStats),"cells across",length(FoFs),"images"))
 ## Columns of interest for slingshot
-coi=setdiff(colnames(imgStats),c("FoF","frame","ID",xyz)); #
+coi=setdiff(colnames(imgStats),c("FoF","frame","ID","count_nucleus.p",xyz)); #
 # coi=grep("mito",coi,value=T,invert = T)
-
+imgStats[,coi]=sweep(imgStats[,coi], 2, STATS = apply(imgStats[,coi],2,median),FUN = "/")
 
 ## Same number of sequenced and imaged cells:
 seqStats=seqStats[sample(nrow(seqStats),size = nrow(imgStats)),]
@@ -64,7 +66,7 @@ pseudotime_img=as.data.frame(pseudotime_img)
 pseudotime_img[,c(xyz,"FoF","frame","cellID")]=imgStats[,c(xyz,"FoF","frame","ID")]
 hours=getTimeStampsFromMetaData(FoFs, root="A01_rawData", xmlfiles)
 pseudotime_img$hour=hours[match(pseudotime_img$FoF,names(hours))]
-FoV=gsub(substr(FoF,1,4), "FoFX",FoF)
+FoV=gsub(substr(FoFs[1],1,4), "FoFX",FoFs[1])
 # write.table(pseudotime_img, file=paste0(OUTPSEUDOTIME,filesep,FoV,".txt"),sep="\t",row.names = F,quote = F)
 write.csv(pseudotime_img,   file=paste0(OUTPSEUDOTIME,filesep,FoV,".csv"),row.names = F)
 
@@ -178,10 +180,16 @@ write.csv(jointTimes,file=paste0(OUTPSEUDOTIME,filesep,FoV,".csv"),row.names = F
 ## Read in data after shifting pseudotime by cross correlation
 jointTimes=read.csv(file=paste0(OUTPSEUDOTIME,filesep,FoV,"_matlabOut.csv"),check.names = F,stringsAsFactors = F)
 # te=cor.test(jointTimes$time_since_division,jointTimes$pseudotime_shifted,method = "spearman")
-te=cor.test(jointTimes$frame,jointTimes$pseudotime_shifted,method = "spearman")
-pdf("~/Downloads/realtime_vs_pseudotime.pdf",width = 4.5,height = 4.5)
-plot(jointTimes$frame,jointTimes$pseudotime_shifted,col=col[jointTimes$pseudotime],pch=20,xlab="real time since division (hours)",ylab="pseudotime",cex=2,main=paste0("r=",round(te$estimate,2),"; P=",round(te$p.value,2)))
-# points(jointTimes$time_since_division,jointTimes$pseudotime_shifted,cex=2)
-dev.off()
+te=cor.test(jointTimes$hour_shifted,jointTimes$pseudotime,method = "spearman")
+RES=2.5
+fr=grpstats(jointTimes[,"hour",drop=F], round(jointTimes$pseudotime/RES), "median")$median
+fr[,1]=round(1+fr[,1]-min(fr[,1]))
+fr=fr[order(as.numeric(rownames(fr))),,drop=F]
+col=rainbow(max(fr)*1.3)[1:max(fr)]
+col=col[fr]
+# pdf("~/Downloads/realtime_vs_pseudotime.pdf",width = 4.5,height = 4.5)
+vioplot::vioplot(jointTimes$hour_shifted ~ round(jointTimes$pseudotime/RES), col=col)
+legend("topleft",as.character(fr[,1]), fill=col, title="hour")
+# dev.off()
 
 
