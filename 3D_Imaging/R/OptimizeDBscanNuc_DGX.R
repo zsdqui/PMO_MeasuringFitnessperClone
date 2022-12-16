@@ -17,6 +17,14 @@ MINZSLICES = 0.4*70
 r3dDefaults$windowRect=c(0,50, 800, 800) 
 FoF="FoF12_211110_fluorescent.nucleus"
 INDIR="A04_CellposeOutput"
+<<<<<<< HEAD
+#OUTCORRECTED=paste0("C05_TestDBSCANsettings",filesep,FoFs,filesep,EPS)
+OUTCORRECTED=paste0("C05_TestDBSCANsettings",filesep,FoFs,filesep,EPS)
+OUTSTATS=paste0("C06_Stats",filesep,FoFs)
+dir.create(OUTCORRECTED,recursive=T)
+dir.create(OUTSTATS)
+=======
+>>>>>>> 9a7e921e4ab4189680ec8f056d4d4e8f7fa24794
 
 ## Local helper functions
 correctSegmentations<-function(FoF, signals, eps, minPts){
@@ -68,6 +76,12 @@ visualize3Dsegmentations<-function(coord_,prefix){
   # )
 }
 
+<<<<<<< HEAD
+OUTCORRECTED=paste0("C05_TestDBSCANsettings",filesep,FoFs,filesep,EPS)
+#filesep,OUTCORRECTED,filesep,FoF,filesep, 
+OUTCORRECTED_=paste0(getwd(),filesep,OUTCORRECTED,filesep,"All_Cells_coordinates")
+=======
+>>>>>>> 9a7e921e4ab4189680ec8f056d4d4e8f7fa24794
 
 
 eps[,2:10]=seq(1,18,by=2)
