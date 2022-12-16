@@ -1,0 +1,3 @@
+cp /raid/crdlab/ix2/andrew/PMO_MeasuringFitnessperClone/3D_Imaging/Project_Cyto/Results_trainCyto/model_150kEpochs_train21test3/model.p cytoplasm.p
+cp /raid/crdlab/ix2/andrew/PMO_MeasuringFitnessperClone/3D_Imaging/Project_Mito/Results_trainMito/model_150kEpochs_32128128_train24test5/model.p  mito.p
+cp /raid/crdlab/ix2/andrew/PMO_MeasuringFitnessperClone/3D_Imaging/Project_Nucleus/Results_trainNucleus/model_150kEpochs_train37test6/model.p nucleus.p

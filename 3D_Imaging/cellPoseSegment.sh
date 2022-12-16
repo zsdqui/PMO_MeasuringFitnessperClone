@@ -3,12 +3,16 @@
 FoF=$1
 # FoF='FoF1_211027_fluorescent.mito'
 targetorganelle="all"
-if [ "$#" -eq 2 ]; then
+if [ "$#" -ge 2 ]; then
    targetorganelle=$2
+fi
+cellLine='NCI-N87'
+if [ "$#" -eq 3 ]; then
+   cellLine=$3
 fi
 
 run_CellPose='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/run_CellPose_3D_v1.py'
-root='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87/'
+root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/$cellLine/"
 A03=$root/A03_allenModel/$FoF
 A04=$root/A04_CellposeOutput/$FoF
 mkdir $A04

@@ -88,3 +88,51 @@ reverseResize4Ilastik<-function(df, xydim_from=255, xydim_to = 1024){
   df[,XY]=df[,XY]*fac
   return(df)
 }
+
+
+getTimeStampsFromMetaData<-function(FoFs, root="A01_rawData", xmlfiles=NULL){
+  dat=list()
+  for(FoF in FoFs){
+    if(is.null(xmlfiles)){
+      f=list.files(paste0(root,filesep,FoF,filesep,"MetaData"),pattern="_Properties.xml", full.names = T)
+    }else{
+      f=grep(FoF,xmlfiles,value = T)
+    }
+    x=grep('StartTime',readLines(f),value=T)
+    x=strsplit(x,">")[[1]][2]
+    x=strsplit(x,"<")[[1]][1]
+    x=strsplit(x," ")[[1]]
+    time=strsplit(x[2],":")[[1]]
+    hour=as.numeric(time[1])
+    if(x[3]=="PM"){
+      hour=hour+12
+    }
+    time[1]=hour
+    time=paste(time,collapse = ":")
+    date=strsplit(x[1],"/")[[1]]
+    date=paste(date[c(3,1,2)],collapse = "-")
+    dat[[FoF]]=as.POSIXct(paste0(date," ",time))
+  }
+  dat=sapply(dat, function(x) as.numeric(as.POSIXlt.POSIXct(x)))
+  dat=(dat-min(dat))/60^2 ## COnvert to hours
+  
+  return(dat)
+}
+
+getZslice<-function(FoF, slice, root="A06_multiSignals_Linked",plot=T){
+  csv=list.files(paste0(root,filesep,FoF),pattern=signal,full.names = T)
+  out=list()
+  for (x in csv){
+    y=read.csv(x)
+    y$cell=fileparts(x)$name
+    y$ID=as.numeric(strsplit(fileparts(x)$name,"_")[[1]][3])
+    y=y[y$z==slice,,drop=F]
+    out[[fileparts(x)$name]]=y
+  }
+  print(paste(sum(sapply(out,nrow)==0),"cells don't have representation on this z-slice"))
+  out=do.call(rbind, out)
+  if(plot){
+    try(plot(out$x,out$y,col=out$ID))
+  }
+  return(out)
+}

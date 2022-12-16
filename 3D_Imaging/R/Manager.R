@@ -62,8 +62,9 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 ###############################################
 
 ## Input and output:
-# FoFs=c("FoF1001_220523_brightfield", "FoF2001_220523_brightfield", "FoF3001_220523_brightfield", "FoF4001_220523_brightfield", "FoF5001_220523_brightfield")
-FoFs=paste0("FoF",1:5,"007_220523_brightfield")
+# FoFs=paste0("FoF",1:5,"007_220523_brightfield")
+# FoFs=paste0("FoF",1:5,"001_220721_brightfield")
+FoFs=paste0("FoF",rep(1:5,5),"00", as.numeric(sapply(1:5, rep, 5)),"_220721_brightfield")
 signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv")
 # signals=list(nucleus.p="nucleus.p_Cells_Centers.csv"); #nucleus.t="nucleus.t_Cells_Centers.csv",
 # signals=list(nucleus.t="nucleus.t_Cells_Centers.csv"); 
@@ -76,15 +77,16 @@ for(FoF in FoFs){
   ###############################################
   ###### Correcting Cellpose Segmentation #######
   ###############################################
-  ## First correct segmentation output
-  # correctSegmentations(FoF, signals, eps)
-  CorrectCellposeSegmentation(FoF,signal=names(signals),INDIR,OUTCORRECTED,doplot=F,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
-  # rgl.snapshot("~/Downloads/Brightfield_Timeseries.png")
-  images[[FoF]]=generateImageMask(FoF, INDIR=OUTCORRECTED, OUTDIR=OUTCORRECTED,root = ROOT, xydim = xydim)
-  img=bioimagetools::readTIF(paste0(INDIR,filesep,FoF,filesep,names(signals),".tif"))
-  img=img[fliplr(1:nrow(img)),,1:dim(images[[FoF]])[3]]
-  img=EBImage::rotate(img,-90)
-  rawimges[[FoF]]=resize4Ilastik(img, xydim = xydim)
+  ## For linking organelles:
+  CorrectCellposeSegmentation(FoF,signal=names(signals)[1],INDIR,OUTCORRECTED,doplot=F,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=T)
+  ## For live-cell tracking:
+  # # CorrectCellposeSegmentation(FoF,signal=names(signals),INDIR,OUTCORRECTED,doplot=F,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
+  # # rgl.snapshot("~/Downloads/Brightfield_Timeseries.png")
+  # images[[FoF]]=generateImageMask(FoF, INDIR=OUTCORRECTED, OUTDIR=OUTCORRECTED,root = ROOT, xydim = xydim)
+  # img=bioimagetools::readTIF(paste0(INDIR,filesep,FoF,filesep,names(signals),".tif"))
+  # img=img[fliplr(1:nrow(img)),,1:dim(images[[FoF]])[3]]
+  # img=EBImage::rotate(img,-90)
+  # rawimges[[FoF]]=resize4Ilastik(img, xydim = xydim)
   
   
   ## Next link each predicted nucleus to its closest target nucleus
@@ -135,8 +137,13 @@ hist(stats_$nucleus.p_IntersectingPixels,col="cyan")
 #################################
 ###### Linking organelles #######
 #################################
-# FoFs=c("FoF13_220228_fluorescent.cytoplasm","FoF16_210818_fluorescent.cytoplasm")
-FoFs=paste0("FoF",1:5,"007_220523_brightfield")
+# 2005, 2006, 1005, 1003
+# 1 = unsynchronized, 2 = synchronized
+FoFs=list.files(OUTLINKED, pattern="001003_221018_brightfield")
+# FoFs=list.files(OUTLINKED, pattern="002006_221018_brightfield")
+# FoFs=list.files(OUTLINKED, pattern="002005_221018_brightfield")
+# FoFs=list.files(OUTLINKED, pattern="001005_221018_brightfield")
+# FoFs=paste0("FoF",1:5,"003_220721_brightfield")
 signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv"); #,cytoplasm.t="cytoplasm.t_Cells_Centers.csv")
 signals_per_id=list()
 ## Input and output:
@@ -197,6 +204,7 @@ for(FoF in names(signals_per_id)){
       imgStats[as.character(id),paste0(c(names(stats_),"count_"),signal)]=c(sapply(stats_,sum,na.rm=T),length(stats_$area_)-1)
     }
   }
+  
   ## Add more stats and save 
   imgStats$pixel_per_mito_avg=imgStats$pixels_mito.p/imgStats$count_mito.p
   imgStats$pixel_per_volume_mito=imgStats$pixels_mito.p/imgStats$vol_mito.p
