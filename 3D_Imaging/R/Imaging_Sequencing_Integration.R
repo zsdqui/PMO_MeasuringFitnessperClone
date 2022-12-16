@@ -3,12 +3,15 @@ library(RColorBrewer)
 library(flexclust)
 library(ggplot2)
 library(slingshot)
-
-source("~/Projects/code/RCode/scripts/color.bar.R")
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
+setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
+source("CorrectCellposeSegmentation.R")
+source("assignCompartment2Nucleus.R")
+source("compareCells.R")
+source("generateImageMask.R")
+source("Utils.R")
 setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
 ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87"
-
 A01=paste0(ROOT,filesep,"A01_rawData")
 INCORRECTED=paste0(ROOT,filesep,"A05_PostProcessCellposeOutput")
 INSTATS=paste0(ROOT,filesep,"A07_LinkedSignals_Stats")
@@ -18,26 +21,21 @@ FROMILASTIK=paste0(ROOT,filesep,"G07_IlastikOutput")
 xyz=c("x","y","z")
 K=15 ## neighbors
 N=30; ## cells
-
 MINNUCVOL=8^3
+xydim = 255
+xmlfiles=list.files('../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A01_rawData/',pattern=".xml",full.names=T)
 
 
-path = '~/Documents/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87/A01_rawData/'
-xmlfiles=list.files(path,pattern=".xml",recursive=T, full.names=T)
-
-
-## read seq stats
-# seqStats=read.table("../../data/GastricCancerCL/RNAsequencing/B02_220112_seqStats/NCI-N87/Clone_0.244347_ID119967.txt",sep="\t",check.names = F,stringsAsFactors = F)
-load('~Documents/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/RNAsequencing/B01_220112_pathwayActivity/NCI-N87/Clone_0.244347_ID119967.RObj')
-ccState=sapply(colnames(pq), function(x) cloneid::getAttribute(x,"TranscriptomePerspective","state"))
-seqStats=t(pq)
+# ## read seq stats
+# # seqStats=read.table("../../data/GastricCancerCL/RNAsequencing/B02_220112_seqStats/NCI-N87/Clone_0.244347_ID119967.txt",sep="\t",check.names = F,stringsAsFactors = F)
+# load('~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/RNAsequencing/B01_220112_pathwayActivity/NCI-N87/Clone_0.244347_ID119967.RObj')
+# ccState=sapply(colnames(pq), function(x) cloneid::getAttribute(x,"TranscriptomePerspective","state"))
+# seqStats=t(pq)
 
 ## read imaging stats (if timeseries, FoFs must be sorted in ascending temporal order)
-
 # FoFs=grep("00200", gsub("_stats.txt","",list.files(INSTATS,pattern = "_221018_brightfield")), value=T)
 FoFs=grep("00100", gsub("_stats.txt","",list.files(INSTATS,pattern = "_221018_brightfield")), value=T)
 # FoFs=paste0("FoF",1:5,"003_220721_brightfield")
-
 imgStats=list()
 for(FoF in FoFs){
   imgStats_=read.table(paste0(INSTATS,filesep,FoF,"_stats.txt"),sep="\t",check.names = F,stringsAsFactors = F,header = T)
@@ -53,7 +51,6 @@ for(FoF in FoFs){
 imgStats=do.call(rbind, imgStats)
 print(paste("Found",nrow(imgStats),"cells across",length(FoFs),"images"))
 ## Columns of interest for slingshot
-
 coi=setdiff(colnames(imgStats),c("FoF","frame","ID","count_nucleus.p",xyz)); #
 # coi=grep("mito",coi,value=T,invert = T)
 imgStats[,coi]=sweep(imgStats[,coi], 2, STATS = apply(imgStats[,coi],2,median),FUN = "/")
@@ -75,11 +72,9 @@ pseudotime_img=as.data.frame(pseudotime_img)
 pseudotime_img[,c(xyz,"FoF","frame","cellID")]=imgStats[,c(xyz,"FoF","frame","ID")]
 hours=getTimeStampsFromMetaData(FoFs, root="A01_rawData", xmlfiles)
 pseudotime_img$hour=hours[match(pseudotime_img$FoF,names(hours))]
-
 FoV=gsub(substr(FoFs[1],1,4), "FoFX",FoFs[1])
 # write.table(pseudotime_img, file=paste0(OUTPSEUDOTIME,filesep,FoV,".txt"),sep="\t",row.names = F,quote = F)
 write.csv(pseudotime_img,   file=paste0(OUTPSEUDOTIME,filesep,FoV,".csv"),row.names = F)
-
 
 
 ## Visualize pseudotime
@@ -104,6 +99,7 @@ te=cor.test(pseudotime_img$hour,pseudotime_img$pseudotime)
 boxplot(pseudotime_img$pseudotime~round(pseudotime_img$hour),main=paste0("Pearson r=",round(te$estimate,2),"; P=",round(te$p.value,5)),col="cyan",xlab="hour",ylab="pseudotime")
 
 
+
 ## Visualize pseudotime spatial distribution
 par(mfrow=c(5,3),bg="gray",mai=c(0.1,0.5,0.1,0.5))
 zslice=35
@@ -113,11 +109,9 @@ col=fliplr(heat.colors(max(pseudotime_img[,"pseudotimeCol"])))
 for(FoF in unique(pseudotime_img$FoF)){
   pseudotime_img_=pseudotime_img[pseudotime_img$FoF==FoF,]
   rownames(pseudotime_img_)=as.character(pseudotime_img_$cellID)
-  slice=getZslice(FoF,zslice,root = "../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A06_multiSignals_Linked",plot=F)
+  slice=getZslice(FoF,zslice,root = "../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A06_multiSignals_Linked",plot=F, signal="nucleus.p")
   ## plot brightfield
-
-  TIF=paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A01_rawData",filesep,FoF,filesep,"nucleus.s_z",zslice,".tif")
-
+  TIF=paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A01_rawData",filesep,FoF,filesep,"brightfield.s_z",zslice,".tif")
   img=bioimagetools::readTIF(TIF)
   img=EBImage::rotate(img,-180)
   bioimagetools::img(resize4Ilastik(img, xydim = xydim)[,,1]);
@@ -165,7 +159,6 @@ print(paste("open",TIF))
 #############################################################
 ## Compare pseudotime with LCI-derived time since division ##
 #############################################################
-
 realtime_img=read.table(file=paste0(FROMILASTIK,filesep,FoF,"_DeltaDivision.txt"),sep="\t",check.names = T,stringsAsFactors = T,header = T)
 ## Coordinate based mapping of cells between pseudotime and Ilastik output per each frame:
 jointTimes=list()
@@ -188,14 +181,12 @@ for(time in unique(pseudotime_img$frame)){
 }
 jointTimes=do.call(rbind, jointTimes)
 write.csv(jointTimes,file=paste0(OUTPSEUDOTIME,filesep,FoV,".csv"),row.names = F)
-
 # # run in Matlab: 
 #   # calc circular cross correlation btw. the "pseudotime timepoints" and the estimates of "time_since_division"
 #   circularCrossCorr(jointTimes$time_since_division,jointTimes$pseudotime)
 ## Read in data after shifting pseudotime by cross correlation
 jointTimes=read.csv(file=paste0(OUTPSEUDOTIME,filesep,FoV,"_matlabOut.csv"),check.names = F,stringsAsFactors = F)
 # te=cor.test(jointTimes$time_since_division,jointTimes$pseudotime_shifted,method = "spearman")
-
 te=cor.test(jointTimes$hour,jointTimes$pseudotime_shifted,method = "spearman")
 fr=grpstats(jointTimes[,"pseudotime",drop=F], round(jointTimes$hour), "median")$median
 fr[,1]=round(10*(fr[,1]-min(fr[,1])))
