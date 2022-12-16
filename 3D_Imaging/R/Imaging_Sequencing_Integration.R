@@ -3,8 +3,13 @@ library(RColorBrewer)
 library(flexclust)
 library(ggplot2)
 library(slingshot)
-source("~/Projects/code/RCode/scripts/color.bar.R")
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
+setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
+source("CorrectCellposeSegmentation.R")
+source("assignCompartment2Nucleus.R")
+source("compareCells.R")
+source("generateImageMask.R")
+source("Utils.R")
 setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
 ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87"
 A01=paste0(ROOT,filesep,"A01_rawData")
@@ -17,14 +22,15 @@ xyz=c("x","y","z")
 K=15 ## neighbors
 N=30; ## cells
 MINNUCVOL=8^3
+xydim = 255
 xmlfiles=list.files('../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A01_rawData/',pattern=".xml",full.names=T)
 
 
-## read seq stats
-# seqStats=read.table("../../data/GastricCancerCL/RNAsequencing/B02_220112_seqStats/NCI-N87/Clone_0.244347_ID119967.txt",sep="\t",check.names = F,stringsAsFactors = F)
-load('~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/RNAsequencing/B01_220112_pathwayActivity/NCI-N87/Clone_0.244347_ID119967.RObj')
-ccState=sapply(colnames(pq), function(x) cloneid::getAttribute(x,"TranscriptomePerspective","state"))
-seqStats=t(pq)
+# ## read seq stats
+# # seqStats=read.table("../../data/GastricCancerCL/RNAsequencing/B02_220112_seqStats/NCI-N87/Clone_0.244347_ID119967.txt",sep="\t",check.names = F,stringsAsFactors = F)
+# load('~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/RNAsequencing/B01_220112_pathwayActivity/NCI-N87/Clone_0.244347_ID119967.RObj')
+# ccState=sapply(colnames(pq), function(x) cloneid::getAttribute(x,"TranscriptomePerspective","state"))
+# seqStats=t(pq)
 
 ## read imaging stats (if timeseries, FoFs must be sorted in ascending temporal order)
 # FoFs=grep("00200", gsub("_stats.txt","",list.files(INSTATS,pattern = "_221018_brightfield")), value=T)
@@ -103,9 +109,9 @@ col=fliplr(heat.colors(max(pseudotime_img[,"pseudotimeCol"])))
 for(FoF in unique(pseudotime_img$FoF)){
   pseudotime_img_=pseudotime_img[pseudotime_img$FoF==FoF,]
   rownames(pseudotime_img_)=as.character(pseudotime_img_$cellID)
-  slice=getZslice(FoF,zslice,root = "../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A06_multiSignals_Linked",plot=F)
+  slice=getZslice(FoF,zslice,root = "../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A06_multiSignals_Linked",plot=F, signal="nucleus.p")
   ## plot brightfield
-  TIF=paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A01_rawData",filesep,FoF,filesep,"nucleus.s_z",zslice,".tif")
+  TIF=paste0("../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A01_rawData",filesep,FoF,filesep,"brightfield.s_z",zslice,".tif")
   img=bioimagetools::readTIF(TIF)
   img=EBImage::rotate(img,-180)
   bioimagetools::img(resize4Ilastik(img, xydim = xydim)[,,1]);

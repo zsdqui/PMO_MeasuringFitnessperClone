@@ -1,3 +1,15 @@
+color.bar <- function(lut, min, max=-min, nticks=11, ticks=seq(min, max, len=nticks), title='') {
+  scale = (length(lut))/(max-min)
+
+  plot(c(0,10), c(min,max), type='n', bty='n', xaxt='n', xlab='', yaxt='n', ylab='', main=title)
+  axis(2, ticks, las=1)
+  for (i in 1:(length(lut))) {
+    y = (i-1)/scale + min
+    rect(0,y,10,y+1/scale, col=lut[i], border=NA)
+  }
+}
+
+
 Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, level=0.5/length(xx)) {
   library(MASS)
   ##Remove outliers
@@ -119,7 +131,7 @@ getTimeStampsFromMetaData<-function(FoFs, root="A01_rawData", xmlfiles=NULL){
   return(dat)
 }
 
-getZslice<-function(FoF, slice, root="A06_multiSignals_Linked",plot=T){
+getZslice<-function(FoF, slice, root="A06_multiSignals_Linked",plot=T, signal="nucleus.p"){
   csv=list.files(paste0(root,filesep,FoF),pattern=signal,full.names = T)
   out=list()
   for (x in csv){
