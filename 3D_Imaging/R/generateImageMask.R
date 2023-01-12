@@ -1,10 +1,11 @@
 # source("R/generateImageMask.R")
 # FoF="FoF1001_220407_brightfield";
 # generateImageMask(FoF)
-generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR="B06_OrganelleMasks", root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87", targetcellids=NULL, xydim=1024){
+generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR="B06_OrganelleMasks", root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87", targetcellids=NULL, xydim=1024, signal=""){
   library(matlab)
   library("rhdf5")
-  xydim = min(1024, xydim)
+  idim = 1024
+  xydim = min(idim, xydim)
   OUTDIR=paste0(root,filesep,OUTDIR)
   H5OUT=paste0(OUTDIR,filesep,FoF,".h5")
   olddir=getwd()
@@ -15,7 +16,7 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
   }
   dirCreate(paste0(OUTDIR,filesep,FoF), permission = "a+w")
   
-  tmp=list.files()
+  tmp=list.files(pattern=signal)
   cells=sample(length(tmp),length(tmp))
   names(cells)=tmp
   ## mark filtered cells if applicable
@@ -28,7 +29,7 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
   zstack=70
   images <- h5 <- list()
   for(z in 1:zstack){
-    img=matrix(NA,1024,1024)
+    img=matrix(NA,idim,idim)
     for(cell in names(cells)){
       csv=read.csv(cell)
       for(i in which(csv$z==z)){
@@ -41,9 +42,12 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
     if(z<10){
       z_=paste0("0",z)
     }
-    iout=paste0(OUTDIR,filesep,FoF,filesep,FoF,"_z",z_,".tif")
-    tiff(iout)
-    par(mai=c(0,0,0,0)); image(img,frame.plot=F,axes=F)
+    iout=paste0(OUTDIR,filesep,FoF,filesep,FoF,"_z",z_)
+    png(paste0(iout,".png"),width = idim, height = idim)
+    par(mai=c(0,0,0,0)); 
+    bioimagetools::img(t(img),col=rainbow(max(img,na.rm=T)), mask=!is.na(t(img)))
+    write.table(t(img), file=paste0(iout,".txt"),sep="\t",quote=F, row.names = F, col.names = F)
+    # image(img,frame.plot=F,axes=F)
     dev.off()
     ## save for gif
     images[[z]]=try(magick::image_read(iout),silent = T)
@@ -59,10 +63,10 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
   
   ## animate at 2 frames per second
   prefix=paste0(OUTDIR,filesep,FoF)
-  cmd=paste0("convert -delay 20 -loop 0 ",prefix,filesep,"*.tif ",prefix,".gif ")
+  cmd=paste0("convert -delay 20 -loop 0 ",prefix,filesep,"*.png ",prefix,".gif ")
   system(cmd)
   ## Clean up:
-  try(sapply(list.files(prefix, pattern=".tif", full.names=T), file.remove))
+  try(sapply(list.files(prefix, pattern=".png", full.names=T), file.remove))
   
   setwd(olddir)
   # if(all(sapply(images,class)!="try-error")){

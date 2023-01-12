@@ -1,6 +1,6 @@
 color.bar <- function(lut, min, max=-min, nticks=11, ticks=seq(min, max, len=nticks), title='') {
   scale = (length(lut))/(max-min)
-
+  
   plot(c(0,10), c(min,max), type='n', bty='n', xaxt='n', xlab='', yaxt='n', ylab='', main=title)
   axis(2, ticks, las=1)
   for (i in 1:(length(lut))) {
@@ -10,23 +10,70 @@ color.bar <- function(lut, min, max=-min, nticks=11, ticks=seq(min, max, len=nti
 }
 
 
-Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, level=0.5/length(xx)) {
+Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, level=0.5/length(xx),xlim=quantile(xx,c(0,1)),ylim=quantile(yy,c(0,1)),zlim=quantile(zz,c(0,1)), other=NULL, png=NULL) {
   library(MASS)
+  # print("datapoints nucleus:"); print(length(xx))
+  # print("datapoints mito:"); print(nrow(other))
+  
   ##Remove outliers
-  hQ=0.975; lQ=0.025
+  # hQ=0.975; lQ=0.025
+  hQ=1; lQ=0
   iK1=which(xx<=quantile(xx,hQ) & xx>=quantile(xx,lQ))
   iK2=which(yy<=quantile(yy,hQ) & yy>=quantile(yy,lQ))
   iK3=which(zz<=quantile(zz,hQ) & zz>=quantile(zz,lQ))
   iK=intersect(iK1,iK2)
   iK=intersect(iK,iK3)
   xx=xx[iK]; yy=yy[iK]; zz = zz[iK]
+  qx=quantile(xx,c(0,1))
+  qy=quantile(yy,c(0,1))
+  qz=quantile(zz,c(0,1))
   
   ##Contour
-  dens2 <- kde3d(xx, yy, zz, lims=c(min(xx)-sd(xx), max(xx)+sd(xx),
-                                    min(yy)-sd(yy), max(yy)+sd(yy),
-                                    min(zz)-sd(zz), max(zz)+sd(zz) ),n=55  )
-  misc3d::contour3d(dens2$d, level=level, dens2$x, dens2$y, dens2$z, color=lcolor, add=add, alpha=alpha); #,drawlabels=F,lwd=2
-  # return(cbind(dens2$x,dens2$y, dens2$z))
+  n=1+c(qx[2]-qx[1], qy[2]-qy[1], qz[2]-qz[1])
+  # print("nucleus:"); print(n)
+  dens2 <- misc3d::kde3d(xx, yy, zz,n=n ) 
+  RES=c(x=dens2$x[2]-dens2$x[1],y=dens2$y[2]-dens2$y[1],z=dens2$z[2]-dens2$z[1])
+  
+  ## Embed in larger array to render plots comparable across cells
+  dens <- array(0,dim=ceil(cbind(xlim,ylim,zlim)[2,]/RES))
+  # print("all:"); 
+  print(dim(dens))
+  dens[ceil(dens2$x/RES["x"]),ceil(dens2$y/RES["y"]), ceil(dens2$z/RES["z"])]=dens2$d
+  ## Plot
+  
+  if(!is.null(png)){
+    png(png)
+  }
+  plot.new()
+  par(mai=c(0,0,0,0))
+  plot3D::isosurf3D(x=1:nrow(dens),y=1:ncol(dens),z=1:dim(dens)[3],colvar = dens, col=lcolor, add=add, alpha=alpha,bty="n",phi = 40, theta = 40); #,drawlabels=F,lwd=2
+  # misc3d::contour3d(dens, level=level, color=lcolor, add=add, alpha=alpha); #,drawlabels=F,lwd=2
+  
+  ## add other compartment to coordinate system:
+  dens_o=NULL
+  if(!is.null(other)){
+    other=sweep(other,MARGIN = 2, STATS = RES, FUN = "/")
+    plot3D::scatter3D(other[,1], other[,2], other[,3],pch3d=20, size=5, axes=F, xlab="",ylab="", zlab="",col="red",alpha=0.04, add=T,xlim=xlim,ylim=ylim,zlim=zlim)
+    dens_o=dens
+    dens_o[T]=0
+    for(i in 1:nrow(other)){
+      dens_o[other[i,1], other[i,2], other[i,3]] =1
+      ##@TODO: should this be assigned a smaller value?
+    }
+  }
+  if(!is.null(png)){
+    dev.off()
+  }
+  # # ##TESTPLOT
+  # xyz=varbvs::grid3d(1:dim(dens)[1],1:dim(dens)[2],1:dim(dens)[3]);
+  # xyz=do.call(cbind,xyz)
+  # out=cbind(xyz,hull[T]);
+  # out=out[out[,4]>1E-7,]
+  # plot.new()
+  # plot3D::scatter3D(out[,1], out[,2], out[,3],pch=20, size=0.2, axes=F, xlab="",ylab="", zlab="",alpha=0.04, add=F,colvar =out[,4],bty="n", colkey=F, type = "p")
+  
+  
+  return(list(nucleus=dens, other=dens_o))
 }
 
 
@@ -99,6 +146,24 @@ reverseResize4Ilastik<-function(df, xydim_from=255, xydim_to = 1024){
   fac=xydim_to/xydim_from
   df[,XY]=df[,XY]*fac
   return(df)
+}
+
+
+collectTensorsAsVectors<-function(FoF, indir="A06_multiSignals_Linked", root="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87"){
+  f=list.files(paste0(root,filesep,indir,filesep,FoF),pattern=".rds", full.names = T)
+  f_m=grep("mito",f,value=T)
+  f_n=grep("nuc",f,value=T)
+  mat=c()
+  for(i in 1:length(f_n)){
+    x=readRDS(f_n[i])
+    x_m=readRDS(f_m[i])
+    x_m[x_m==1]=max(x)*2
+    jj=which(x==0)
+    x[jj]=x_m[jj]
+    mat=rbind(mat,as.numeric(x))
+  }
+  rownames(mat)=sapply(f_n, function(x) strsplit(fileparts(x)$name,"_")[[1]][2])
+  return(mat)
 }
 
 
