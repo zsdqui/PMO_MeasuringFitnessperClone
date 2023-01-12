@@ -13,7 +13,8 @@ source("Utils.R")
 setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
 ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCL/3Dbrightfield/NCI-N87"
 A01=paste0(ROOT,filesep,"A01_rawData")
-INCORRECTED=paste0(ROOT,filesep,"A05_PostProcessCellposeOutput")
+A04=paste0(ROOT,filesep,"A04_CellposeOutput")
+A05=paste0(ROOT,filesep,"A05_PostProcessCellposeOutput")
 INSTATS=paste0(ROOT,filesep,"A07_LinkedSignals_Stats")
 OUTPSEUDOTIME=paste0(ROOT,filesep,"A08_Pseudotime")
 dirCreate(OUTPSEUDOTIME,permission = "a+w")
@@ -21,7 +22,12 @@ FROMILASTIK=paste0(ROOT,filesep,"G07_IlastikOutput")
 xyz=c("x","y","z")
 K=15 ## neighbors
 N=30; ## cells
-MINNUCVOL=8^3
+MINNUCVOL=7^3
+MAXNUCVOL=2000
+custom.settings = umap.defaults
+custom.settings$n_neighbors = 8
+custom.settings$negative_sample_rate = 3
+custom.settings$local_connectivity = 1
 xydim = 255
 xmlfiles=list.files('../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A01_rawData/',pattern=".xml",full.names=T)
 
@@ -33,71 +39,98 @@ xmlfiles=list.files('../../data/GastricCancerCL/3Dbrightfield/NCI-N87/A01_rawDat
 # seqStats=t(pq)
 
 ## read imaging stats (if timeseries, FoFs must be sorted in ascending temporal order)
-# FoFs=grep("00200", gsub("_stats.txt","",list.files(INSTATS,pattern = "_221018_brightfield")), value=T)
-FoFs=grep("00100", gsub("_stats.txt","",list.files(INSTATS,pattern = "_221018_brightfield")), value=T)
+# FoFs=grep("002005", gsub("_stats.txt","",list.files(INSTATS,pattern = "_221018_brightfield")), value=T)
 # FoFs=paste0("FoF",1:5,"003_220721_brightfield")
-imgStats=list()
-for(FoF in FoFs){
-  imgStats_=read.table(paste0(INSTATS,filesep,FoF,"_stats.txt"),sep="\t",check.names = F,stringsAsFactors = F,header = T)
-  imgStats_=imgStats_[apply(!is.na(imgStats_),1,all),]; ## exclude cells whose volume could not be estimated
-  imgStats_=imgStats_[,apply(!is.na(imgStats_),2,all)]; ## exclude features with NA vals
-  imgStats_$FoF= FoF
-  ## which frame (timepoint) is this? Used for mapping to Ilastik output:
-  imgStats_$frame=which(FoF==FoFs)-1;  
-  imgStats_$ID=rownames(imgStats_)
-  imgStats[[FoF]]=imgStats_[imgStats_$vol_nucleus>MINNUCVOL,]
+colors=list()
+date="_221018_brightfield"
+FoVs =  c("FoFX002005","FoFX001003")
+for(FoV in FoVs){
+  print(FoV)
+  FoFs=grep(gsub("FoFX","",FoV), gsub("_stats.txt","",list.files(INSTATS,pattern = date)), value=T)
+  # z-axis shift for FoF3002005 renders mitochondrial features unusable:
+  FoFs = grep("FoF300",FoFs,invert = T, value = T)
+  imgStats=list()
+  for(FoF in FoFs){
+    imgStats_=read.table(paste0(INSTATS,filesep,FoF,"_stats.txt"),sep="\t",check.names = F,stringsAsFactors = F,header = T)
+    imgStats_=imgStats_[apply(!is.na(imgStats_),1,all),]; ## exclude cells whose volume could not be estimated
+    imgStats_=imgStats_[,apply(!is.na(imgStats_),2,all)]; ## exclude features with NA vals
+    imgStats_=imgStats_[imgStats_$vol_nucleus.p > MINNUCVOL,]
+    imgStats_=imgStats_[imgStats_$vol_nucleus.p < MAXNUCVOL,]
+    # imgStats_=as.data.frame(collectTensorsAsVectors(FoF))
+    imgStats_$FoF= FoF
+    ## which frame (timepoint) is this? Used for mapping to Ilastik output:
+    imgStats_$frame=which(FoF==FoFs)-1;  
+    imgStats_$ID=rownames(imgStats_)
+    imgStats[[FoF]]=imgStats_
+  }
+  # run pseudotime inference on all timepoints of a given FoV jointly:
+  imgStats=do.call(rbind, imgStats)
+  imgStats=imgStats[,which(apply(imgStats, 2, function(x) !all(x==0 | is.na(x))))]
+  ## Columns of interest for slingshot
+  coi=setdiff(colnames(imgStats),c("FoF","frame","ID","count_nucleus.p",xyz)); #
+  ## Exclude feature subset
+  dub=sapply(c("Dist","cell","vol_mito","area_mito"), function(x) grep(x,coi, value=T), simplify = F)
+  # coi=setdiff(coi, dub$Dist)
+  # coi=setdiff(coi, dub$cell)
+  # coi=setdiff(coi, dub$vol_mito)
+  # coi=setdiff(coi, dub$area_mito)
+  imgStats[,coi]=sweep(imgStats[,coi], 2, STATS = apply(imgStats[,coi],2,median, na.rm=T),FUN = "/")
+  print(paste("Found",nrow(imgStats),"cells across",length(FoFs),"images"))
+    
+  ## Same number of sequenced and imaged cells:
+  # seqStats=seqStats[sample(nrow(seqStats),size = nrow(imgStats)),]
+  # g1cells_seq=rownames(seqStats)[ccState[rownames(seqStats)]=="G0G1"]
+  
+  ## UMAP
+  imgStats_=as.data.frame(umap::umap(apply(imgStats[,coi],2,as.numeric), config=custom.settings)$layout)
+  imgStats=cbind(imgStats_,imgStats)
+  colnames(imgStats)[1:2]=paste0("UMAP",c(1:2))
+  # seqStats_=as.data.frame(umap::umap(seqStats)$layout)
+  
+  ## MST imaging:
+  tree=slingshot(imgStats_,rep(1,nrow(imgStats_)) ); 
+  pseudotime_img=as.data.frame(slingshot::slingPseudotime(tree)+1)
+  colnames( pseudotime_img)="pseudotime"
+  ## Save for comparison with live-cell imaging data
+  pseudotime_img=as.data.frame(pseudotime_img)
+  pseudotime_img[,c(xyz,"FoF","frame","cellID","UMAP1","UMAP2")]=imgStats[,c(xyz,"FoF","frame","ID","UMAP1","UMAP2")]
+  hours=getTimeStampsFromMetaData(FoFs, root="A01_rawData", xmlfiles)
+  pseudotime_img$hour=hours[match(pseudotime_img$FoF,names(hours))]
+  fr=plyr::count(pseudotime_img$hour)
+  rownames(fr)=FoFs
+  fr$beforeLink=NA
+  plot(fr$x,fr$freq, main=FoF)
+  ## Compare to number of cells detected before linking mito and nucleus:
+  for(FoF in unique(pseudotime_img$FoF)){
+    f=list.files(paste0(A04,filesep,FoF,"/All_Cells_coordinates"), pattern = "nucleus.p")
+    fr[FoF,"beforeLink"]=length(f)
+  }
+  # write.table(pseudotime_img, file=paste0(OUTPSEUDOTIME,filesep,FoV,".txt"),sep="\t",row.names = F,quote = F)
+  write.csv(pseudotime_img,   file=paste0(OUTPSEUDOTIME,filesep,FoV,date,".csv"),row.names = F)
+  
+  
+  ## Visualize pseudotime
+  pdf(paste0("~/Downloads/",FoV,"_slingshot_imaging.pdf"))
+  par(mfrow=c(2,2),mai=c(0.5,0.5,0.5,0.1))
+  pseudotime_img$col=round(pseudotime_img[rownames(imgStats_),1])
+  col=rainbow(max(pseudotime_img$hour)*1.2)
+  col=col[round(pseudotime_img$hour)]
+  plot(imgStats_, asp = 1,pch=20, col=col)
+  lines(as.SlingshotDataSet(tree), type = 'c', lwd = 3)
+  color.bar(unique(col),min=min(round(pseudotime_img$hour)),max = max(round(pseudotime_img$hour)),nticks = length(unique(pseudotime_img$hour)),title = "real order")
+  col=c(brewer.pal(9,"Reds")[3:9],brewer.pal(9,"YlGn")[3:9],brewer.pal(9,"Blues")[3:9],brewer.pal(9,"Purples")[4:9])[1:max(pseudotime_img$col)]
+  colors[[FoV]]=col
+  # plot(imgStats_, asp = 1,pch=15-13*(!rownames(imgStats_) %in% g1cells_img), col=col[pseudotime_img$col])
+  plot(imgStats_, asp = 1,pch=20, col=col[pseudotime_img$col])
+  lines(as.SlingshotDataSet(tree), type = 'c', lwd = 3)
+  color.bar(col,min=1,max = length(col),title = "pseudo order")
+  dev.off()
+  print("Correlation between real time order and pseudotime:")
+  cor.test(pseudotime_img$frame,pseudotime_img$pseudotime,method="spearman")
+  print("Correlation between real time and pseudotime:")
+  te=cor.test(pseudotime_img$hour,pseudotime_img$pseudotime)
+  boxplot(pseudotime_img$pseudotime~round(pseudotime_img$hour),main=paste0("Pearson r=",round(te$estimate,2),"; P=",round(te$p.value,5)),col="cyan",xlab="hour",ylab="pseudotime")
 }
-# run pseudotime inference on all timepoints of a given FoV jointly:
-imgStats=do.call(rbind, imgStats)
-print(paste("Found",nrow(imgStats),"cells across",length(FoFs),"images"))
-## Columns of interest for slingshot
-coi=setdiff(colnames(imgStats),c("FoF","frame","ID","count_nucleus.p",xyz)); #
-# coi=grep("mito",coi,value=T,invert = T)
-imgStats[,coi]=sweep(imgStats[,coi], 2, STATS = apply(imgStats[,coi],2,median),FUN = "/")
-
-## Same number of sequenced and imaged cells:
-# seqStats=seqStats[sample(nrow(seqStats),size = nrow(imgStats)),]
-# g1cells_seq=rownames(seqStats)[ccState[rownames(seqStats)]=="G0G1"]
-
-## UMAP
-imgStats_=as.data.frame(umap::umap(apply(imgStats[,coi],2,as.numeric))$layout)
-# seqStats_=as.data.frame(umap::umap(seqStats)$layout)
-
-## MST imaging:
-tree=slingshot(imgStats_,rep(1,nrow(imgStats_))); 
-pseudotime_img=as.data.frame(slingshot::slingPseudotime(tree)+1)
-colnames( pseudotime_img)="pseudotime"
-## Save for comparison with live-cell imaging data
-pseudotime_img=as.data.frame(pseudotime_img)
-pseudotime_img[,c(xyz,"FoF","frame","cellID")]=imgStats[,c(xyz,"FoF","frame","ID")]
-hours=getTimeStampsFromMetaData(FoFs, root="A01_rawData", xmlfiles)
-pseudotime_img$hour=hours[match(pseudotime_img$FoF,names(hours))]
-FoV=gsub(substr(FoFs[1],1,4), "FoFX",FoFs[1])
-# write.table(pseudotime_img, file=paste0(OUTPSEUDOTIME,filesep,FoV,".txt"),sep="\t",row.names = F,quote = F)
-write.csv(pseudotime_img,   file=paste0(OUTPSEUDOTIME,filesep,FoV,".csv"),row.names = F)
-
-
-## Visualize pseudotime
-pdf(paste0("~/Downloads/",FoV,"_slingshot_imaging.pdf"))
-par(mfrow=c(2,2))
-pseudotime_img$col=round(pseudotime_img[rownames(imgStats_),1])
-col=rainbow(max(pseudotime_img$hour)*1.2)
-col=col[round(pseudotime_img$hour)]
-plot(imgStats_, asp = 1,pch=20, col=col)
-lines(as.SlingshotDataSet(tree), type = 'c', lwd = 3)
-color.bar(unique(col),min=min(round(pseudotime_img$hour)),max = max(round(pseudotime_img$hour)),nticks = length(unique(pseudotime_img$hour)),title = "real order")
-col=c(brewer.pal(9,"Reds")[3:9],brewer.pal(9,"YlGn")[3:9],brewer.pal(9,"Blues")[3:9])[1:max(pseudotime_img$col)]
-# plot(imgStats_, asp = 1,pch=15-13*(!rownames(imgStats_) %in% g1cells_img), col=col[pseudotime_img$col])
-plot(imgStats_, asp = 1,pch=20, col=col[pseudotime_img$col])
-lines(as.SlingshotDataSet(tree), type = 'c', lwd = 3)
-color.bar(col,min=1,max = length(col),title = "pseudo order")
-dev.off()
-print("Correlation between real time order and pseudotime:")
-cor.test(pseudotime_img$frame,pseudotime_img$pseudotime,method="spearman")
-print("Correlation between real time and pseudotime:")
-te=cor.test(pseudotime_img$hour,pseudotime_img$pseudotime)
-boxplot(pseudotime_img$pseudotime~round(pseudotime_img$hour),main=paste0("Pearson r=",round(te$estimate,2),"; P=",round(te$p.value,5)),col="cyan",xlab="hour",ylab="pseudotime")
-
 
 
 ## Visualize pseudotime spatial distribution
@@ -185,18 +218,18 @@ write.csv(jointTimes,file=paste0(OUTPSEUDOTIME,filesep,FoV,".csv"),row.names = F
 #   # calc circular cross correlation btw. the "pseudotime timepoints" and the estimates of "time_since_division"
 #   circularCrossCorr(jointTimes$time_since_division,jointTimes$pseudotime)
 ## Read in data after shifting pseudotime by cross correlation
-jointTimes=read.csv(file=paste0(OUTPSEUDOTIME,filesep,FoV,"_matlabOut.csv"),check.names = F,stringsAsFactors = F)
-# te=cor.test(jointTimes$time_since_division,jointTimes$pseudotime_shifted,method = "spearman")
-te=cor.test(jointTimes$hour,jointTimes$pseudotime_shifted,method = "spearman")
-fr=grpstats(jointTimes[,"pseudotime",drop=F], round(jointTimes$hour), "median")$median
-fr[,1]=round(10*(fr[,1]-min(fr[,1])))
-col=rainbow(max(fr)*1.2)[1:max(fr)]
-col=col[fr]
-# pdf("~/Downloads/realtime_vs_pseudotime.pdf",width = 4.5,height = 4.5)
-vioplot::vioplot(jointTimes$pseudotime_shifted ~ round(jointTimes$hour), col=col)
-legend("topleft",as.character(fr[,1]), fill=col, title="pseudotime")
-# dev.off()
-
+f=list.files(OUTPSEUDOTIME, pattern="_matlabOut.csv", full.names = T)
+pdf("~/Downloads/realtime_vs_pseudotime.pdf",height = 4.5,width = 9)
+par(mfrow=c(1,2))
+for(FoV in c("FoFX002005","FoFX001003")){
+  jointTimes=read.csv(file=grep(FoV,f,value=T),check.names = F,stringsAsFactors = F)
+  # te=cor.test(jointTimes$time_since_division,jointTimes$pseudotime_shifted,method = "spearman")
+  te=cor.test(jointTimes$hour,jointTimes$pseudotime_shifted,method = "spearman")
+  fr=grpstats(jointTimes[,"pseudotime",drop=F], round(jointTimes$hour), "median")$median
+  
+  vioplot::vioplot(jointTimes$pseudotime_shifted ~ round(jointTimes$hour), col=colors[[FoV]][round(fr[,1])], xlab="hour", ylab="shifted pseudotime", main=paste0(FoV, ": R=",round(te$estimate,2),"; p=", round(te$p.value,10)))
+}
+dev.off()
 
 ## Shifting real time instead of pseudotime
 # jointTimes=read.csv(file=paste0(OUTPSEUDOTIME,filesep,FoV,"_matlabOut.csv"),check.names = F,stringsAsFactors = F)
