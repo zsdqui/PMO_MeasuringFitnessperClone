@@ -21,6 +21,8 @@ conda activate cellpose
 Then run this command
 python3 cellPose_getCount.py -dir <path2Image.tif> -t <typeofImages> -GPU <GPU number>
 
+This code can be called as follows: python3 run_CellPose_3D_v2.py -imgPath mito.t.tif -t mitochondria -GPU 1
+
 '''
 
 import argparse
@@ -215,10 +217,12 @@ def cellPose_getCount(images_path,images_type, machine_type='CPU'):
         #Option 1: use tif images as input. 
         # mask, flow, style, diam = model.eval(img, diameter=None, channels=[0,0], do_3D=True)
         #Option 2
-        if images_type == 'cytoplasm' or images_type == 'mitochondria':
+        if images_type == 'cytoplasm':
+            masks, flows, styles, diams = model.eval(img, diameter=30, channels=[0,0], do_3D=True)
+        elif images_type == 'mitochondria':
             masks, flows, styles, diams = model.eval(img, diameter=15, channels=[0,0], do_3D=True, anisotropy=14)#  Run the code for 3D segmentation
-        elif images_type == 'nucelus':
-            masks, flows, styles, diams = model.eval(img, diameter=30, channels=[0,0],stitch_threshold=0.95)
+        elif images_type == 'nucleus':
+            masks, flows, styles, diams = model.eval(img, diameter=30, channels=[0,0], stitch_threshold=0.95)
         else:
             print('Sorry, was not able to run the code due to error on the image type')
     
@@ -227,7 +231,7 @@ def cellPose_getCount(images_path,images_type, machine_type='CPU'):
 
         #Save the centers coordinates
         print('Writing the coordinates for each image ....')
-        f_output = imageName.split('/')[-1].split('.tif')[0]
+        f_output = imageName.split('.tif')[0]
         create_csv(basepath,list_of_cell_centers,f_output)
 
         final_image = visualize_mask(img,masks)
@@ -241,11 +245,11 @@ def main(parser):
     if image_type.startswith('cyto'):
         image_type = 'cytoplasm'
     elif image_type.startswith('nuc'):
-        image_type = 'nucelus'
+        image_type = 'nucleus'
     elif image_type.startswith('mito'):
         image_type = 'mitochondria'
     else:
-        print('-t input should be either cytoplasm, mitochondria, or nucelus')
+        print('-t input should be either cytoplasm, mitochondria, or nucleus')
         sys.exit()
 
     #Visible devices with GPU number 
@@ -255,7 +259,7 @@ def main(parser):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Getting argument for running cellpose")
     parser.add_argument('-imgPath',required=True, help="Path to the an image (.tif) to run cellpose")
-    parser.add_argument('-t',required=True,help="Type of images to run the cellpose for. The code support only (cytoplasm, mitochondria, or nucelus)")
+    parser.add_argument('-t',required=True,help="Type of images to run the cellpose for. The code support only (cytoplasm, mitochondria, or nucleus)")
     parser.add_argument('-GPU',required=False,help="GPU number to run the code on",default=0)
     main(parser)
 
