@@ -216,7 +216,7 @@ def cellPose_getCount(images_path,images_type, machine_type='CPU'):
         # mask, flow, style, diam = model.eval(img, diameter=None, channels=[0,0], do_3D=True)
         #Option 2
         if images_type == 'cytoplasm' or images_type == 'mitochondria':
-            masks, flows, styles, diams = model.eval(img, diameter=30, channels=[0,0], do_3D=True)#  Run the code for 3D segmentation
+            masks, flows, styles, diams = model.eval(img, diameter=15, channels=[0,0], do_3D=True, anisotropy=14)#  Run the code for 3D segmentation
         elif images_type == 'nucelus':
             masks, flows, styles, diams = model.eval(img, diameter=30, channels=[0,0],stitch_threshold=0.95)
         else:

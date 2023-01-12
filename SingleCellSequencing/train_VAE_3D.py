@@ -263,4 +263,3 @@ for f,identity in enumerate(Identities):
     plt.savefig('latentSpace.pnd')
     '''
     K.clear_session()
-
