@@ -1,0 +1,28 @@
+{
+  "batch_size": 8,
+  "bpds_kwargs": {
+    "buffer_size": 16,
+    "buffer_switch_interval": 2800,
+    "patch_shape": [
+      32,
+      128,
+      128
+    ]
+  },
+    "dataset": "fnet.data.MultiChTiffDataset",
+    "dataset_kwargs": {
+        "path_csv": "/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87/allenModelTraining/modelParams/m_testPred.csv"
+    },
+    "gpu_ids": 1,
+    "idx_sel": null,
+    "metric": "fnet.metrics.corr_coef",
+    "n_images": -1,
+    "no_prediction": false,
+    "no_signal": false,
+    "no_target": false,
+    "path_model_dir": [
+        "/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/3D_Imaging/allenModel/mito.p"
+    ],
+    "path_save_dir": "/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87/A03_allenModel",
+    "path_tif": null
+}
