@@ -1,4 +1,4 @@
-code='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code'
+code='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/3D_Imaging'
 root='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87/'
 A03=$root/A03_allenModel/
 

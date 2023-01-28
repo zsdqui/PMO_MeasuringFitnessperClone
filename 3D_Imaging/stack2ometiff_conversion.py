@@ -27,9 +27,9 @@ def Get_ome_tif_file(signal, target, SaveIMG = "A02_ometiffconversion/FoF3_21080
     Grayscale_Fluro_images = []
     Brightfield_images = []
 
-    Brightfield_images =signal
+    Brightfield_images = signal
     
-    Fluro_images =target
+    Fluro_images = target
     #print(Fluro_images) 
     
     files = Brightfield_images
@@ -72,7 +72,7 @@ def Get_ome_tif_file_single(signal, SaveIMG = "A02_ometiffconversion/FoF3_210803
       
     signal.sort()
 
-    Brightfield_images =signal
+    Brightfield_images = signal
 
     files = Brightfield_images
     z_indicator = '_z(\d\d)'
@@ -88,10 +88,11 @@ def Get_ome_tif_file_single(signal, SaveIMG = "A02_ometiffconversion/FoF3_210803
 
     ## @TODO: second identical copy of brightfield signal stacked here as placeholder for fluorescence to satisfy requirement of fnet predict -- this is redundant and has downstream effects. Fix at source 
     Mix_ch630X9_6hr_X3 = np.concatenate((brightfld_array, brightfld_array ), axis=0)
+    # Mix_ch630X9_6hr_X3 = brightfld_array
     print(Mix_ch630X9_6hr_X3.shape)
     
     with writers.ome_tiff_writer.OmeTiffWriter(SaveIMG, overwrite_file=True) as writer: 
-        writer.save(Mix_ch630X9_6hr_X3, dimension_order="CZYX", channel_names=['brightfield','fluroscense']) 
+        writer.save(Mix_ch630X9_6hr_X3, dimension_order="CZYX", channel_names=['brightfield', 'fluroscense']) 
   
     print("\n\nFinalshape of "+ SaveIMG)
     print(Mix_ch630X9_6hr_X3.shape)
@@ -103,10 +104,11 @@ directory = "/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/G
 
 for filename in os.listdir(directory):
     #print(os.path.join(directory, filename)) 
-    # select disired subfolder from the entire lists of folders
+    # select desired subfolder from the entire lists of folders
     # if filename.endswith("fluorescent.nucleus") or filename.endswith("fluorescent.mito") or filename.endswith("fluorescent.cytoplasm"):
-    if filename.endswith("_brightfield"):
-    # if filename.endswith("fluorescent.mito"): 
+    if filename.startswith("FoF3002006_22"):
+    # if filename.startswith("FoF"):: 
+    #  if filename.endswith("fluorescent.mito"): 
     # if filename.endswith("fluorescent.cytoplasm"):
         desiredfile = os.path.join(directory, filename)
         Savefile = filename
@@ -131,5 +133,4 @@ for filename in os.listdir(directory):
 #     parser = argparse.ArgumentParser(description="Getting argument for running ome_tiff conversion")
 #     parser.add_argument('-dir',required=True, help="Path to the folder containing the images to run cellpose")
 #     main(parser)
-
         

@@ -14,8 +14,8 @@ csv=$A02/$FoF".csv"
 target=${FoF##*.}
 
 # Prepare json and csv file
-cp /raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/allenModel/Template.json $json
-cp /raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/allenModel/Template.csv $csv
+cp /raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/3D_Imaging/allenModel/Template.json $json
+cp /raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/3D_Imaging/allenModel/Template.csv $csv
 sed -i "s/organelleXX/$organelle/g" $json
 sed -i "s/FoFXX/$FoF/g" $json
 sed -i "s/FoFXX/$FoF/g" $csv
