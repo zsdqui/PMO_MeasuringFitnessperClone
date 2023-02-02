@@ -11,11 +11,7 @@ if [ "$#" -eq 3 ]; then
    cellLine=$3
 fi
 
-<<<<<<< HEAD
-run_CellPose='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/run_CellPose_3D_v1.py'
-=======
 run_CellPose='/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/3D_Imaging/run_CellPose_3D_v1.py'
->>>>>>> a3a43e9 (Added .sh for train/predict and cyto params)
 root="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/$cellLine/"
 A03=$root/A03_allenModel/$FoF
 A04=$root/A04_CellposeOutput/$FoF
