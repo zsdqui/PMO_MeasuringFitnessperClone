@@ -30,11 +30,11 @@ python process_images.py -dir ../rawImages/B01_OperaPhenix_230804/ -type nucleus
 ```
 # To run the script for renaming Opera Images use the argument 
 ```shell
---only_renameOpera
+python process_images.py -dir ../rawImages/B01_OperaPhenix_230804/ -type nucleus -saveDir . --only_renameOpera
 ```
 # To run the script for creating OME TIFF images use the argument 
 ```shell
---only_createOmeTiff
+python process_images.py -dir ./B01_OperaPhenixTrain_230804/ -type nucleus -saveDir . -saveOmeTiff ./opera_ome_tif_check2 --only_createOmeTiff
 ```
 
 
