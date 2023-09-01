@@ -28,7 +28,13 @@ B01_OperaPhenix_230804
 ```shell
 python process_images.py -dir ../rawImages/B01_OperaPhenix_230804/ -type nucleus -saveDir . -saveOmeTiff ./opera_ome_tif_check2 
 ```
-# To run the script for renaming Opera Images use the argument ```--only_renameOpera ```
-# To run the script for creating OME TIFF images use the argument ```--only_createOmeTiff```
+# To run the script for renaming Opera Images use the argument 
+```shell
+--only_renameOpera
+```
+# To run the script for creating OME TIFF images use the argument 
+```shell
+--only_createOmeTiff
+```
 
 
