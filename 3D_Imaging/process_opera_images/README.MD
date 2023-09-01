@@ -20,7 +20,7 @@ optional arguments:
   --only_renameOpera    Optional: only running the script for renaming the Opera images
   --only_createOmeTiff  Optional: only running the script for creating opera files
 
-#Note the images must be inside a folder as follows
+#Note the images must be inside a folder as follows: <br/>
 B01_OperaPhenix_230804 <br/>
 └── images
 
