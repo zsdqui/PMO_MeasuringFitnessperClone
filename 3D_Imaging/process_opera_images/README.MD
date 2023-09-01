@@ -4,7 +4,7 @@ First, run the following command to learn about the input arguments
 
 ```shell
 python process_images.py -h
-
+```
 usage: process_images.py [-h] -dir DIR -type TYPE [-saveDir SAVEDIR] [-saveOmeTiff SAVEOMETIFF] [--only_renameOpera]
                          [--only_createOmeTiff]
 
@@ -27,8 +27,8 @@ B01_OperaPhenix_230804
 # To run the script for renaming Opera Images and Creating OME TIFF files
 ```shell
 python process_images.py -dir ../rawImages/B01_OperaPhenix_230804/ -type nucleus -saveDir . -saveOmeTiff ./opera_ome_tif_check2 
-
-# To run the script for renaming Opera Images use the argument --only_renameOpera 
-# To run the script for creating OME TIFF images use the argument --only_createOmeTiff
+```
+# To run the script for renaming Opera Images use the argument ```--only_renameOpera ```
+# To run the script for creating OME TIFF images use the argument ```--only_createOmeTiff```
 
 
