@@ -21,7 +21,7 @@ optional arguments:
   --only_createOmeTiff  Optional: only running the script for creating opera files
 
 #Note the images must be inside a folder as follows
-B01_OperaPhenix_230804
+B01_OperaPhenix_230804 <br/>
 └── images
 
 # To run the script for renaming Opera Images and Creating OME TIFF files
