@@ -4,7 +4,7 @@ repo_path <- "~/Repositories/PMO_MeasuringFitnessperClone/LiveCellImaging/data"
 OUT <- "~/Repositories/PMO_MeasuringFitnessperClone/LiveCellImaging/data"
 
 # Load in tracking data; in this case, Ilastik output 
-tracking <- read_csv(paste0(repo_path, "KANU_Timeseries_image_CSV-Table.csv"))
+tracking <- read_csv(paste0(repo_path, "/KANU_Timeseries_image_CSV-Table.csv"))
 
 # Name the experiment
 exp_name <- "KANU_timeseries"
