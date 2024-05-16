@@ -99,7 +99,7 @@ imgStats = read.table(paste0(OUTPSEUDOTIME,filesep,"LabelFree_stats.txt"),sep="\
 
 
 
-Figure 1: XX. Setup first:
+Figure 1: FUCCI to characterize discrete and continuous cell cycle progression in NCI-N87. Setup first:
 
 ```{r}
 fuccicol=fliplr(rainbow(max(fucci_raw$cellCycle)*1.2)[1:max(fucci_raw$cellCycle)])
@@ -115,15 +115,19 @@ img=sapply(TIF, function(x) bioimagetools::readTIF(x), simplify = F)
 img=sapply(img, function(x) EBImage::rotate(x,-180), simplify = F)
 ```
 
-Figure 1A: XX. 
+Figure 1A: Green and red Fucci channels overlayed. 
 ```{r}
-## jordan
+## jordan: these should be in img[[1]] and img[[3]] defined above
 ```
 
 
 
-Figure 1B: XX. 
+Figure 1B: Fucci based descrete cell cycle classification. 
 ```{r}
+plot(fucci_raw$Intensity_IntegratedIntensity_green, fucci_raw$Intensity_IntegratedIntensity_red, col=fucci_raw$cellCycle, pch=20, log="xy")
+legend("bottomright", names(fuccicol), fill=1:4)
+
+
 figname = paste0(OUTFIGS, filesep,"Fig1B_",thedate,".png") 
 png(figname)
 bioimagetools::img(img[[2]][,,1]);
@@ -141,7 +145,7 @@ rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 
 
 
-Figure 1C: XX. 
+Figure 1C: Fucci based pseudotime inference reveals cell cycle progression
 ```{r}
 figname = paste0(OUTFIGS, filesep,"Fig1C_",thedate,".png")
 
@@ -163,16 +167,17 @@ rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 
 
 
-Figure 1D: XX. 
+Figure 1D: Fucci based pseudotime trajectory in PCA space. 
 ```{r}
 tmp=plot_dimred(model[[paste0("Fucci_",FoF)]],color_cells = "pseudotime")
 tmp
+## Jordan: color code should be same as previous panel
 # ggsave(paste0(OUTFIGS,"Fig1D_Fucci_",FoF,"_pseudotimeTSNE_",thedate,".png"), plot=tmp)
 ```
 
 
 
-Figure 1E + supplementary Fig: XX. 
+Figure 1E + supplementary Fig: Pseudotime is differentially distributed across the four descrete cell cycle classes. 
 ```{r}
 # pdf(paste0(OUTFIGS, filesep,"Fig1E_plusSIFig_",thedate,".pdf") )
 par(mfrow=c(2,3))
@@ -185,7 +190,7 @@ boxplot(model$Fucci_All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"],
 
 
 
-Figure 2: XX. Setup first: 
+Figure 2: Quantification of nuclei, mitochondria and cytoplasm features at single-cell resolution with label free imaging. Setup first:
 ```{r}
 coord_=readOrganelleCoordinates(signals_per_id[[FoF]], names(signals), OUTLINKED_)
 imgStats_=imgStats[imgStats$FoF==FoF,]
@@ -198,14 +203,14 @@ alpha=list(cytoplasm.p=0.035,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=0.135,mito.t
 
 
 
-Figure 2A: XX. 
+Figure 2A: Predicted nuclei, mitochondria and cytoplasm signals. 
 ```{r}
-# jordan
+# jordan: 3 channel overlay, should be in A03_AllenModel
 
 ```
 
 
-Figure 2B: XX Color by cell. 
+Figure 2B: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighed in (A). Every data point is color-coded according to its cell membership. 
 ```{r}
 figname=paste0(OUTFIGS, filesep, "Fig2B_",thedate,"_100.png")
 
@@ -238,7 +243,7 @@ rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 
 
 
-Figure 2C: XX Color by organelle. 
+Figure 2C: Nuclei, mitochondria and cytoplasm of 1 representative cell from (B). Every data point is color-coded according to its organelle class. 
 ```{r}
 figname=paste0(OUTFIGS, filesep, "Fig2C_",thedate,"_3.png")
 
@@ -270,7 +275,7 @@ rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 
 
 
-Figure 2D: XX. 
+Figure 2D: Cell features quantified from label free imaging correlate with cell cycle classes as defined by FUCCI. 
 ```{r}
 # pdf(paste0(OUTFIGS, filesep,"Fig2D_",thedate,".pdf"), width = 10, height = 5 )
 par(mfrow=c(2,6))
@@ -282,8 +287,8 @@ for(x in svm$svmFeatures){
 ```
 
 
-
-Figure 3A: XX. 
+Figure 3: Characterization of discrete and continuous cell cycle progression in NCI-N87 with label free imaging. 
+Figure 3A: Supervised approach to predict discrete cell cycle state from nuclei, mitochondria and cytoplasm features. 
 ```{r}
 ## Make diagram in pptx showing:
 print(paste("Total cells:",nrow(imgStats),"split into:"), quote = F)
@@ -293,7 +298,7 @@ print(paste("SVM trained on",length(svm$svmFeatures),"features and applied on te
 ```
 
 
-Figure 3B: XX. 
+Figure 3B: Performance of trained classifier on test set. 
 ```{r}
 confMat = read.xlsx(paste0(OUTPSEUDOTIME, filesep,"cellCyclePrediction_svm_2024-05-15.xlsx"), sheetIndex = 1, row.names=T)
 tmp=sapply(c("Class..1","Class..2","Class..3","Class..4"), function(x) as.numeric(confMat[grep(x, rownames(confMat)),"Balanced.Accuracy"])) 
@@ -303,7 +308,7 @@ boxplot(tmp, names=names(fuccicol), ylab="Balanced.Accuracy")
 ```
 
 
-Figure 3C: XX. 
+Figure 3C: Unsupervised approach to predict continuous cell cycle progression from nuclei, mitochondria and cytoplasm features. . 
 ```{r}
 tmp=plot_dimred(model[[FoF]],color_cells = "pseudotime")
 tmp
@@ -312,7 +317,7 @@ tmp
 ```
 
 
-Figure 3D + supplementary Fig: XX. 
+Figure 3D + supplementary Fig: Pseudotime derived from label free imaging features is differentially distributed across the four FUCCI-informed cell cycle classes.  
 ```{r}
 # pdf(paste0(OUTFIGS, filesep,"Fig3D_plusSIFig_",thedate,".pdf") )
 par(mfrow=c(2,3))
@@ -332,15 +337,26 @@ legend("bottomleft",sapply(strsplit(names(col),"_"),"[[",1),fill=col)
 ```
 
 
-Figure 3E: XX representative cell across cell cycle: fucci. 
+Figure 3E: representative cell across cell cycle: fucci. 
 ```{r}
-# jordan
+# jordan: sample cells from 5+ timepoints (from fucci pseudotime) and visualize each with Fucci channels
 ```
 
 
-Figure 3F: XX representative cell across cell cycle: label free. 
+Figure 3F: representative cell across cell cycle: label free. 
 ```{r}
-# jordan
+# jordan: sample cells from 5+ timepoints (from pseudotime in Fig. 3C) and visualize each as in panel 2C
 ```
 
+
+Figure 4: Sequencing imaging integration
+```{r}
+
+```
+
+
+Figure 5: Allen model training
+```{r}
+
+```
 
