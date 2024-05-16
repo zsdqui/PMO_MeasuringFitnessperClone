@@ -28,7 +28,7 @@ generateImageMask <- function(FoF, INDIR="A05_PostProcessCellposeOutput", OUTDIR
   
   zstack=69
   images <- h5 <- list()
-  for(z in 1:zstack){
+  for(z in 0:zstack){
     img=matrix(0,idim,idim)
     for(cell in names(cells)){
       csv=read.csv(cell)

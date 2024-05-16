@@ -17,12 +17,13 @@ visualizeSingleCells<-function(i, other_center_coord, nuc_center_coord,OUTD){
   a=dm[dm$what=="nucleus",]
   b=dm[dm$what=="mito",]
   ## Lims
-  xlim<-ylim<- ceil(c(0,110)*pixelsize_xy)
-  zlim=ceil(c(0,70)*z_interval)
-  b$x[b$x>xlim[2]]=xlim[2]
-  b$y[b$y>ylim[2]]=ylim[2]
+  lims= apply(rbind(b, a )[,c("x","y","z")], 2, quantile, c(0,1))
+  # xlim<-ylim<- ceil(c(0,110)*pixelsize_xy)
+  # zlim=ceil(c(0,70)*z_interval)
+  # b$x[b$x>lims[2]]=xlim[2]
+  # b$y[b$y>ylim[2]]=ylim[2]
   ##Save plot
-  hull=try(Plot_ConcaveHull(a$x, a$y, a$z, lcolor =1, alpha=0.15,add = F,xlim=xlim,ylim=ylim,zlim=zlim, other=b[,c("x","y","z")], png=paste0(OUTD,filesep,"cell_",i,".png")))
+  hull=try(Plot_ConcaveHull(a$x, a$y, a$z, lcolor =1, alpha=0.15,add = F,xlim=lims[,"x"],ylim=lims[,"y"],zlim=lims[,"z"], other=b[,c("x","y","z")], png=paste0(OUTD,filesep,"cell_",i,".png")))
   if(class(hull)=="try-error"){
     return();
   }
