@@ -107,6 +107,7 @@ INPCELLIMAGES=paste0(ROOT,filesep,"A06_multiSignals_Linked")
 dirCreate(OUTPSEUDOTIME,permission = "a+w")
 FROMILASTIK=paste0(ROOT,filesep,"G07_IlastikOutput")
 FUCCIDIR=paste0(ROOT,filesep,"I08_3DCellProfiler_FUCCI")
+DATA4PAPERDIR=paste0("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R/data4paper",filesep,fileparts(OUTPSEUDOTIME)$name)
 xyz=c("x","y","z")
 K=15 ## neighbors
 N=30; ## cells
@@ -118,7 +119,7 @@ custom.settings$negative_sample_rate = 3
 custom.settings$local_connectivity = 1
 xydim = 255
 xmlfiles=list.files('../../data/GastricCancerCLs/3Dbrightfield/NCI-N87/A01_rawData/',pattern=".xml",full.names=T)
-
+thedate=strsplit(as.character(Sys.time())," ")[[1]][1]
 
 # ## read seq stats
 # # seqStats=read.table("../../data/GastricCancerCLs/RNAsequencing/B02_220112_seqStats/NCI-N87/Clone_0.244347_ID119967.txt",sep="\t",check.names = F,stringsAsFactors = F)
@@ -267,11 +268,11 @@ for(x in names(fucciAndImgStats_)){
   }
   model[[x]] =model_
 }
-save(file = paste0(OUTPSEUDOTIME, filesep,"pseudotime_",strsplit(as.character(Sys.time())," ")[[1]][1],".RObj"), list = "model")
+save(file = paste0(OUTPSEUDOTIME, filesep,"pseudotime_",thedate,".RObj"), list = "model")
 model_All=model[grep("All", names(model))]
 model=model[grep("All", names(model), invert = T)]
 ## compare img and fucci derived pseudotime
-pdf(paste0(OUTPSEUDOTIME, filesep,"All_img_vs_fucci-derivedPseudotime_",strsplit(as.character(Sys.time())," ")[[1]][1],".pdf") )
+pdf(paste0(OUTPSEUDOTIME, filesep,"All_img_vs_fucci-derivedPseudotime_",thedate,".pdf") )
 par(mfrow=c(2,2))
 ii=names(model_All$Fucci_All$pseudotime)
 boxplot(model_All$Fucci_All$pseudotime~fucci_raw[ii,"cellCycle"], main=FoF,cex.main=0.6)
@@ -309,7 +310,7 @@ write.table(fucci_raw, paste0(OUTPSEUDOTIME,filesep,"Fucci_stats.txt"),sep="\t",
 write.table(imgStats, paste0(OUTPSEUDOTIME,filesep,"LabelFree_stats.txt"),sep="\t",quote = F, row.names = T)
 
 ## compare img and fucci derived pseudotime
-pdf(paste0(OUTPSEUDOTIME, filesep,"img_vs_fucci-derivedPseudotime_",strsplit(as.character(Sys.time())," ")[[1]][1],".pdf") )
+pdf(paste0(OUTPSEUDOTIME, filesep,"img_vs_fucci-derivedPseudotime_",thedate,".pdf") )
 par(mfrow=c(2,4))
 svmFeatures <- anovaresults <- list()
 for(FoF in FoFs){
@@ -349,7 +350,7 @@ dev.off();
 
 ## Visualize pseudotime spatial distribution -- compare with FUCCI
 zslice=35
-pdf(paste0(OUTPSEUDOTIME, filesep,"pseudotimeSpatialDistribution_",strsplit(as.character(Sys.time())," ")[[1]][1],".pdf") )
+pdf(paste0(OUTPSEUDOTIME, filesep,"pseudotimeSpatialDistribution_",thedate,".pdf") )
 par(mfrow=c(1+length(FoFs),2),bg="gray",mai=c(0.1,0.5,0.1,0.5))
 pseudotime_img[,"pseudotimeCol"]=round(pseudotime_img[,"pseudotime"]*10)
 fucci_raw[,"pseudotimeCol"]=round(fucci_raw[,"pseudotime"]*10)
@@ -409,15 +410,15 @@ out=sapply(names(pseudotime_fucci_), function(x) classifyCellCyclePhase(fucciAnd
 # la=pseudotimeDirectionality(pseudotime_img, fucci_raw,cellcyclecolumn = "cellCycle")
 ## Save output:
 svm=list(svmfit=svm$svmfit, svmFeatures=svmFeatures, training = trainCells, testing=testCells)
-save(file = paste0(OUTPSEUDOTIME, filesep,"cellCyclePredictionFromImgFeatures_svm_",strsplit(as.character(Sys.time())," ")[[1]][1],".RObj"), list = "svm")
+save(file = paste0(OUTPSEUDOTIME, filesep,"cellCyclePredictionFromImgFeatures_svm_",thedate,".RObj"), list = "svm")
 confMat=sapply(out, function(x) x$confusionMatrix, simplify = F, USE.NAMES = T)
-# sapply(names(confMat), function(x) write.table(confMat[[x]], paste0(OUTPSEUDOTIME, filesep,x,"_cellCyclePrediction_svm_",strsplit(as.character(Sys.time())," ")[[1]][1],".txt"), sep="\t" , quote = F))
+# sapply(names(confMat), function(x) write.table(confMat[[x]], paste0(OUTPSEUDOTIME, filesep,x,"_cellCyclePrediction_svm_",thedate,".txt"), sep="\t" , quote = F))
 confMat= as.data.frame(do.call(rbind,confMat))
 tmp=as.data.frame(sapply(c("Class..1","Class..2","Class..3","Class..4"), function(x) apply(confMat[grep(x, rownames(confMat)),], 2, median, na.rm=T )))
 tmp["FoF",]="Median"
 confMat$FoF=unlist(sapply(names(out), rep, 1,4, simplify = F))
 confMat=rbind(confMat,t(tmp))
-write.xlsx(confMat, paste0(OUTPSEUDOTIME, filesep,"cellCyclePrediction_svm_",strsplit(as.character(Sys.time())," ")[[1]][1],".xlsx"))
+write.xlsx(confMat, paste0(OUTPSEUDOTIME, filesep,"cellCyclePrediction_svm_",thedate,".xlsx"))
 print(confMat)
 
 ##@TODO next: -- try next! HALO to improve 3D nuclei segmentation -- ask Mahmoud
@@ -427,7 +428,8 @@ print(confMat)
 ##@TODO next: segment nucleolus & calc its features
 ##@TODO next: finetune exclusion of segmentation errors
 ##@TODO next: try various pseudotime algorithms once supervised classificationa accuracy is >0.75 across all classes and FoFs
-# 
+##@TODO next: ask Ana & Stan if gates for discrete fucci based classification are ok
+
 # ## co-cluster image and sequencing stats
 # stats=rbind(d_i,d_s)
 # rownames(stats) = paste(rownames(stats), stats$type)
@@ -450,184 +452,12 @@ print(confMat)
 # ############### ############### ############### ############### ############### 
 # ############## Figures for paper # ############### ############### ##############
 # ############### ############### ############### ############### ##############
-
-## TODO: cp all required input to data4paper folder
-
-getZLIM<- function(coord__){
-  tmp = quantile(coord__$z,c(0,1))
-  space=tmp[2]-tmp[1]
-  zlim=c(tmp[1]-space/2, tmp[2]+space/2)
-  return(zlim)
-}
-
-signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv",cytoplasm.p="cytoplasm.p_Cells_Centers.csv")
-signals_per_id=list()
-for(FoF in FoFs){
-  OUTLINKED_=paste0(ROOT,filesep,OUTLINKED,filesep,FoF,filesep)
-  f=list.files(OUTLINKED_,full.names = T, pattern = ".csv")
-  signals_per_id[[FoF]]=plyr::count(sapply(strsplit(f,"_"), function(x) x[length(x)-1]))
-}
-thedate=strsplit(as.character(Sys.time())," ")[[1]][1]
-FoF=FoFs[3]
-OUTLINKED_=paste0(ROOT,filesep,OUTLINKED,filesep,FoF,filesep)
-load(paste0(OUTPSEUDOTIME, filesep,"pseudotime_2024-05-15.RObj")); ## loads unsupervised pseudotime *model* list
-load(paste0(OUTPSEUDOTIME, filesep,"cellCyclePredictionFromImgFeatures_svm_2024-05-15.RObj")); ## load *svm* details
-fucci_raw=read.table( paste0(OUTPSEUDOTIME,filesep,"Fucci_stats.txt"),sep="\t", header = T)
-imgStats = read.table(paste0(OUTPSEUDOTIME,filesep,"LabelFree_stats.txt"),sep="\t",header = T)
-
-# ##############
-# ## Figure 1 ##
-# ##############
-fuccicol=fliplr(rainbow(max(fucci_raw$cellCycle)*1.2)[1:max(fucci_raw$cellCycle)])
-names(fuccicol) = c("G1", "G1/S transition","S","G2/M")
-fucci_=fucci_raw[fucci_raw$FoF==FoF,]
-coord_=readOrganelleCoordinates(signals_per_id[[FoF]], "nucleus.p", OUTLINKED_)
-coord_[,c("x","y")] = coord_[,c("x","y")]/pixelsize_xy
-coord_ = coord_[coord_$z == zslice*z_interval, ]
-coord_$x=-coord_$x
-coord_$x=-max(coord_$x)+coord_$x-min(coord_$x)
-TIF=list.files(paste0("../../data/GastricCancerCLs/3Dbrightfield/NCI-N87/A01_rawData",filesep,FoF), pattern=paste0("_z",zslice), full.names = T)
-img=sapply(TIF, function(x) bioimagetools::readTIF(x), simplify = F)
-img=sapply(img, function(x) EBImage::rotate(x,-180), simplify = F)
-## ## ## ## ##  ## 
-# ## Figure 1A: ##
-# jordan
-## ## ## ## ## ## 
-# ## Figure 1B ##
-pdf(paste0("~/Downloads/", filesep,"Fig1B_",thedate,".pdf") )
-bioimagetools::img(img[[2]][,,1]);
-#bioimagetools::img(resize4Ilastik(img[[1]]+img[[3]], xydim = xydim)[,,1]);
-cc=fucci_[paste0(FoF,"_cell",coord_$id),"cellCycle"]
-points(coord_$x,coord_$y,col=scales::alpha(fuccicol[cc], 0.005),main=paste(FoF,"fucci"),xaxt='n',yaxt='n', ann=FALSE)
-## jordan: contour
-legend("bottomleft", names(fuccicol) , fill=fuccicol)
-dev.off()
-## ## ## ## ## ## 
-# ## Figure 1C ## 
-pdf(paste0("~/Downloads/", filesep,"Fig1C_",thedate,".pdf") )
-bioimagetools::img(img[[2]][,,1]);
-fucci_[,"pseudotimeCol"]=round(fucci_[,"pseudotime"]*10)
-col=fliplr(heat.colors(max(fucci_[,"pseudotimeCol"])))
-## jordan: color code intuitive match to panel B
-cc=fucci_[paste0(FoF,"_cell",coord_$id),"pseudotimeCol"]
-points(coord_$x,coord_$y,col=scales::alpha(col[cc], 0.005),xaxt='n',yaxt='n', ann=FALSE,main=paste(FoF,"fucci pseudotime"))
-## jordan: add color bar as legend
-dev.off()
-## ## ## ## ## ## 
-# ## Figure 1D ## 
-tmp=plot_dimred(model[[paste0("Fucci_",FoF)]],color_cells = "pseudotime")
-ggsave(paste0("~/Downloads/","Fig1D_Fucci_",FoF,"_pseudotimeTSNE_",thedate,".png"), plot=tmp)
-## ## ## ## ## ## ## ## ## ## ## ## #
-# ## Figure 1E + supplementary Fig ## 
-pdf(paste0("~/Downloads/", filesep,"Fig1E_plusSIFig_",thedate,".pdf") )
-par(mfrow=c(2,3))
-ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,names(model$Fucci_All$pseudotime),value=T))
-sapply(names(ii), function(x) boxplot(model$Fucci_All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="fucci pseudotime", main=x,cex.main=0.6, cex.axis=0.6))
-boxplot(model$Fucci_All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="fucci pseudotime", main=x,cex.main=0.6, cex.axis=0.6)
-dev.off()
-
-# ##############
-# ## Figure 2 ##
-# ##############
-coord_=readOrganelleCoordinates(signals_per_id[[FoF]], names(signals), OUTLINKED_)
-imgStats_=imgStats[imgStats$FoF==FoF,]
-doplotcentercoord=c(200, 200)
-ii=which(coord_$signal=="nucleus.p")
-centroids=grpstats(coord_[ii,c("x","y","z","id")], g = coord_$id[ii],statscols = "median")$median
-o2=flexclust::dist2(centroids[,c("x","y")],doplotcentercoord)
-alpha=list(cytoplasm.p=0.035,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=0.135,mito.t=0.035,mito.p=0.035)
-## ## ## ## ##  ## 
-# ## Figure 2A: ##
-# jordan
-## ## ## ## ##  ## 
-# ## Figure 2B: ## Color by cell
-# coordinates for cells of interest
-NCELLS=10
-coi=rownames(centroids)[order(o2)[1:NCELLS]]
-coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
-coord__=coord_[coord_$id %in% coi,]
-zlim=getZLIM(coord__)
-rgl::close3d()
-col=rainbow(length(unique(coord__$id)))
-names(col)=as.character(unique(coord__$id))
-for(s in names(signals)){
-  X=coord__[coord__$signal==s,]
-  if(s=="nucleus.p"){
-    rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[as.character(X$id)],alpha=alpha[[s]]*4, add=T)
-  }else{
-    rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[as.character(X$id)],alpha=alpha[[s]]*4, add=T)
-  }
-}
-
-rgl::movie3d( movie=paste0("Fig2B_",thedate), rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 3,  dir = "~/Downloads/",  type = "gif", clean = TRUE)
-## ## ## ## ##  ## 
-# ## Figure 2C: ## Color by organelle
-coi=rownames(centroids)[order(o2)[7]]
-coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
-coord__=coord_[coord_$id %in% coi,]
-zlim=getZLIM(coord__)
-col=rainbow(length(unique(coord__$signal))*1.3)
-names(col)=as.character(unique(coord__$signal))
-rgl::close3d()
-for(s in names(signals)){
-  X=coord__[coord__$signal==s,]
-  if(s=="nucleus.p"){
-    rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[X$signal],alpha=4*alpha[[s]], add=T)
-  }else{
-    rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[X$signal],alpha=alpha[[s]]*4, add=T)
-  }
-}
-rgl::legend3d("bottomright",names(signals),fill=col[names(signals)])
-rgl::movie3d( movie=paste0("Fig2C_",thedate), rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 1,  dir = "~/Downloads/",  type = "gif", clean = TRUE)
-## ## ## ## ##  ## 
-# ## Figure 2D: ##
-pdf(paste0("~/Downloads/", filesep,"Fig2D_",thedate,".pdf"), width = 10, height = 5 )
-par(mfrow=c(2,5))
-for(x in svmFeatures){
-  boxplot(imgStats[,x]~fucci_raw[rownames(imgStats),"cellCycle"],ylab=x,cex.main=0.6)
-  # Jordan: split and color code boxes by FoF 
-}
-dev.off()
-
-
-
-# ##############
-# ## Figure 3 ##
-# ##############
-## ## ## ## ##  ## 
-# ## Figure 3B: ##
-confMat = read.xlsx(paste0(OUTPSEUDOTIME, filesep,"cellCyclePrediction_svm_",thedate,".xlsx"), sheetIndex = 1, row.names=T)
-tmp=sapply(c("Class..1","Class..2","Class..3","Class..4"), function(x) as.numeric(confMat[grep(x, rownames(confMat)),"Balanced.Accuracy"])) 
-pdf(paste0("~/Downloads/", filesep,"Fig3B_",thedate,".pdf") )
-boxplot(tmp, names=names(fuccicol), ylab="Balanced.Accuracy")
-dev.off()
-## ## ## ## ## ##
-# ## Figure 3C ##
-tmp=plot_dimred(model[[FoF]],color_cells = "pseudotime")
-ggsave(paste0("~/Downloads/","Fig3C_labelFree_",FoF,"_pseudotimeTSNE_",thedate,".png"), plot=tmp)
-## ## ## ## ## ## ## ## ## ## ## ## #
-# ## Figure 3D + supplementary Fig ## 
-pdf(paste0("~/Downloads/", filesep,"Fig3D_plusSIFig_",thedate,".pdf") )
-par(mfrow=c(2,3))
-ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,rownames(fucci_raw),value=T))
-# sapply(names(ii), function(x) boxplot(model[[x]]$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x,cex.main=0.6))
-sapply(names(ii), function(x) boxplot(model$All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x, cex.axis=0.6,cex.main=0.6))
-par(mfrow=c(1,2))
-boxplot(model$All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main="All",cex.main=0.6, cex.axis=0.6)
-ii=names(model$All$pseudotime)
-ii=grep(FoFs[1], ii, value=T, invert = T)
-te=cor.test(model$All$pseudotime[ii], model$Fucci_All$pseudotime[ii])
-col=rainbow(length(unique(fucci_raw[ii,"FoF"])))
-names(col)=unique(fucci_raw[ii,"FoF"])
-plot(model$All$pseudotime[ii], model$Fucci_All$pseudotime[ii], main=paste("r=",round(te$estimate,2),"P=",te$p.value), xlab="label free pseudotime",  ylab="fucci pseudotime",  col=col[fucci_raw[ii,"FoF"]])
-legend("bottomleft",sapply(strsplit(names(col),"_"),"[[",1),fill=col)
-dev.off()
-## ## ## ## ## ##
-# ## Figure 3E ## representative cell across cell cycle: fucci
-# jordan
-## ## ## ## ## ##
-# ## Figure 3F ## representative cell across cell cycle: label free
-# jordan
+## cp all required input to data4paper folder as input to continuousCCprediction_figures4paper.Rmd
+file.copy(paste0(OUTPSEUDOTIME,filesep,"Fucci_stats.txt"),DATA4PAPERDIR, overwrite = T)
+file.copy(paste0(OUTPSEUDOTIME,filesep,"LabelFree_stats.txt"),DATA4PAPERDIR, overwrite = T)
+file.copy(paste0(OUTPSEUDOTIME, filesep,"pseudotime_",thedate,".RObj"),DATA4PAPERDIR, overwrite = T)
+file.copy(paste0(OUTPSEUDOTIME, filesep,"cellCyclePredictionFromImgFeatures_svm_",thedate,".RObj"),DATA4PAPERDIR, overwrite = T)
+file.copy(paste0(OUTPSEUDOTIME, filesep,"cellCyclePrediction_svm_",thedate,".xlsx"),DATA4PAPERDIR, overwrite = T)
 
 
 # #############################################################
