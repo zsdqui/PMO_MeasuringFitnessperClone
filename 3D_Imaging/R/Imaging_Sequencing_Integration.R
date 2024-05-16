@@ -1,9 +1,13 @@
+rm(list=c("svmFeatures"))
+library(xlsx)
 library(dyno)
+library(caret)
 library(tidyverse)
 library(matlab)
 library(RColorBrewer)
 library(flexclust)
 library(ggplot2)
+library(e1071)
 library(slingshot)
 library(umap)
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
@@ -13,6 +17,85 @@ source("assignCompartment2Nucleus.R")
 source("compareCells.R")
 source("generateImageMask.R")
 source("Utils.R")
+asDataset<-function(imgStats, imgStats_raw, FoF=NULL, coi){
+  ii=1:nrow(imgStats)
+  if(!is.null(FoF)){
+    ii=which(imgStats$FoF==FoF)
+  }
+  tmp=apply(imgStats[ii,coi],2,as.numeric)
+  tmp = tmp + min(tmp[tmp>0])*0.1
+  tmp2=apply(imgStats_raw[ii,coi],2,as.numeric)
+  rownames(tmp)<- rownames(tmp2) <- rownames(imgStats)[ii]
+  dataset <- wrap_expression(
+    expression = log2(tmp),
+    counts = tmp2
+  )
+  return(dataset)
+}
+
+pseudotimeDirectionality <- function(pseudotime_img, fucci_raw, cellcyclecolumn="cellCycle"){
+  pseudotime_img_=sapply(unique(pseudotime_img$FoF), function(x) pseudotime_img[pseudotime_img$FoF==x,"pseudotime"],simplify = F)
+  pseudotime_fucci_=sapply(unique(fucci_raw$FoF), function(x) as.matrix(fucci_raw[fucci_raw$FoF==x,cellcyclecolumn]),simplify = F)
+  te=sapply(names(pseudotime_img_), function(x) cor.test(pseudotime_img_[[x]],pseudotime_fucci_[[x]]), simplify = F)
+  par(mfrow=c(2,2))
+  sapply(names(pseudotime_img_), function(x) boxplot(pseudotime_img_[[x]]~pseudotime_fucci_[[x]], main=x), simplify = F)
+  
+  timeline=1:4
+  la=sapply(names(pseudotime_img_), function(x) grpstats(as.matrix(pseudotime_img_[[x]]), pseudotime_fucci_[[x]], "mean")$mean[as.character(timeline),])
+  te=list()
+  for(shift in 1:length(timeline)){
+    if(shift==1){
+      timeline_=timeline
+    }else{
+      timeline_ =timeline[c(shift:length(timeline), 1:(shift-1))]
+    }
+    te[[shift]]=apply(la,2, function(x) cor.test(x,timeline_)$estimate)
+  }
+  te=do.call(rbind,te)
+  ## First identify which pseudotimes must be reversed:
+  toReverse=colnames(te)[apply(te,2, function(x) x[which.max(abs(x))]<0)]
+  tmp=sapply(pseudotime_img_[toReverse], function(x)  x * -1, simplify = F)
+  tmp=sapply(tmp, function(x) x-min(x), simplify = F)
+  pseudotime_img_[toReverse]=tmp
+  te[,toReverse] = te[,toReverse]*-1
+  
+  ##sort all again 
+  idx = sapply(pseudotime_img_, order)
+  pseudotime_img_ = sapply(names(pseudotime_img_), function(x) pseudotime_img_[[x]][idx[[x]]] )
+  pseudotime_fucci_ = sapply(names(pseudotime_fucci_), function(x) pseudotime_fucci_[[x]][idx[[x]]] )
+  
+  ## Next find max of circular cross correlation to shift pseudotime
+  cMax=apply(abs(te),2,which.max)
+  cMax=cMax[cMax!=1]
+  for(FoF in names(cMax)){
+    if(!isempty(cMax)){
+      x=order(pseudotime_img_[[FoF]])
+      idx=which(x==round(mean(x[pseudotime_fucci_[[FoF]]>=cMax[FoF]])) )
+      x=x[c(idx:length(x), 1:(idx-1))]
+      pseudotime_img_[[FoF]]=pseudotime_img_[[FoF]][x]
+    }
+  }
+  ##plot after
+  par(mfrow=c(2,2))
+  sapply(names(pseudotime_img_), function(x) boxplot(pseudotime_img_[[x]]~pseudotime_fucci_[[x]], main=x), simplify = F)
+  
+  return(pseudotime_img_)
+  
+} 
+
+classifyCellCyclePhase <- function(x, y, main="", svmfit=NULL){
+  dat = data.frame(as.matrix(x), y = as.factor(y))
+  if(is.null(svmfit)){
+    svmfit = svm(y ~ ., data = dat, kernel = "radial", cost = 10, scale = F)
+    # print(svmfit)
+    try(plot(svmfit, dat,area_nucleus.p~area_mito.p, main=main),silent = T)
+  }
+  out=predict(svmfit, dat)
+  confMat=caret::confusionMatrix(dat$y, out)$byClass
+  print(confMat)
+  return(list(svmfit=svmfit, out=out, confusionMatrix=confMat))
+}
+
 setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/SingleCellSequencing")
 ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCLs/3Dbrightfield/NCI-N87"
 A01=paste0(ROOT,filesep,"A01_rawData")
@@ -23,6 +106,7 @@ OUTPSEUDOTIME=paste0(ROOT,filesep,"A08_Pseudotime")
 INPCELLIMAGES=paste0(ROOT,filesep,"A06_multiSignals_Linked")
 dirCreate(OUTPSEUDOTIME,permission = "a+w")
 FROMILASTIK=paste0(ROOT,filesep,"G07_IlastikOutput")
+FUCCIDIR=paste0(ROOT,filesep,"I08_3DCellProfiler_FUCCI")
 xyz=c("x","y","z")
 K=15 ## neighbors
 N=30; ## cells
@@ -46,38 +130,43 @@ xmlfiles=list.files('../../data/GastricCancerCLs/3Dbrightfield/NCI-N87/A01_rawDa
 # FoFs=grep("002005", gsub("_stats.txt","",list.files(INSTATS,pattern = "_221018_brightfield")), value=T)
 # FoFs=paste0("FoF",1:5,"003_220721_brightfield")
 colors=list()
-date="_221018_brightfield"
-FoVs =  c("FoFX002005","FoFX001003")
+date="_231005_fluorescent.nucleus"
+FoVs =  c("FoFX_231005_fluorescent.nucleus")
+# date="_221018_brightfield"
+# FoVs =  c("FoFX002005","FoFX001003")
 FoFs=c()
 for(FoV in FoVs){
   print(FoV)
   FoFs=c(FoFs,grep(gsub("FoFX","",FoV), gsub("_stats.txt","",list.files(INSTATS,pattern = date)), value=T))
 }
 # z-axis shift for FoF3002005 renders mitochondrial features unusable:
-FoFs = grep("FoF300",FoFs,invert = T, value = T)
-imgStats=list()
+# FoFs = grep("FoF300",FoFs,invert = T, value = T)
+fucciStats <- imgStats <- list()
 for(FoF in FoFs){
   imgStats_=read.table(paste0(INSTATS,filesep,FoF,"_stats.txt"),sep="\t",check.names = F,stringsAsFactors = F,header = T)
+  print(paste(FoF,"# cells before any filtering:",nrow(imgStats_)))
   imgStats_=imgStats_[apply(!is.na(imgStats_),1,all),]; ## exclude cells whose volume could not be estimated
   imgStats_=imgStats_[,apply(!is.na(imgStats_),2,all)]; ## exclude features with NA vals
   imgStats_=imgStats_[imgStats_$vol_nucleus.p > MINNUCVOL,]
-  imgStats_=imgStats_[imgStats_$vol_nucleus.p < MAXNUCVOL,]
+  # imgStats_=imgStats_[imgStats_$vol_nucleus.p < MAXNUCVOL,]
   # imgStats_=as.data.frame(collectTensorsAsVectors(FoF))
   imgStats_$FoF= FoF
   ## which frame (timepoint) is this? Used for mapping to Ilastik output:
   imgStats_$frame=which(FoF==FoFs)-1;  
   imgStats_$ID=rownames(imgStats_)
   imgStats_$png=paste0(INPCELLIMAGES,filesep,FoF,filesep, "cell_",imgStats_$ID,".png")
-  imgStats[[FoF]]=imgStats_
+  imgStats[[FoF]]=imgStats_[!imgStats_$segmentationError,]
   # list.files(paste0(INPCELLIMAGES,filesep,FoF),pattern="png", full.names = T)
+  
+  fucciStats[[FoF]]=read.table(paste0(INPCELLIMAGES,filesep,FoF, filesep ,FoF, "_fucci.txt"),sep="\t",check.names = F,stringsAsFactors = F,header = T)
+  fucciStats[[FoF]]$FoF=FoF
 }
-
-
-# run pseudotime inference on all timepoints of a given FoV jointly:
+print(paste(FoF,"# cells after filtering:",sapply(imgStats,nrow)))
+fucciStats=do.call(rbind, fucciStats)
 imgStats=do.call(rbind, imgStats)
 imgStats=imgStats[,which(apply(imgStats, 2, function(x) !all(x==0 | is.na(x))))]
 ## Columns of interest for slingshot
-coi=setdiff(colnames(imgStats),c("FoF","frame","ID","count_nucleus.p","png",xyz[1:2])); #
+coi=setdiff(colnames(imgStats),c("FoF","frame","ID","count_nucleus.p","png","segmentationError","smv_cell","smv_nucleus.p","smv_mito.p","smv_cytoplasm.p",xyz[1:2])); #
 ## Exclude feature subset
 dub=sapply(c("Dist","cell","vol_mito","area_mito"), function(x) grep(x,coi, value=T), simplify = F)
 # coi=setdiff(coi, dub$Dist)
@@ -88,149 +177,256 @@ imgStats_raw=imgStats;
 imgStats[,coi]=sweep(imgStats[,coi], 2, STATS = apply(imgStats[,coi],2,median, na.rm=T),FUN = "/")
 print(paste("Found",nrow(imgStats),"cells across",length(FoFs),"images"))
 rownames(imgStats) = paste0(imgStats$FoF,"_cell",imgStats$ID)
+rownames(fucciStats) = paste0(fucciStats$FoF,"_cell",fucciStats$ID)
+fucciStats = fucciStats[rownames(imgStats),]
 
 ## Same number of sequenced and imaged cells:
 # seqStats=seqStats[sample(nrow(seqStats),size = nrow(imgStats)),]
 # g1cells_seq=rownames(seqStats)[ccState[rownames(seqStats)]=="G0G1"]
 
-tmp=apply(imgStats[,coi],2,as.numeric)
-tmp2=apply(imgStats_raw[,coi],2,as.numeric)
-rownames(tmp)<- rownames(tmp2) <- rownames(imgStats)
-dataset <- wrap_expression(
-  expression = log2(tmp),
-  counts = tmp2
-)
-# dataset <- add_prior_information(
-#   dataset,
-#   start_id = rownames(tmp)[1]
-# )
-guidelines <- guidelines(
-  dataset,
-  answers = answer_questions(
-    dataset,
-    multiple_disconnected = FALSE,
-    expect_topology = TRUE,
-    expected_topology = "cycle"
-  )
-)
-model <- infer_trajectory(dataset, ti_angle(dimred = "pca"))
-# model <- infer_trajectory(dataset, ti_slingshot())
-# model <- infer_trajectory(dataset, ti_paga(filter_features = F,n_comps = 10))
-# model <- infer_trajectory(dataset, ti_slice())
-# model <- infer_trajectory(dataset, ti_scorpius())
-# model <- infer_trajectory(dataset, ti_tscan());
-# model <- infer_trajectory(dataset, ti_embeddr());
-## model <- infer_trajectory(dataset, ti_elpicycle())
-## model <- infer_trajectory(dataset, ti_raceid_stemid())
-## model <- infer_trajectory(dataset, ti_mst());
-## model <- infer_trajectory(dataset, ti_dpt())
-## model <- infer_trajectory(dataset, ti_monocle_ddrtree())
-if(! "pseudotime" %in% names(model)){
-  tmp=plot_dimred(model,color_cells = "pseudotime")
-  model$pseudotime=tmp$data$pseudotime
-  names(model$pseudotime)=tmp$data$cell_id
+## Now deal with FUCCI data
+coi_fucci=colnames(fucciStats)[-c(1:16)]
+coi_fucci=grep("^Intensity_", coi_fucci,value=T)
+# coi_fucci=grep("_bright$", coi_fucci,value=T, invert = T)
+# coi_fucci=grep("Edge_", coi_fucci,value=T, invert = F)
+fucci_raw = fucciStats
+fucciStats[,coi_fucci]=apply(fucci_raw[,coi_fucci],2,as.numeric)
+
+
+## Fucci: Ad-hoc cell cycle assignment
+MINGREEN = 700
+MINRED = 500
+# fucci_raw$cellCycle=log(1+50*(fucci_raw$Intensity_MeanIntensityEdge_green+fucci_raw$Intensity_MeanIntensityEdge_red))
+plot(fucci_raw$Intensity_MeanIntensityEdge_green, fucci_raw$Intensity_MeanIntensityEdge_red)
+plot(fucci_raw$Intensity_IntegratedIntensity_green, fucci_raw$Intensity_IntegratedIntensity_red)
+fucci_raw$cellCycle = 2
+fucci_raw$cellCycle[fucci_raw$Intensity_IntegratedIntensity_green>MINGREEN & fucci_raw$Intensity_IntegratedIntensity_red<MINRED] = 1
+fucci_raw$cellCycle[fucci_raw$Intensity_IntegratedIntensity_green<MINGREEN & fucci_raw$Intensity_IntegratedIntensity_red>MINRED] = 3
+fucci_raw$cellCycle[fucci_raw$Intensity_IntegratedIntensity_green>MINGREEN & fucci_raw$Intensity_IntegratedIntensity_red>MINRED] = 4
+plyr::count(fucci_raw$cellCycle)
+# In brief, green cells are in G1 phase, red in S phase and double positive (yellow) in G2/M.
+# You might see some cells with no color, these are possibly in late G1, G1/S transition or early S phase.
+# green = 1 (G1)
+# no color = 2 (G1/S transition)
+# red = 3 (S)
+# yellow = 4 (G2/M)
+
+
+# run pseudotime inference on all frames: fucci as well as allen model features 
+if(exists("svmFeatures")){
+  coi_=svmFeatures
+}else{
+  coi_=coi
 }
-imgStats_all=imgStats
-FoFs_all=FoFs
-
-
-for(FoV in FoVs){  
-  FoV = FoVs[1]
-  FoFs=grep(gsub("FoFX","",FoV),FoFs_all, value=T)
-  imgStats=imgStats_all[imgStats_all$FoF %in% FoFs,]
-  ## count cells per timepoint
-  hours=getTimeStampsFromMetaData(FoFs, root="A01_rawData", xmlfiles)
-  imgStats$hour=hours[match(imgStats$FoF,names(hours))]
-  fr=plyr::count(imgStats$hour)
-  rownames(fr)=FoFs
-  fr$beforeLink=NA
-  plot(fr$x,fr$freq, main=FoFs[1])
-  ## Compare to number of cells detected before linking mito and nucleus:
-  for(FoF in unique(pseudotime_img$FoF)){
-    f=list.files(paste0(A04,filesep,FoF,"/All_Cells_coordinates"), pattern = "nucleus.p")
-    fr[FoF,"beforeLink"]=length(f)
+fucciAndImgStats_=sapply(unique(imgStats$FoF), function(x) asDataset(imgStats, imgStats_raw, x, coi_), simplify = F)
+tmp=sapply(unique(imgStats$FoF), function(x) asDataset(fucciStats, fucci_raw, x, coi_fucci), simplify = F)
+names(tmp) = paste0("Fucci_",names(tmp))
+fucciAndImgStats_= c(fucciAndImgStats_, tmp)
+sapply(fucciAndImgStats_, function(x) dim(x$expression))
+fucciAndImgStats_$All=asDataset(imgStats, imgStats_raw, FoF = NULL, coi_)
+fucciAndImgStats_$Fucci_All=asDataset(fucciStats, fucci_raw, FoF = NULL, coi_fucci)
+model=list()
+for(x in names(fucciAndImgStats_)){
+  dataset=fucciAndImgStats_[[x]]
+  print(x)
+  print(dim(dataset$expression))
+  nonFinite=sum(!apply(is.finite(dataset$expression), 1, all))
+  if(nonFinite>0){
+    print("Non-finite entries found in dataset. Aborting.")
+    next;
   }
-  
-  ## MST imaging:
-  # tree=slingshot(imgStats_,rep(1,nrow(imgStats_)) ); 
-  # pseudotime_img=as.data.frame(slingshot::slingPseudotime(tree)+1)
-  pseudotime_img=as.data.frame( model$pseudotime*20)
-  rownames(pseudotime_img) = names(model$pseudotime)
-  colnames( pseudotime_img)="pseudotime"
-  pseudotime_img = pseudotime_img[rownames(pseudotime_img) %in% rownames(imgStats),,drop=F]
-  ## Save for comparison with live-cell imaging data
-  pseudotime_img[,c(xyz,"FoF","frame","cellID","png","hour")]=imgStats[rownames(pseudotime_img),c(xyz,"FoF","frame","ID","png","hour")]
-  # write.table(pseudotime_img, file=paste0(OUTPSEUDOTIME,filesep,FoV,".txt"),sep="\t",row.names = F,quote = F)
-  # write.csv(pseudotime_img,   file=paste0(OUTPSEUDOTIME,filesep,FoV,date,".csv"),row.names = F)
-  pseudotime_img_median=grpstats(as.matrix(pseudotime_img[,c("pseudotime",xyz,"frame","hour")]),pseudotime_img$hour,"median")$median
-  write.csv(pseudotime_img_median,   file=paste0(OUTPSEUDOTIME,filesep,FoV,date,".csv"),row.names = F)
-  
-  ## sort cells by their pseudotime
-  unlink("~/Downloads/pseudotimeTest", recursive = T)
-  dir.create("~/Downloads/pseudotimeTest")
-  ii=order(pseudotime_img$pseudotime)
-  sapply(sort(sample(ii,50)), function(i) file.copy(pseudotime_img[i,"png"], paste0("~/Downloads/pseudotimeTest/",pseudotime_img$pseudotime[i],"_",pseudotime_img$FoF[i],".png")))
-  
-  ## Visualize pseudotime
-  pdf(paste0("~/Downloads/",FoV,"_slingshot_imaging.pdf"))
-  par(mfrow=c(2,2),mai=c(0.5,0.5,0.5,0.1))
-  plot_dimred(model, color_cells = "grouping", grouping = imgStats[model$cell_ids,"frame"])
-  plot_dimred(model,color_cells = "pseudotime")
-  print("Correlation between real time order and pseudotime:")
-  cor.test(pseudotime_img$frame,pseudotime_img$pseudotime,method="spearman")
-  print(te)
-  print("Correlation between real time and pseudotime:")
-  te=cor.test(pseudotime_img$hour,pseudotime_img$pseudotime)
-  boxplot(pseudotime_img$pseudotime~round(pseudotime_img$hour),main=paste0("Pearson r=",round(te$estimate,2),"; P=",round(te$p.value,5)),col="cyan",xlab="hour",ylab="pseudotime")
-  vioplot::vioplot(pseudotime_img$pseudotime~round(pseudotime_img$hour), main=paste0("Pearson r=",round(te$estimate,2),"; P=",round(te$p.value,5)),col="cyan",xlab="hour",ylab="pseudotime")
-  te=cor.test(pseudotime_img_median[,"hour"],pseudotime_img_median[,"pseudotime"],method = "pearson")
-  plot(pseudotime_img_median[,"hour"],pseudotime_img_median[,"pseudotime"],pch=20,cex=2,, main=paste0("Pearson r=",round(te$estimate,2),"; P=",round(te$p.value,5)),col="cyan",xlab="hour",ylab="pseudotime")
-  dev.off()
+  # dataset <- add_prior_information(
+  #   dataset,
+  #   start_id = rownames(tmp)[1]
+  # )
+  guidelines <- guidelines(
+    dataset,
+    answers = answer_questions(
+      dataset,
+      multiple_disconnected = FALSE,
+      expect_topology = TRUE,
+      expected_topology = "cycle"
+    )
+  )
+  model_ <- infer_trajectory(dataset, ti_angle(dimred = "pca"))
+  # model_ <- infer_trajectory(dataset, ti_slingshot())
+  # model_ <- infer_trajectory(dataset, ti_paga(filter_features = F,n_comps = 10))
+  # model_ <- infer_trajectory(dataset, ti_slice())
+  # model_ <- infer_trajectory(dataset, ti_scorpius())
+  # model_ <- infer_trajectory(dataset, ti_tscan());
+  # model_ <- infer_trajectory(dataset, ti_embeddr());
+  ## model_ <- infer_trajectory(dataset, ti_elpicycle())
+  ## model_ <- infer_trajectory(dataset, ti_raceid_stemid())
+  ## model_ <- infer_trajectory(dataset, ti_mst());
+  ## model_ <- infer_trajectory(dataset, ti_dpt())
+  ## model_ <- infer_trajectory(dataset, ti_monocle_ddrtree())
+  if(! "pseudotime" %in% names(model_)){
+    tmp=plot_dimred(model_,color_cells = "pseudotime")
+    model_$pseudotime=tmp$data$pseudotime
+    names(model_$pseudotime)=tmp$data$cell_id
+  }
+  model[[x]] =model_
 }
+save(file = paste0(OUTPSEUDOTIME, filesep,"pseudotime_",strsplit(as.character(Sys.time())," ")[[1]][1],".RObj"), list = "model")
+model_All=model[grep("All", names(model))]
+model=model[grep("All", names(model), invert = T)]
+## compare img and fucci derived pseudotime
+pdf(paste0(OUTPSEUDOTIME, filesep,"All_img_vs_fucci-derivedPseudotime_",strsplit(as.character(Sys.time())," ")[[1]][1],".pdf") )
+par(mfrow=c(2,2))
+ii=names(model_All$Fucci_All$pseudotime)
+boxplot(model_All$Fucci_All$pseudotime~fucci_raw[ii,"cellCycle"], main=FoF,cex.main=0.6)
+ii=names(model_All$All$pseudotime)
+boxplot(model_All$All$pseudotime ~ fucci_raw[ii,"cellCycle"], main=FoF,cex.main=0.6)
+te=cor.test(model_All$All$pseudotime, model_All$Fucci_All$pseudotime[ii])
+plot(model_All$All$pseudotime, model_All$Fucci_All$pseudotime[ii], main=paste("r=",round(te$estimate,2),"P=",te$p.value))
+dev.off()
+## Plot trajectories:
+tmp=sapply(model, function(x) plot_dimred(x,color_cells = "pseudotime"), simplify = F)
+sapply(names(tmp), function(x) ggsave(paste0("~/Downloads/",x,".png"), plot=tmp[[x]]))
+## Split fucci from allen model pseudotime
+tmp=list()
+for(invert in c(T,F)){
+  ii = grep("Fucci", names(model), invert = invert, value=T)
+  pseudotime_img=as.data.frame( do.call(c, sapply(model[ii], function(x) x$pseudotime)) *20)
+  rownames(pseudotime_img) = do.call(c,sapply(model[ii], function(x) names(x$pseudotime)))
+  colnames( pseudotime_img)="pseudotime"
+  tmp[[length(tmp)+1]] = pseudotime_img
+}
+pseudotime_img = tmp[[1]]
+fucci_raw$pseudotime=NA
+fucci_raw[rownames(tmp[[2]]),]$pseudotime = tmp[[2]]$pseudotime
+# pseudotime_img = pseudotime_img[rownames(pseudotime_img) %in% rownames(imgStats),,drop=F]
+## Save for comparison with live-cell imaging data
+pseudotime_img[,c(xyz,"FoF","frame","cellID","png")]=imgStats[rownames(pseudotime_img),c(xyz,"FoF","frame","ID","png")]
+# write.table(pseudotime_img, file=paste0(OUTPSEUDOTIME,filesep,FoV,".txt"),sep="\t",row.names = F,quote = F)
+# write.csv(pseudotime_img,   file=paste0(OUTPSEUDOTIME,filesep,FoV,date,".csv"),row.names = F)
+pseudotime_img_median=grpstats(as.matrix(pseudotime_img[,c("pseudotime",xyz,"frame")]),pseudotime_img$frame,"median")$median
+write.csv(pseudotime_img_median,   file=paste0(OUTPSEUDOTIME,filesep,FoV,date,".csv"),row.names = F)
+## Sort by pseudotime
+pseudotime_img = pseudotime_img[order(pseudotime_img$pseudotime),]
+fucci_raw = fucci_raw[rownames(pseudotime_img),]
+write.table(fucci_raw, paste0(OUTPSEUDOTIME,filesep,"Fucci_stats.txt"),sep="\t",quote = F, row.names = T)
+write.table(imgStats, paste0(OUTPSEUDOTIME,filesep,"LabelFree_stats.txt"),sep="\t",quote = F, row.names = T)
+
+## compare img and fucci derived pseudotime
+pdf(paste0(OUTPSEUDOTIME, filesep,"img_vs_fucci-derivedPseudotime_",strsplit(as.character(Sys.time())," ")[[1]][1],".pdf") )
+par(mfrow=c(2,4))
+svmFeatures <- anovaresults <- list()
+for(FoF in FoFs){
+  ii = rownames(fucci_raw)[fucci_raw$FoF==FoF]
+  boxplot(pseudotime_img[ii,"pseudotime"]~fucci_raw[ii,"cellCycle"], main=FoF,cex.main=0.6)
+  boxplot(fucci_raw[ii,"pseudotime"]~fucci_raw[ii,"cellCycle"], main=FoF,cex.main=0.6)
+  print(FoF)
+  print(cor.test(pseudotime_img[ii,"pseudotime"],fucci_raw[ii,"cellCycle"]))
+  ##feature selection for svm classification
+  anovaresults[[FoF]]=list()
+  for(x in coi){
+    te=anova(lm(imgStats[ii,x]~fucci_raw[ii,"cellCycle"]))
+    anovaresults[[FoF]][[x]]=te$`Pr(>F)`[1]
+  }
+  svmFeatures_=sort(unlist(anovaresults[[FoF]]))
+  svmFeatures_=svmFeatures_[svmFeatures_<0.01]
+  print(svmFeatures_)
+  svmFeatures[[FoF]]=names(svmFeatures_)
+}
+#repeat pseudotime inference with these refined coi
+fr=plyr::count(unlist(svmFeatures))
+whichFoF=sapply(fr$x, function(x) sapply(svmFeatures, function(f) x %in% f))
+fr$FoF=apply(whichFoF, 2, function(x) paste(rownames(whichFoF)[x], collapse = ", "))
+print(plyr::count(fr$FoF))
+svmFeatures=fr[fr$freq>=4,]$x
+# svmFeatures=fr$x[fr$FoF=="FoF2_231005_fluorescent.nucleus, FoF3_231005_fluorescent.nucleus, FoF4_231005_fluorescent.nucleus"]
+##Look at top features across FoFs:
+par(mfrow=c(3,3))
+for(x in names(sort(unlist(anovaresults))[1:9])){
+  FoF=names(unlist(sapply(FoFs, grep, x)))
+  ii = rownames(fucci_raw)[fucci_raw$FoF==FoF]
+  x_=gsub(paste0(FoF,"."),"",x)
+  boxplot(imgStats[ii,x_]~fucci_raw[ii,"cellCycle"],ylab=x_,main=x,cex.main=0.6)
+}
+dev.off(); 
 
 
-## Visualize pseudotime spatial distribution
-par(mfrow=c(5,3),bg="gray",mai=c(0.1,0.5,0.1,0.5))
+## Visualize pseudotime spatial distribution -- compare with FUCCI
 zslice=35
+pdf(paste0(OUTPSEUDOTIME, filesep,"pseudotimeSpatialDistribution_",strsplit(as.character(Sys.time())," ")[[1]][1],".pdf") )
+par(mfrow=c(1+length(FoFs),2),bg="gray",mai=c(0.1,0.5,0.1,0.5))
 pseudotime_img[,"pseudotimeCol"]=round(pseudotime_img[,"pseudotime"]*10)
+fucci_raw[,"pseudotimeCol"]=round(fucci_raw[,"pseudotime"]*10)
 pseudotime_img[,"randCol"]=sample(pseudotime_img[,"pseudotimeCol"])
 col=fliplr(heat.colors(max(pseudotime_img[,"pseudotimeCol"])))
+fuccicol=fliplr(heat.colors(max(fucci_raw[,"pseudotimeCol"])))
+# fuccicol=fliplr(rainbow(max(fucci$cellCycle)*1.2)[1:max(fucci$cellCycle)])
+pseudotime_img$cellCycleFucci=NA
 for(FoF in unique(pseudotime_img$FoF)){
   pseudotime_img_=pseudotime_img[pseudotime_img$FoF==FoF,]
   rownames(pseudotime_img_)=as.character(pseudotime_img_$cellID)
-  slice=getZslice(FoF,zslice,root = "../../data/GastricCancerCLs/3Dbrightfield/NCI-N87/A06_multiSignals_Linked",plot=F, signal="nucleus.p")
-  ## plot brightfield
-  TIF=paste0("../../data/GastricCancerCLs/3Dbrightfield/NCI-N87/A01_rawData",filesep,FoF,filesep,"brightfield.s_z",zslice,".tif")
-  img=bioimagetools::readTIF(TIF)
-  img=EBImage::rotate(img,-180)
-  bioimagetools::img(resize4Ilastik(img, xydim = xydim)[,,1]);
+  fucci_=fucci_raw[fucci_raw$FoF==FoF,]
+  
+  OUTLINKED_=paste0(ROOT,filesep,OUTLINKED,filesep,FoF,filesep)
+  coord_=readOrganelleCoordinates(signals_per_id[[FoF]], "nucleus.p", OUTLINKED_)
+  coord_ = coord_[coord_$z == zslice*z_interval, ]
+  # ## plot brightfield
+  # TIF=list.files(paste0("../../data/GastricCancerCLs/3Dbrightfield/NCI-N87/A01_rawData",filesep,FoF), pattern=paste0("_z",zslice), full.names = T)
+  # img=sapply(TIF, function(x) bioimagetools::readTIF(x), simplify = F)
+  # img=sapply(img, function(x) EBImage::rotate(x,-180), simplify = F)
+  # bioimagetools::img(resize4Ilastik(img[[2]], xydim = xydim)[,,1]);
+  # bioimagetools::img(resize4Ilastik(img[[1]]+img[[3]], xydim = xydim)[,,1]);
   ## plot pseudotime colorcoded
-  plot(-slice$x,slice$y,col=col[pseudotime_img_[as.character(slice$ID),"pseudotimeCol"]],main=FoF,xaxt='n',yaxt='n', ann=FALSE)
+  plot(coord_$x,coord_$y,col=col[pseudotime_img_[as.character(coord_$id),"pseudotimeCol"]],xaxt='n',yaxt='n', ann=FALSE,main=paste(FoF,"img"))
   ## plot random color code
-  plot(-slice$x,slice$y,col=col[pseudotime_img_[as.character(slice$ID),"randCol"]],main=FoF,xaxt='n',yaxt='n', ann=FALSE)
+  # plot(coord_$x,coord_$y,col=col[pseudotime_img_[as.character(coord_$id),"randCol"]],main=FoF,xaxt='n',yaxt='n', ann=FALSE)
+  ## plot FUCCI
+  plot(fucci_$x,fucci_$y, col=fuccicol[fucci_$pseudotimeCol],xaxt='n',yaxt='n', ann=FALSE,main=paste(FoF,"fucci"))
+  # plot(fucci_$x,fucci_$y,col=fuccicol[fucci_$cellCycle],main=FoF,xaxt='n',yaxt='n', ann=FALSE)
 }
 color.bar(unique(col),min=1,max = length(col),nticks = length(unique(col)),title = "pseudo order")
+dev.off()
 ## zoom in:
-ii=which(slice$x>0.5*max(slice$x) )
-plot(-slice$x[ii],slice$y[ii],col=col[pseudotime_img_[as.character(slice$ID[ii]),"pseudotimeCol"]],main=FoF,xaxt='n',yaxt='n', ann=FALSE,ylim=quantile(slice$y,c(0,1))*c(1,0.75))
-file.copy(TIF,"~/Downloads/")
-print(paste("open",TIF))
+# ii=which(slice$x>0.5*max(slice$x) )
+# plot(-slice$x[ii],slice$y[ii],col=col[pseudotime_img_[as.character(slice$ID[ii]),"pseudotimeCol"]],main=FoF,xaxt='n',yaxt='n', ann=FALSE,ylim=quantile(slice$y,c(0,1))*c(1,0.75))
+# file.copy(TIF,"~/Downloads/")
+# print(paste("open",TIF))
 
 
-# ## MST sequencing:
-# tree2=slingshot(seqStats_,rep(1,nrow(seqStats_))); 
-# pseudotime_seq=slingshot::slingPseudotime(tree2)+1
-# plot(seqStats_, asp = 1, pch=15-13*(!rownames(seqStats_) %in% g1cells_seq),col=col[round(pseudotime_seq[rownames(seqStats_),1])])
-# lines(as.SlingshotDataSet(tree2), type = 'c', lwd = 3)
-# 
-# 
-# ## Calculate pseudotime difference to G1 cells
-# d_i= sapply(pseudotime_img, function(x) quantile(pseudotime_img[g1cells_img,]-x,))
-# d_s= sapply(pseudotime_seq, function(x) quantile(pseudotime_seq[g1cells_seq,]-x,))
-# d_i= as.data.frame(t(d_i))
-# d_s= as.data.frame(t(d_s))
-# d_i$type="img"
-# d_s$type="seq"
+#### pseudotime vs FUCCI cell cycle time
+pseudotime_img_=sapply(FoFs, function(x) pseudotime_img[pseudotime_img$FoF==x,], simplify = F)
+pseudotime_fucci_=sapply(FoFs, function(x) fucci_raw[fucci_raw$FoF==x,], simplify = F)
+# FoF="FoF3_231005_fluorescent.nucleus"
+# x=fucciAndImgStats_[[FoF]]$expression[rownames(pseudotime_fucci_[[FoF]]),svmFeatures]; 
+# y=pseudotime_fucci_[[FoF]]$cellCycle
+trainCells=sapply(fucciAndImgStats_[FoFs], function(x) sample(rownames(x$expression), 45), simplify = F)
+testCells=sapply(FoFs, function(x) setdiff(rownames(fucciAndImgStats_[[x]]$expression),trainCells[[x]]), simplify = F)
+x=sapply(FoFs, function(x) fucciAndImgStats_[[x]]$expression[trainCells[[x]],svmFeatures] )
+x=do.call(rbind, x)
+y=sapply(FoFs, function(x) pseudotime_fucci_[[x]][trainCells[[x]],]$cellCycle, simplify = F)
+y=do.call(c, y)
+
+# train SVM to classify cells to cell cycle phase based on allen Model features:
+svm=classifyCellCyclePhase(x, y, main="", svmfit=NULL)
+out=sapply(names(pseudotime_fucci_), function(x) classifyCellCyclePhase(fucciAndImgStats_[[x]]$expression[testCells[[x]], svmFeatures], pseudotime_fucci_[[x]][testCells[[x]],"cellCycle"], main="", svmfit=svm$svmfit), simplify=F)
+# use SVM predictions to correct directionality of pseudotime:
+# la=pseudotimeDirectionality(pseudotime_img, fucci_raw,cellcyclecolumn = "cellCycle")
+## Save output:
+svm=list(svmfit=svm$svmfit, svmFeatures=svmFeatures, training = trainCells, testing=testCells)
+save(file = paste0(OUTPSEUDOTIME, filesep,"cellCyclePredictionFromImgFeatures_svm_",strsplit(as.character(Sys.time())," ")[[1]][1],".RObj"), list = "svm")
+confMat=sapply(out, function(x) x$confusionMatrix, simplify = F, USE.NAMES = T)
+# sapply(names(confMat), function(x) write.table(confMat[[x]], paste0(OUTPSEUDOTIME, filesep,x,"_cellCyclePrediction_svm_",strsplit(as.character(Sys.time())," ")[[1]][1],".txt"), sep="\t" , quote = F))
+confMat= as.data.frame(do.call(rbind,confMat))
+tmp=as.data.frame(sapply(c("Class..1","Class..2","Class..3","Class..4"), function(x) apply(confMat[grep(x, rownames(confMat)),], 2, median, na.rm=T )))
+tmp["FoF",]="Median"
+confMat$FoF=unlist(sapply(names(out), rep, 1,4, simplify = F))
+confMat=rbind(confMat,t(tmp))
+write.xlsx(confMat, paste0(OUTPSEUDOTIME, filesep,"cellCyclePrediction_svm_",strsplit(as.character(Sys.time())," ")[[1]][1],".xlsx"))
+print(confMat)
+
+##@TODO next: -- try next! HALO to improve 3D nuclei segmentation -- ask Mahmoud
+##@TODO next: cont here -- increase pixel threshold when segmenting mito via DBSCAN -- can clustering be improved? Same for cytoplasm 
+##@TODO next: calculate intensity based features for mito & cyto
+##@TODO next: check instances where pseudotime_fucci_ and pseudotime_img_ don't match --> visualize these cells!
+##@TODO next: segment nucleolus & calc its features
+##@TODO next: finetune exclusion of segmentation errors
+##@TODO next: try various pseudotime algorithms once supervised classificationa accuracy is >0.75 across all classes and FoFs
 # 
 # ## co-cluster image and sequencing stats
 # stats=rbind(d_i,d_s)
@@ -245,58 +441,234 @@ print(paste("open",TIF))
 # 
 
 
-#############################################################
-## Compare pseudotime with LCI-derived time since division ##
-#############################################################
-realtime_img=read.table(file=paste0(FROMILASTIK,filesep,FoF,"_DeltaDivision.txt"),sep="\t",check.names = T,stringsAsFactors = T,header = T)
-## Coordinate based mapping of cells between pseudotime and Ilastik output per each frame:
-jointTimes=list()
-par(mfrow=c(3,2))
-for(time in unique(pseudotime_img$frame)){
-  print(paste("merging time",time,"..."))
-  pseudotime_img_ = pseudotime_img[pseudotime_img$frame==time,]
-  realtime_img_ = realtime_img[realtime_img$frame==time,]
-  d=dist2(pseudotime_img_[,xyz], realtime_img_[,xyz])
-  ii=apply(d,2,which.min)
-  realtime_img_$pseudotime= pseudotime_img_$pseudotime[ii] 
-  ##@TODO: test -- there should be a unique arg minimum for each cell
-  print(apply(pseudotime_img[,xyz],2,quantile))
-  print(apply(realtime_img_[,xyz],2,quantile))
-  # heatmap.2(d,trace="n")
-  hist(plyr::count(ii)$freq,30,main=paste("time",time))
-  # - focus on just cells with assigned parent track ID
-  ii=!is.na(realtime_img_$time_since_division) | !is.na(realtime_img_$time_until_division)
-  jointTimes[[as.character(time)]]=realtime_img_[ii,,drop=F]
+
+
+
+
+
+
+# ############### ############### ############### ############### ############### 
+# ############## Figures for paper # ############### ############### ##############
+# ############### ############### ############### ############### ##############
+
+## TODO: cp all required input to data4paper folder
+
+getZLIM<- function(coord__){
+  tmp = quantile(coord__$z,c(0,1))
+  space=tmp[2]-tmp[1]
+  zlim=c(tmp[1]-space/2, tmp[2]+space/2)
+  return(zlim)
 }
-jointTimes=do.call(rbind, jointTimes)
-write.csv(jointTimes,file=paste0(OUTPSEUDOTIME,filesep,FoV,".csv"),row.names = F)
-# # run in Matlab: 
-#   # calc circular cross correlation btw. the "pseudotime timepoints" and the estimates of "time_since_division"
-#   circularCrossCorr(jointTimes$time_since_division,jointTimes$pseudotime)
-## Read in data after shifting pseudotime by cross correlation
-f=list.files(OUTPSEUDOTIME, pattern="_matlabOut.csv", full.names = T)
-pdf("~/Downloads/realtime_vs_pseudotime.pdf",height = 4.5,width = 9)
-par(mfrow=c(1,2))
-for(FoV in c("FoFX002005","FoFX001003")){
-  jointTimes=read.csv(file=grep(FoV,f,value=T),check.names = F,stringsAsFactors = F)
-  # te=cor.test(jointTimes$time_since_division,jointTimes$pseudotime_shifted,method = "spearman")
-  te=cor.test(jointTimes$hour,jointTimes$pseudotime_shifted,method = "spearman")
-  plot(jointTimes$hour,jointTimes$pseudotime_shifted,pch=20,cex=2, xlab="hour", ylab="shifted pseudotime", main=paste0(FoV, ": R=",round(te$estimate,2),"; p=", round(te$p.value,10)))
-  fr=grpstats(jointTimes[,"pseudotime",drop=F], round(jointTimes$hour), "median")$median
-  
-  vioplot::vioplot(jointTimes$pseudotime_shifted ~ round(jointTimes$hour),  xlab="hour", ylab="shifted pseudotime", main=paste0(FoV, ": R=",round(te$estimate,2),"; p=", round(te$p.value,10)))
+
+signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv",cytoplasm.p="cytoplasm.p_Cells_Centers.csv")
+signals_per_id=list()
+for(FoF in FoFs){
+  OUTLINKED_=paste0(ROOT,filesep,OUTLINKED,filesep,FoF,filesep)
+  f=list.files(OUTLINKED_,full.names = T, pattern = ".csv")
+  signals_per_id[[FoF]]=plyr::count(sapply(strsplit(f,"_"), function(x) x[length(x)-1]))
+}
+thedate=strsplit(as.character(Sys.time())," ")[[1]][1]
+FoF=FoFs[3]
+OUTLINKED_=paste0(ROOT,filesep,OUTLINKED,filesep,FoF,filesep)
+load(paste0(OUTPSEUDOTIME, filesep,"pseudotime_2024-05-15.RObj")); ## loads unsupervised pseudotime *model* list
+load(paste0(OUTPSEUDOTIME, filesep,"cellCyclePredictionFromImgFeatures_svm_2024-05-15.RObj")); ## load *svm* details
+fucci_raw=read.table( paste0(OUTPSEUDOTIME,filesep,"Fucci_stats.txt"),sep="\t", header = T)
+imgStats = read.table(paste0(OUTPSEUDOTIME,filesep,"LabelFree_stats.txt"),sep="\t",header = T)
+
+# ##############
+# ## Figure 1 ##
+# ##############
+fuccicol=fliplr(rainbow(max(fucci_raw$cellCycle)*1.2)[1:max(fucci_raw$cellCycle)])
+names(fuccicol) = c("G1", "G1/S transition","S","G2/M")
+fucci_=fucci_raw[fucci_raw$FoF==FoF,]
+coord_=readOrganelleCoordinates(signals_per_id[[FoF]], "nucleus.p", OUTLINKED_)
+coord_[,c("x","y")] = coord_[,c("x","y")]/pixelsize_xy
+coord_ = coord_[coord_$z == zslice*z_interval, ]
+coord_$x=-coord_$x
+coord_$x=-max(coord_$x)+coord_$x-min(coord_$x)
+TIF=list.files(paste0("../../data/GastricCancerCLs/3Dbrightfield/NCI-N87/A01_rawData",filesep,FoF), pattern=paste0("_z",zslice), full.names = T)
+img=sapply(TIF, function(x) bioimagetools::readTIF(x), simplify = F)
+img=sapply(img, function(x) EBImage::rotate(x,-180), simplify = F)
+## ## ## ## ##  ## 
+# ## Figure 1A: ##
+# jordan
+## ## ## ## ## ## 
+# ## Figure 1B ##
+pdf(paste0("~/Downloads/", filesep,"Fig1B_",thedate,".pdf") )
+bioimagetools::img(img[[2]][,,1]);
+#bioimagetools::img(resize4Ilastik(img[[1]]+img[[3]], xydim = xydim)[,,1]);
+cc=fucci_[paste0(FoF,"_cell",coord_$id),"cellCycle"]
+points(coord_$x,coord_$y,col=scales::alpha(fuccicol[cc], 0.005),main=paste(FoF,"fucci"),xaxt='n',yaxt='n', ann=FALSE)
+## jordan: contour
+legend("bottomleft", names(fuccicol) , fill=fuccicol)
+dev.off()
+## ## ## ## ## ## 
+# ## Figure 1C ## 
+pdf(paste0("~/Downloads/", filesep,"Fig1C_",thedate,".pdf") )
+bioimagetools::img(img[[2]][,,1]);
+fucci_[,"pseudotimeCol"]=round(fucci_[,"pseudotime"]*10)
+col=fliplr(heat.colors(max(fucci_[,"pseudotimeCol"])))
+## jordan: color code intuitive match to panel B
+cc=fucci_[paste0(FoF,"_cell",coord_$id),"pseudotimeCol"]
+points(coord_$x,coord_$y,col=scales::alpha(col[cc], 0.005),xaxt='n',yaxt='n', ann=FALSE,main=paste(FoF,"fucci pseudotime"))
+## jordan: add color bar as legend
+dev.off()
+## ## ## ## ## ## 
+# ## Figure 1D ## 
+tmp=plot_dimred(model[[paste0("Fucci_",FoF)]],color_cells = "pseudotime")
+ggsave(paste0("~/Downloads/","Fig1D_Fucci_",FoF,"_pseudotimeTSNE_",thedate,".png"), plot=tmp)
+## ## ## ## ## ## ## ## ## ## ## ## #
+# ## Figure 1E + supplementary Fig ## 
+pdf(paste0("~/Downloads/", filesep,"Fig1E_plusSIFig_",thedate,".pdf") )
+par(mfrow=c(2,3))
+ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,names(model$Fucci_All$pseudotime),value=T))
+sapply(names(ii), function(x) boxplot(model$Fucci_All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="fucci pseudotime", main=x,cex.main=0.6, cex.axis=0.6))
+boxplot(model$Fucci_All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="fucci pseudotime", main=x,cex.main=0.6, cex.axis=0.6)
+dev.off()
+
+# ##############
+# ## Figure 2 ##
+# ##############
+coord_=readOrganelleCoordinates(signals_per_id[[FoF]], names(signals), OUTLINKED_)
+imgStats_=imgStats[imgStats$FoF==FoF,]
+doplotcentercoord=c(200, 200)
+ii=which(coord_$signal=="nucleus.p")
+centroids=grpstats(coord_[ii,c("x","y","z","id")], g = coord_$id[ii],statscols = "median")$median
+o2=flexclust::dist2(centroids[,c("x","y")],doplotcentercoord)
+alpha=list(cytoplasm.p=0.035,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=0.135,mito.t=0.035,mito.p=0.035)
+## ## ## ## ##  ## 
+# ## Figure 2A: ##
+# jordan
+## ## ## ## ##  ## 
+# ## Figure 2B: ## Color by cell
+# coordinates for cells of interest
+NCELLS=10
+coi=rownames(centroids)[order(o2)[1:NCELLS]]
+coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
+coord__=coord_[coord_$id %in% coi,]
+zlim=getZLIM(coord__)
+rgl::close3d()
+col=rainbow(length(unique(coord__$id)))
+names(col)=as.character(unique(coord__$id))
+for(s in names(signals)){
+  X=coord__[coord__$signal==s,]
+  if(s=="nucleus.p"){
+    rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[as.character(X$id)],alpha=alpha[[s]]*4, add=T)
+  }else{
+    rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[as.character(X$id)],alpha=alpha[[s]]*4, add=T)
+  }
+}
+
+rgl::movie3d( movie=paste0("Fig2B_",thedate), rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 3,  dir = "~/Downloads/",  type = "gif", clean = TRUE)
+## ## ## ## ##  ## 
+# ## Figure 2C: ## Color by organelle
+coi=rownames(centroids)[order(o2)[7]]
+coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
+coord__=coord_[coord_$id %in% coi,]
+zlim=getZLIM(coord__)
+col=rainbow(length(unique(coord__$signal))*1.3)
+names(col)=as.character(unique(coord__$signal))
+rgl::close3d()
+for(s in names(signals)){
+  X=coord__[coord__$signal==s,]
+  if(s=="nucleus.p"){
+    rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[X$signal],alpha=4*alpha[[s]], add=T)
+  }else{
+    rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[X$signal],alpha=alpha[[s]]*4, add=T)
+  }
+}
+rgl::legend3d("bottomright",names(signals),fill=col[names(signals)])
+rgl::movie3d( movie=paste0("Fig2C_",thedate), rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 1,  dir = "~/Downloads/",  type = "gif", clean = TRUE)
+## ## ## ## ##  ## 
+# ## Figure 2D: ##
+pdf(paste0("~/Downloads/", filesep,"Fig2D_",thedate,".pdf"), width = 10, height = 5 )
+par(mfrow=c(2,5))
+for(x in svmFeatures){
+  boxplot(imgStats[,x]~fucci_raw[rownames(imgStats),"cellCycle"],ylab=x,cex.main=0.6)
+  # Jordan: split and color code boxes by FoF 
 }
 dev.off()
 
-## Shifting real time instead of pseudotime
-# jointTimes=read.csv(file=paste0(OUTPSEUDOTIME,filesep,FoV,"_matlabOut.csv"),check.names = F,stringsAsFactors = F)
-# # te=cor.test(jointTimes$time_since_division,jointTimes$pseudotime_shifted,method = "spearman")
-# te=cor.test(jointTimes$hour_shifted,jointTimes$pseudotime,method = "spearman")
-# RES=.5
-# fr=grpstats(jointTimes[,"hour",drop=F], round(jointTimes$pseudotime/RES), "median")$median
-# fr[,1]=round(1+fr[,1]-min(fr[,1]))
-# fr=fr[order(as.numeric(rownames(fr))),,drop=F]
-# col=rainbow(max(fr)*1.3)[1:max(fr)]
-# col=col[fr]
-# vioplot::vioplot(jointTimes$hour_shifted ~ round(jointTimes$pseudotime/RES), col=col)
-# legend("topleft",as.character(fr[,1]), fill=col, title="hour")
+
+
+# ##############
+# ## Figure 3 ##
+# ##############
+## ## ## ## ##  ## 
+# ## Figure 3B: ##
+confMat = read.xlsx(paste0(OUTPSEUDOTIME, filesep,"cellCyclePrediction_svm_",thedate,".xlsx"), sheetIndex = 1, row.names=T)
+tmp=sapply(c("Class..1","Class..2","Class..3","Class..4"), function(x) as.numeric(confMat[grep(x, rownames(confMat)),"Balanced.Accuracy"])) 
+pdf(paste0("~/Downloads/", filesep,"Fig3B_",thedate,".pdf") )
+boxplot(tmp, names=names(fuccicol), ylab="Balanced.Accuracy")
+dev.off()
+## ## ## ## ## ##
+# ## Figure 3C ##
+tmp=plot_dimred(model[[FoF]],color_cells = "pseudotime")
+ggsave(paste0("~/Downloads/","Fig3C_labelFree_",FoF,"_pseudotimeTSNE_",thedate,".png"), plot=tmp)
+## ## ## ## ## ## ## ## ## ## ## ## #
+# ## Figure 3D + supplementary Fig ## 
+pdf(paste0("~/Downloads/", filesep,"Fig3D_plusSIFig_",thedate,".pdf") )
+par(mfrow=c(2,3))
+ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,rownames(fucci_raw),value=T))
+# sapply(names(ii), function(x) boxplot(model[[x]]$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x,cex.main=0.6))
+sapply(names(ii), function(x) boxplot(model$All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x, cex.axis=0.6,cex.main=0.6))
+par(mfrow=c(1,2))
+boxplot(model$All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main="All",cex.main=0.6, cex.axis=0.6)
+ii=names(model$All$pseudotime)
+ii=grep(FoFs[1], ii, value=T, invert = T)
+te=cor.test(model$All$pseudotime[ii], model$Fucci_All$pseudotime[ii])
+col=rainbow(length(unique(fucci_raw[ii,"FoF"])))
+names(col)=unique(fucci_raw[ii,"FoF"])
+plot(model$All$pseudotime[ii], model$Fucci_All$pseudotime[ii], main=paste("r=",round(te$estimate,2),"P=",te$p.value), xlab="label free pseudotime",  ylab="fucci pseudotime",  col=col[fucci_raw[ii,"FoF"]])
+legend("bottomleft",sapply(strsplit(names(col),"_"),"[[",1),fill=col)
+dev.off()
+## ## ## ## ## ##
+# ## Figure 3E ## representative cell across cell cycle: fucci
+# jordan
+## ## ## ## ## ##
+# ## Figure 3F ## representative cell across cell cycle: label free
+# jordan
+
+
+# #############################################################
+# ## Compare pseudotime with LCI-derived time since division ##
+# #############################################################
+# realtime_img=read.table(file=paste0(FROMILASTIK,filesep,FoF,"_DeltaDivision.txt"),sep="\t",check.names = T,stringsAsFactors = T,header = T)
+# ## Coordinate based mapping of cells between pseudotime and Ilastik output per each frame:
+# jointTimes=list()
+# par(mfrow=c(3,2))
+# for(time in unique(pseudotime_img$frame)){
+#   print(paste("merging time",time,"..."))
+#   pseudotime_img_ = pseudotime_img[pseudotime_img$frame==time,]
+#   realtime_img_ = realtime_img[realtime_img$frame==time,]
+#   d=dist2(pseudotime_img_[,xyz], realtime_img_[,xyz])
+#   ii=apply(d,2,which.min)
+#   realtime_img_$pseudotime= pseudotime_img_$pseudotime[ii] 
+#   ##@TODO: test -- there should be a unique arg minimum for each cell
+#   print(apply(pseudotime_img[,xyz],2,quantile))
+#   print(apply(realtime_img_[,xyz],2,quantile))
+#   # heatmap.2(d,trace="n")
+#   hist(plyr::count(ii)$freq,30,main=paste("time",time))
+#   # - focus on just cells with assigned parent track ID
+#   ii=!is.na(realtime_img_$time_since_division) | !is.na(realtime_img_$time_until_division)
+#   jointTimes[[as.character(time)]]=realtime_img_[ii,,drop=F]
+# }
+# jointTimes=do.call(rbind, jointTimes)
+# write.csv(jointTimes,file=paste0(OUTPSEUDOTIME,filesep,FoV,".csv"),row.names = F)
+# # # run in Matlab: 
+# #   # calc circular cross correlation btw. the "pseudotime timepoints" and the estimates of "time_since_division"
+# #   circularCrossCorr(jointTimes$time_since_division,jointTimes$pseudotime)
+# ## Read in data after shifting pseudotime by cross correlation
+# f=list.files(OUTPSEUDOTIME, pattern="_matlabOut.csv", full.names = T)
+# pdf("~/Downloads/realtime_vs_pseudotime.pdf",height = 4.5,width = 9)
+# par(mfrow=c(1,2))
+# for(FoV in c("FoFX002005","FoFX001003")){
+#   jointTimes=read.csv(file=grep(FoV,f,value=T),check.names = F,stringsAsFactors = F)
+#   # te=cor.test(jointTimes$time_since_division,jointTimes$pseudotime_shifted,method = "spearman")
+#   te=cor.test(jointTimes$frame,jointTimes$pseudotime_shifted,method = "spearman")
+#   plot(jointTimes$frame,jointTimes$pseudotime_shifted,pch=20,cex=2, xlab="frame", ylab="shifted pseudotime", main=paste0(FoV, ": R=",round(te$estimate,2),"; p=", round(te$p.value,10)))
+#   fr=grpstats(jointTimes[,"pseudotime",drop=F], round(jointTimes$frame), "median")$median
+#   
+#   vioplot::vioplot(jointTimes$pseudotime_shifted ~ round(jointTimes$frame),  xlab="frame", ylab="shifted pseudotime", main=paste0(FoV, ": R=",round(te$estimate,2),"; p=", round(te$p.value,10)))
+# }
+# dev.off()
