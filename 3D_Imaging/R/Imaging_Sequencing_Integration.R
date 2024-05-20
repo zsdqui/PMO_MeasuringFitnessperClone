@@ -1,3 +1,4 @@
+options(java.parameters = "-Xmx9g")
 rm(list=c("svmFeatures"))
 library(xlsx)
 library(dyno)
@@ -11,6 +12,7 @@ library(e1071)
 library(slingshot)
 library(umap)
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
+devtools::source_url("https://github.com/noemiandor/Utils/blob/master/Pathways/getAllPathways.R?raw=TRUE")
 setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
 source("CorrectCellposeSegmentation.R")
 source("assignCompartment2Nucleus.R")
@@ -121,12 +123,6 @@ xydim = 255
 xmlfiles=list.files('../../data/GastricCancerCLs/3Dbrightfield/NCI-N87/A01_rawData/',pattern=".xml",full.names=T)
 thedate=strsplit(as.character(Sys.time())," ")[[1]][1]
 
-# ## read seq stats
-# # seqStats=read.table("../../data/GastricCancerCLs/RNAsequencing/B02_220112_seqStats/NCI-N87/Clone_0.244347_ID119967.txt",sep="\t",check.names = F,stringsAsFactors = F)
-# load('~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCLs/RNAsequencing/B01_220112_pathwayActivity/NCI-N87/Clone_0.244347_ID119967.RObj')
-# ccState=sapply(colnames(pq), function(x) cloneid::getAttribute(x,"TranscriptomePerspective","state"))
-# seqStats=t(pq)
-
 ## read imaging stats (if timeseries, FoFs must be sorted in ascending temporal order)
 # FoFs=grep("002005", gsub("_stats.txt","",list.files(INSTATS,pattern = "_221018_brightfield")), value=T)
 # FoFs=paste0("FoF",1:5,"003_220721_brightfield")
@@ -180,10 +176,6 @@ print(paste("Found",nrow(imgStats),"cells across",length(FoFs),"images"))
 rownames(imgStats) = paste0(imgStats$FoF,"_cell",imgStats$ID)
 rownames(fucciStats) = paste0(fucciStats$FoF,"_cell",fucciStats$ID)
 fucciStats = fucciStats[rownames(imgStats),]
-
-## Same number of sequenced and imaged cells:
-# seqStats=seqStats[sample(nrow(seqStats),size = nrow(imgStats)),]
-# g1cells_seq=rownames(seqStats)[ccState[rownames(seqStats)]=="G0G1"]
 
 ## Now deal with FUCCI data
 coi_fucci=colnames(fucciStats)[-c(1:16)]
@@ -430,22 +422,59 @@ print(confMat)
 ##@TODO next: try various pseudotime algorithms once supervised classificationa accuracy is >0.75 across all classes and FoFs
 ##@TODO next: ask Ana & Stan if gates for discrete fucci based classification are ok
 
-# ## co-cluster image and sequencing stats
-# stats=rbind(d_i,d_s)
-# rownames(stats) = paste(rownames(stats), stats$type)
-# dd = dist(stats[,1:2])
-# tr = ape::nj(dd)
-# col = rep("red", length(tr$tip.label))
-# col[grep("img",tr$tip.label) ] = "blue"
-# par(mfrow=c(1,1))
-# plot(tr,show.tip.label = T, tip.color = col, cex=0.36)
-# legend("topright",c("sequenced cell","imaged cell"),fill=c("red","blue"),cex=1.8)
-# 
 
+## read seq stats
+mydb = cloneid::connect2DB();
+stmt = "select distinct cloneID,size,origin from Perspective where whichPerspective='TranscriptomePerspective' and origin like 'NCI-N87%' and size>0.1";
+rs = suppressWarnings(dbSendQuery(mydb, stmt))
+origin=fetch(rs, n=-1)
+robjname=paste0(OUTPSEUDOTIME,filesep,"scRNAseq_pseudotimeInput_",thedate,".RObj");
+if(!file.exists(robjname)){
+  p=cloneid::getSubProfiles(cloneID_or_sampleName = 119967, whichP = "TranscriptomePerspective")
+  save(file = robjname, list = "p")
+}
+load(robjname)
+scRNA=t(p[grep(":",rownames(p),invert = T,fixed = T),])
+# seqStats=read.table("../../data/GastricCancerCLs/RNAsequencing/B02_220112_seqStats/NCI-N87/Clone_0.244347_ID119967.txt",sep="\t",check.names = F,stringsAsFactors = F)
+# load('~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCLs/RNAsequencing/B01_220112_pathwayActivity/NCI-N87/Clone_0.244347_ID119967.RObj')
+# ccState=sapply(colnames(pq), function(x) cloneid::getAttribute(x,"TranscriptomePerspective","state"))
+# seqStats=t(pq)
+scRNA_raw=scRNA;
+scRNA=sweep(scRNA, 2, STATS = apply(scRNA,2,mean, na.rm=T),FUN = "/")
 
+## pathwayActivity
+gs=getAllPathways(include_genes=T, loadPresaved = T);     
+gs=gs[sapply(gs, length)>=5]
+load('~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCLs/RNAsequencing/B01_220112_pathwayActivity/NCI-N87/Clone_0.244347_ID119967.RObj')
+gs=gs[rownames(pq)]
+goi=unique(unlist(gs))
+pq <- gsva(t(scRNA[,colnames(scRNA) %in% goi]), gs, kcdf="Poisson", mx.diff=T, verbose=FALSE, parallel.sz=2, min.sz=5)
+pq <- as.data.frame(t(pq))
 
+# pseudotime inference sequencing
+poi=grep("cycle", names(gs),ignore.case = T, value=T)
+poi=union(poi, grep("G1", names(gs),ignore.case = T, value=T))
+poi=union(poi, grep("G2", names(gs),ignore.case = T, value=T))
+poi=union(poi, grep("mitos", names(gs),ignore.case = T, value=T))
+goi=intersect(colnames(scRNA), as.character(unlist(gs[poi])))
+# TOPN=500; # top variable genes
+# goi=goi[order(apply(scRNA[,goi],2,var),decreasing = T)[1:TOPN]]
+dataset = asDataset(scRNA, scRNA_raw, FoF=NULL, goi)
+guidelines <- guidelines( dataset, answers = answer_questions(dataset,    multiple_disconnected = FALSE, expect_topology = TRUE, expected_topology = "cycle"))
+model_ <- infer_trajectory(dataset, ti_angle(dimred = "pca"))
+plot_dimred(model_,color_cells = "pseudotime")
+pq$pseudotime =model_$pseudotime[rownames(pq)]
+pq$FoF=origin$origin[1]
+plot(sort(pq$pseudotime));
+points(sort(model$All$pseudotime),col="red")
+legend("bottomleft", c("seq","img"), fill=c("black","red"))
+save(file = paste0(OUTPSEUDOTIME, filesep,"scRNAdataset_",thedate,".RObj"), list = "pq")
+model$Seq = model_
+save(file = paste0(OUTPSEUDOTIME, filesep,"pseudotime_",thedate,".RObj"), list = "model")
 
-
+## Same number of sequenced and imaged cells:
+# pq=pq[sample(nrow(pq),size = nrow(imgStats)),]
+# g1cells_seq=rownames(pq)[ccState[rownames(pq)]=="G0G1"]
 
 
 
@@ -458,6 +487,8 @@ file.copy(paste0(OUTPSEUDOTIME,filesep,"LabelFree_stats.txt"),DATA4PAPERDIR, ove
 file.copy(paste0(OUTPSEUDOTIME, filesep,"pseudotime_",thedate,".RObj"),DATA4PAPERDIR, overwrite = T)
 file.copy(paste0(OUTPSEUDOTIME, filesep,"cellCyclePredictionFromImgFeatures_svm_",thedate,".RObj"),DATA4PAPERDIR, overwrite = T)
 file.copy(paste0(OUTPSEUDOTIME, filesep,"cellCyclePrediction_svm_",thedate,".xlsx"),DATA4PAPERDIR, overwrite = T)
+file.copy(paste0(OUTPSEUDOTIME, filesep,"scRNAdataset_",thedate,".RObj"),DATA4PAPERDIR, overwrite = T)
+
 
 
 # #############################################################

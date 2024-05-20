@@ -349,9 +349,88 @@ Figure 3F: representative cell across cell cycle: label free.
 ```
 
 
+
+
 Figure 4: Sequencing imaging integration
+
+Figure 4A: Sequencing derived pseudotime of cell cycle progression
 ```{r}
 
+plot_dimred(model$Seq,color_cells = "pseudotime")
+```
+
+Figure 4B: Co-clustering of sequenced and imaged cells based on pseudotime
+```{r}
+## co-cluster image and sequencing stats
+tmp=as.data.frame(model$All$pseudotime)
+colnames(tmp)="pseudotime"
+tmp$FoF=imgStats[rownames(tmp),]$FoF
+stats=rbind(pq[,c("pseudotime","FoF")],tmp)
+rownames(stats) = paste0(rownames(stats), "_seq")
+ii=which(stats$FoF %in% FoFs)
+rownames(stats)[ii]=gsub("_seq$", "_img",rownames(stats)[ii])
+dd = as.matrix(dist(stats[,grep("pseudotime",colnames(stats))]))
+rownames(dd)<-colnames(dd)<-rownames(stats)
+tr = ape::nj(dd)
+col = rep("red", length(tr$tip.label))
+col[grep("img",tr$tip.label) ] = "blue"
+par(mfrow=c(1,1))
+plot(tr,show.tip.label = T, tip.color = col, cex=0.36)
+legend("topright",c("sequenced cell","imaged cell"),fill=c("red","blue"),cex=1.8)
+## jordan: prettify :)
+```
+
+Figure 4C: Correlation between gene expression and imaging-derived features
+```{r}
+load(paste0(OUTPSEUDOTIME, filesep,"scRNAdataset_2024-05-15.RObj")); ## loads pq
+##for each img cell which seqed cells have this cell as nearest pseudotime neighbor?
+dd = dist2(pq[,"pseudotime",drop=F], as.matrix(model$All$pseudotime)) 
+rownames(dd)=rownames(pq)
+colnames(dd)=rownames(imgStats)
+imgCells=colnames(dd)[apply(dd,1,which.min)]
+nearest_seqCells=list()
+for(imgcell in unique(imgCells)){
+  nearest_seqCells[[imgcell]]=rownames(dd)[which(imgcell==imgCells)]
+}
+
+## correlation btw gene expression and img features
+cc <- pval <- list()
+pairs=list()
+toExclude=c("FoF","frame","ID","count_nucleus.p","png","pseudotime","segmentationError","smv_cell","smv_nucleus.p","smv_mito.p","smv_cytoplasm.p",xyz[1:2]);
+for(sFeature in setdiff(colnames(pq),toExclude)){
+  s = sapply(nearest_seqCells, function(x) mean(pq[x,sFeature]))
+  names(s) = names(nearest_seqCells)
+  pairs[[sFeature]] = list()
+  for(iFeature in setdiff(colnames(imgStats), toExclude)){
+    x=cor.test(s, imgStats[names(s),iFeature])
+    pair=paste(sFeature, iFeature, sep = "+")
+    cc[[sFeature]][[iFeature]] =x$estimate
+    pval[[sFeature]][[iFeature]] =x$p.value
+    pairs[[pair]] = list(s=s,i=imgStats[names(s),iFeature])
+  }
+}
+cc=do.call(rbind,cc)
+pval=do.call(rbind,pval)
+tmp=rownames(cc)
+cc = apply(cc,2,as.numeric)
+pval = apply(pval,2,as.numeric)
+rownames(cc) <- rownames(pval) <- tmp
+
+
+## sort and plot
+poi=unique(unlist(apply(abs(cc),2, function(x) which(x>0.5)), use.names = F))
+cc=cc[,!apply(is.na(cc[poi,]),2,all)]
+pval=pval[, colnames(cc)]
+heatmap.2(t(cc[poi,]),trace="n", margins = c(10,10), cexCol = 0.68)
+## jordan: prettify :)
+# print(cc[p.adjust(pval, method = "fdr")<0.05])
+MINCC=sort(abs(cc), decreasing = T)[9]
+ii=which(abs(cc)>MINCC, arr.ind = T)
+ii=apply(ii,1, function(x) c(rownames(cc)[x[1]],colnames(cc)[x[2]]))
+colnames(ii)=apply(ii,2, paste, collapse="+")
+par(mfrow=c(3,3))
+sapply(colnames(ii), function(x) plot(pairs[[x]]$s, pairs[[x]]$i, main=x, cex.main=0.65, xlab=ii[1,x], ylab=ii[2,x]))
+## jordan: prettify :)
 ```
 
 
