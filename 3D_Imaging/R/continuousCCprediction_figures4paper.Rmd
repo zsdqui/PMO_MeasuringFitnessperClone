@@ -8,6 +8,7 @@ output: html_document
 knitr::opts_knit$set(root.dir = "~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R/data4paper")
 library(xlsx)
 library(dyno)
+library(gplots)
 library(caret)
 library(tidyverse)
 library(matlab)
