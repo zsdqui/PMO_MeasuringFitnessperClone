@@ -212,7 +212,7 @@ Figure 2A: Predicted nuclei, mitochondria and cytoplasm signals.
 
 Figure 2B: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighed in (A). Every data point is color-coded according to its cell membership. 
 ```{r}
-figname=paste0(OUTFIGS, filesep, "Fig2B_",thedate,"_100.png")
+figname=paste0(OUTFIGS, filesep, "Fig2B_2024-05-16_100.png")
 
 if(!file.exists(figname)){
   NCELLS=10
@@ -232,7 +232,7 @@ if(!file.exists(figname)){
     }
   }
   
-  rgl::movie3d( movie=paste0("Fig2B_",thedate), rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 3,  dir = OUTFIGS,  type = "gif", clean = TRUE)
+  rgl::movie3d( movie=fileparts(figname)$name, rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 3,  dir = OUTFIGS,  type = "gif", clean = TRUE)
 }
 
 ## For display in rmd only:
@@ -245,7 +245,7 @@ rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 
 Figure 2C: Nuclei, mitochondria and cytoplasm of 1 representative cell from (B). Every data point is color-coded according to its organelle class. 
 ```{r}
-figname=paste0(OUTFIGS, filesep, "Fig2C_",thedate,"_3.png")
+figname=paste0(OUTFIGS, filesep, "Fig2C_2024-05-16_3.png")
 
 if(!file.exists(figname)){
   coi=rownames(centroids)[order(o2)[7]]
