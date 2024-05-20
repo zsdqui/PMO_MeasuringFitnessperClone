@@ -362,6 +362,7 @@ plot_dimred(model$Seq,color_cells = "pseudotime")
 Figure 4B: Co-clustering of sequenced and imaged cells based on pseudotime
 ```{r}
 ## co-cluster image and sequencing stats
+load(paste0(OUTPSEUDOTIME, filesep,"scRNAdataset_2024-05-15.RObj")); ## loads pq
 tmp=as.data.frame(model$All$pseudotime)
 colnames(tmp)="pseudotime"
 tmp$FoF=imgStats[rownames(tmp),]$FoF
@@ -382,7 +383,6 @@ legend("topright",c("sequenced cell","imaged cell"),fill=c("red","blue"),cex=1.8
 
 Figure 4C: Correlation between gene expression and imaging-derived features
 ```{r}
-load(paste0(OUTPSEUDOTIME, filesep,"scRNAdataset_2024-05-15.RObj")); ## loads pq
 ##for each img cell which seqed cells have this cell as nearest pseudotime neighbor?
 dd = dist2(pq[,"pseudotime",drop=F], as.matrix(model$All$pseudotime)) 
 rownames(dd)=rownames(pq)
