@@ -251,7 +251,7 @@ coord_$order <- findInterval(coord_$pseudotime, sort(coord_$pseudotime))
 #        cex = 2, text.font = 4)
 # dev.off()
 
-pal = colorRampPalette(c("#FDE725FF", "#35B779FF", "#31688E", "#440154"))
+pal = colorRampPalette(c("#440154", "#31688E", "#35B779FF", "#FDE725FF"))
 figname = paste0(OUTFIGS, filesep,"Fig1C_",thedate,".png")
 png(figname)
 bioimagetools::img(img[[2]][,,1]);
