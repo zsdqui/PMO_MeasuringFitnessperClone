@@ -6,6 +6,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(root.dir = "~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R/data4paper")
+knitr::opts_knit$set(root.dir = "C:/Users/80027908/Desktop/CC_project/PMO_MeasuringFitnessperClone-master/3D_Imaging/R/data4paper")
 library(xlsx)
 library(dyno)
 library(gplots)
@@ -18,6 +19,7 @@ library(ggplot2)
 library(e1071)
 library(slingshot)
 library(umap)
+library(patchwork)
 devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
 OUTLINKED="A06_multiSignals_Linked"
 OUTPSEUDOTIME="A08_Pseudotime"
@@ -118,25 +120,104 @@ img=sapply(img, function(x) EBImage::rotate(x,-180), simplify = F)
 
 Figure 1A: Green and red Fucci channels overlayed. 
 ```{r}
-## jordan: these should be in img[[1]] and img[[3]] defined above
+## Jordan - overlay green [[1]] and red [[3]] - done
+
+# figname = paste0(OUTFIGS, filesep, "Fig1A_1_",thedate,".png") 
+# png(figname)
+# bioimagetools::img(img[[1]][,,1]);
+# dev.off()
+# 
+# figname = paste0(OUTFIGS, filesep, "Fig1A_3_",thedate,".png") 
+# png(figname)
+# bioimagetools::img(img[[3]][,,1]);
+# dev.off()
+
+## ImageJ macro for edits
+# open("Fig1A_1_2024-05-21.png")
+# run("Auto Crop");
+# run("Green");
+# run("RGB Color");
+# open("Fig1A_3_2024-05-21.png")
+# run("Auto Crop");
+# run("Red");
+# run("RGB Color");
+# imageCalculator("Add create", "Fig1A_1_2024-05-21.png","Fig1A_3_2024-05-21.png");
+# selectImage("Result of Fig1A_1_2024-05-21.png");
+# saveAs("Tiff", "Fig1A_overlay.tif");
+
+figname = paste0(OUTFIGS, filesep, "Fig1A_",thedate,".png")
+png(figname)
+im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig1A_overlay.tif"))
+im <- EBImage::resize(im, dim(im)[1]/1)
+plot(raster::as.raster(im[,,,1]))
+dev.off()
+
+la=png::readPNG(figname,native = F)
+plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+
 ```
 
 
 
 Figure 1B: Fucci based descrete cell cycle classification. 
 ```{r}
+## Jordan - contour
+
+library(viridis)
+
+palette(c("#FDE725FF", "#35B779FF", "#31688E", "#440154"))
 plot(fucci_raw$Intensity_IntegratedIntensity_green, fucci_raw$Intensity_IntegratedIntensity_red, col=fucci_raw$cellCycle, pch=20, log="xy")
 legend("bottomright", names(fuccicol), fill=1:4)
 
+## Create two input images for loading into imagej
+# cc <-  fucci_ %>% 
+#   select(ID, cellCycle)
+# coord_ <- left_join(coord_, cc, by = join_by(id == ID))
+# 
+# pal = colorRampPalette(c("#FDE725FF", "#35B779FF", "#31688E", "#440154"))
+# figname = paste0(OUTFIGS, filesep,"overlay.png") 
+# png(figname)
+# im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"black_blank.tif"))
+# im <- EBImage::resize(im, dim(im)[1]/1)
+# plot(raster::as.raster(im[,,,1]))
+# # points(coord_$x,coord_$y,col=coord_$cellCycle,main=paste(FoF,"fucci"),xaxt='n',yaxt='n', ann=FALSE)
+# points(coord_$x,coord_$y,col=scales::alpha(pal(4)[coord_$cellCycle], 0.02),main=paste(FoF,"fucci"),xaxt='n',yaxt='n', ann=FALSE)
+# dev.off()
+# 
+# figname = paste0(OUTFIGS, filesep,"image.png") 
+# png(figname)
+# bioimagetools::img(img[[2]][,,1]);
+# legend("bottomleft", names(fuccicol) , fill=c("#FDE725FF", "#35B779FF", "#31688E", "#440154"))
+# dev.off()
 
-figname = paste0(OUTFIGS, filesep,"Fig1B_",thedate,".png") 
+## Imagej macro for edits; direct from recorder
+# open("C:/Users/80027908/Desktop/CC_project/image.png");
+# open("C:/Users/80027908/Desktop/CC_project/overlay.png");
+## For threshold, pass all colors and take all but the brightest and darkest intensities
+# run("Color Threshold...");
+# run("Make Inverse");
+# setForegroundColor(0, 0, 0);
+## For fill, make sure you fill with black
+# run("Fill", "slice");
+# selectImage("overlay_2024-05-19.png");
+# run("Select None");
+## Again fill with black
+# //setTool("rectangle");
+# makeRectangle(68, 352, 32, 33);
+# run("Fill", "slice");
+# makeRectangle(77, 111, 4, 18);
+# run("Fill", "slice");
+# selectImage("image.png");
+# run("Add Image...", "image=overlay.png x=0 y=0 opacity=60 zero");
+# run("Flatten");
+# saveAs("Tiff", "C:/Users/80027908/Desktop/CC_project/Fig1B_contour.tif");
+
+figname = paste0(OUTFIGS, filesep, "Fig1B_",thedate,".png")
 png(figname)
-bioimagetools::img(img[[2]][,,1]);
-#bioimagetools::img(resize4Ilastik(img[[1]]+img[[3]], xydim = xydim)[,,1]);
-cc=fucci_[paste0(FoF,"_cell",coord_$id),"cellCycle"]
-points(coord_$x,coord_$y,col=scales::alpha(fuccicol[cc], 0.005),main=paste(FoF,"fucci"),xaxt='n',yaxt='n', ann=FALSE)
-## jordan: contour
-legend("bottomleft", names(fuccicol) , fill=fuccicol)
+im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig1B_contour.tif"))
+im <- EBImage::resize(im, dim(im)[1]/1)
+plot(raster::as.raster(im[,,,1]))
 dev.off()
 
 la=png::readPNG(figname,native = F)
@@ -148,21 +229,42 @@ rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 
 Figure 1C: Fucci based pseudotime inference reveals cell cycle progression
 ```{r}
-figname = paste0(OUTFIGS, filesep,"Fig1C_",thedate,".png")
+## Jordan - continuous scale - done
 
-png(figname )
+cc <-  fucci_ %>% 
+  select(ID, pseudotime)
+coord_ <- left_join(coord_, cc, by = join_by(id == ID))
+coord_$order <- findInterval(coord_$pseudotime, sort(coord_$pseudotime))
+
+# Create legend image -> manually crop borders before producing the next graph
+# pal = colorRampPalette(c("#440154FF", "#31688EFF", "#35B779FF", "#FDE725FF"))
+# png(paste0(OUTFIGS, filesep, "legend.png"), width = 250, height = 300)
+# plot.new()
+# lgd_ = rep(NA, 9)
+# lgd_[c(1,5,9)] = c("G2/M", "S", "G1")
+# legend(x = 0, y = 1.02,
+#        legend = lgd_,
+#        fill = pal(9),
+#        border = NA,
+#        y.intersp = 0.5,
+#        bty = "n",
+#        cex = 2, text.font = 4)
+# dev.off()
+
+pal = colorRampPalette(c("#FDE725FF", "#35B779FF", "#31688E", "#440154"))
+figname = paste0(OUTFIGS, filesep,"Fig1C_",thedate,".png")
+png(figname)
 bioimagetools::img(img[[2]][,,1]);
 fucci_[,"pseudotimeCol"]=round(fucci_[,"pseudotime"]*10)
-col=fliplr(heat.colors(max(fucci_[,"pseudotimeCol"])))
-## jordan: color code intuitive match to panel B
-cc=fucci_[paste0(FoF,"_cell",coord_$id),"pseudotimeCol"]
-points(coord_$x,coord_$y,col=scales::alpha(col[cc], 0.005),xaxt='n',yaxt='n', ann=FALSE,main=paste(FoF,"fucci pseudotime"))
-## jordan: add color bar as legend
+points(coord_$x,coord_$y,col=scales::alpha(pal(nrow(coord_))[coord_$order], 0.03),xaxt='n',yaxt='n', ann=FALSE,main=paste(FoF,"fucci pseudotime"))
+legend <- png::readPNG(paste0(OUTFIGS, filesep, "legend.png"))
+rasterImage(legend,850,600,1000,850)
 dev.off()
 
 la=png::readPNG(figname,native = F)
 plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
 rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+
 
 ```
 
@@ -170,15 +272,16 @@ rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 
 Figure 1D: Fucci based pseudotime trajectory in PCA space. 
 ```{r}
+## Jordan - color code matches - Yes, I believe (low pseudotime = "high" cellCyle)
 tmp=plot_dimred(model[[paste0("Fucci_",FoF)]],color_cells = "pseudotime")
 tmp
-## Jordan: color code should be same as previous panel
+
 # ggsave(paste0(OUTFIGS,"Fig1D_Fucci_",FoF,"_pseudotimeTSNE_",thedate,".png"), plot=tmp)
 ```
 
 
 
-Figure 1E + supplementary Fig: Pseudotime is differentially distributed across the four descrete cell cycle classes. 
+Figure 1E + supplementary Fig: Pseudotime is differentially distributed across the four discrete cell cycle classes. 
 ```{r}
 # pdf(paste0(OUTFIGS, filesep,"Fig1E_plusSIFig_",thedate,".pdf") )
 par(mfrow=c(2,3))
@@ -206,7 +309,59 @@ alpha=list(cytoplasm.p=0.035,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=0.135,mito.t
 
 Figure 2A: Predicted nuclei, mitochondria and cytoplasm signals. 
 ```{r}
-# jordan: 3 channel overlay, should be in A03_AllenModel
+# Jordan - 3 channel overlay - Done
+
+## ImageJ macro for all channels image
+# open("C:/Users/80027908/Downloads/cytoplasm.p.tif");
+# run("Green Fire Blue");
+# run("RGB Color");
+# open("C:/Users/80027908/Downloads/nucleus.p.tif");
+# run("Magenta Hot");
+# run("RGB Color");
+# open("C:/Users/80027908/Downloads/mito.p.tif");
+# run("Red Hot");
+# imageCalculator("Add create stack", "cytoplasm.p.tif","nucleus.p.tif");
+# selectImage("Result of cytoplasm.p.tif");
+# imageCalculator("Add create stack", "Result of cytoplasm.p.tif","mito.p.tif");
+# selectImage("Result of Result of cytoplasm.p.tif");
+# saveAs("Tiff", "C:/Users/80027908/Desktop/CC_project/Fig2A_stack.tif");
+# run("Slice Keeper", "first=14 last=14 increment=1");
+# saveAs("Tiff", "C:/Users/80027908/Desktop/CC_project/Fig2A_slice.tif");
+# 
+## ImageJ macro for brightfield and nuclear image
+# open("C:/Users/80027908/Downloads/nucleus.p.tif");
+# run("Cyan Hot");
+# run("RGB Color");
+# open("C:/Users/80027908/Downloads/0_signal.tif");
+# run("RGB Color");
+# imageCalculator("Add create stack", "0_signal.tif","nucleus.p.tif");
+# selectImage("Result of 0_signal.tif");
+# saveAs("Tiff", "C:/Users/80027908/Desktop/CC_project/Fig2Ab_stack.tif");
+# run("Slice Keeper", "first=14 last=14 increment=1");
+# saveAs("Tiff", "C:/Users/80027908/Desktop/CC_project/Fig2Ab_slice.tif");
+
+figname = paste0(OUTFIGS, filesep, "Fig2A_",thedate,".png")
+png(figname)
+im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2A_slice.tif"))
+im <- EBImage::resize(im, dim(im)[1]/1)
+plot(raster::as.raster(im[,,,1]))
+dev.off()
+
+la=png::readPNG(figname,native = F)
+plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+
+# Added this here in case you wanted the nuclear + brightfield at any point
+figname = paste0(OUTFIGS, filesep, "Fig2Ab_",thedate,".png")
+png(figname)
+im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2Ab_slice.tif"))
+im <- EBImage::resize(im, dim(im)[1]/1)
+plot(raster::as.raster(im[,,,1]))
+dev.off()
+
+la=png::readPNG(figname,native = F)
+plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 
 ```
 
@@ -278,12 +433,54 @@ rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 
 Figure 2D: Cell features quantified from label free imaging correlate with cell cycle classes as defined by FUCCI. 
 ```{r}
-# pdf(paste0(OUTFIGS, filesep,"Fig2D_",thedate,".pdf"), width = 10, height = 5 )
-par(mfrow=c(2,6))
-for(x in svm$svmFeatures){
-  boxplot(imgStats[,x]~fucci_raw[rownames(imgStats),"cellCycle"],ylab=x,xlab="", names=names(fuccicol),cex.axis=0.6,cex.main=0.6, las=2)
-  # Jordan: split and color code boxes by FoF 
+## Jordan - color by FoF - Done
+
+var_list <- svm$svmFeatures
+cycle <- fucci_raw[rownames(imgStats),"cellCycle"]
+
+imgStats_b <- imgStats %>% 
+  rownames_to_column(var = "long_ID") %>% 
+  cbind(cycle) %>% 
+  select(c(long_ID, ID, FoF, cellCycle = cycle, var_list))
+
+
+list_plots <- vector('list', length(var_list))
+for (i in seq_along(list_plots)) {
+  list_plots[[i]] <- ggplot(imgStats_b) +
+    geom_boxplot(aes(as.character(cellCycle), .data[[var_list[i]]], fill = FoF)) + # , color = as.character(cellCycle))) +
+    scale_fill_manual(values = c("FoF1_231005_fluorescent.nucleus" = "chartreuse", 
+      "FoF2_231005_fluorescent.nucleus" = "cadetblue2",
+      "FoF3_231005_fluorescent.nucleus" = "gold",
+      "FoF4_231005_fluorescent.nucleus" = "violetred1")) +
+   # scale_color_manual(values = c("1" = "#FDE725FF", 
+    #                              "2" = "#35B779FF", 
+     #                             "3" = "#31688EFF", 
+      #                            "4" = "#440154FF")) +
+    theme_light() +
+    theme(axis.title.x=element_blank(), legend.position = "none") +
+    scale_x_discrete(labels=c("1" = "G1", "2" = "G1/S", "3" = "S", "4" = "G2"))
 }
+
+e <- ggplot() +
+  theme_void()
+
+a <- (list_plots[[1]] + list_plots[[2]] + list_plots[[3]])
+b <- (list_plots[[4]] + list_plots[[5]] + list_plots[[6]])
+c <- (list_plots[[7]] + list_plots[[8]] + list_plots[[9]])
+d <- (list_plots[[10]] + list_plots[[11]] + e)
+
+a/b/c/d
+figname=paste0(OUTFIGS, filesep, "Fig1D_fill.png")
+ggsave(figname, width = 15, height = 12)
+
+la=png::readPNG(figname,native = F)
+plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+
+figname=paste0(OUTFIGS, filesep, "Fig1D_fill+color.png")
+la=png::readPNG(figname,native = F)
+plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 # dev.off()
 ```
 
