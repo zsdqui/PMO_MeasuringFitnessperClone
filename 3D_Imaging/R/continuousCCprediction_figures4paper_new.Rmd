@@ -383,7 +383,7 @@ rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 ```
 
 
-Figure 2B: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighed in (A). Every data point is color-coded according to its cell membership. 
+Figure 2B: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. 
 ```{r}
 figname=paste0(OUTFIGS, filesep, "Fig2B_2024-05-16_100.png")
 
@@ -487,14 +487,14 @@ c <- (list_plots[[7]] + list_plots[[8]] + list_plots[[9]])
 d <- (list_plots[[10]] + list_plots[[11]] + e)
 
 a/b/c/d
-figname=paste0(OUTFIGS, filesep, "Fig1D_fill.png")
+figname <- paste0(OUTFIGS, filesep, "Fig2D_",thedate,".png")
 ggsave(figname, width = 15, height = 12)
 
 la=png::readPNG(figname,native = F)
 plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
 rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 
-figname=paste0(OUTFIGS, filesep, "Fig1D_fill+color.png")
+figname=paste0(OUTFIGS, filesep, "Fig2D_fill+color.png")
 la=png::readPNG(figname,native = F)
 plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
 rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
@@ -555,12 +555,20 @@ legend("bottomleft",sapply(strsplit(names(col),"_"),"[[",1),fill=col)
 Figure 3E: representative cell across cell cycle: fucci. 
 ```{r}
 # jordan: sample cells from 5+ timepoints (from fucci pseudotime) and visualize each with Fucci channels
+
+tmp=plot_dimred(model[[paste0("Fucci_",FoF)]],color_cells = "pseudotime")
+tmp
+
 ```
 
 
 Figure 3F: representative cell across cell cycle: label free. 
 ```{r}
 # jordan: sample cells from 5+ timepoints (from pseudotime in Fig. 3C) and visualize each as in panel 2C
+
+tmp=plot_dimred(model[[FoF]],color_cells = "pseudotime")
+tmp
+
 ```
 
 
