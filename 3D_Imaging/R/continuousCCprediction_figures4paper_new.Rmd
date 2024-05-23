@@ -6,7 +6,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(root.dir = "~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R/data4paper")
-knitr::opts_knit$set(root.dir = "C:/Users/80027908/Desktop/CC_project/PMO_MeasuringFitnessperClone-master/3D_Imaging/R/data4paper")
+# knitr::opts_knit$set(root.dir = "C:/Users/80027908/Desktop/CC_project/PMO_MeasuringFitnessperClone-master/3D_Imaging/R/data4paper")
 library(xlsx)
 library(dyno)
 library(gplots)
@@ -37,6 +37,18 @@ zslice=35
 
 Define local functions and read image coordinates and features used in multiple Figures:
 ```{r}
+plotPNGorTIF<-function(figname){
+  if(fileparts(figname)$ext!=".png"){
+    la=tiff::readTIFF(figname)
+  }else{
+    la=png::readPNG(figname,native = F)
+  }
+  plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+  rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+  return(la)
+}
+
+
 getZLIM<- function(coord__){
   tmp = quantile(coord__$z,c(0,1))
   space=tmp[2]-tmp[1]
@@ -152,9 +164,7 @@ im <- EBImage::resize(im, dim(im)[1]/1)
 plot(raster::as.raster(im[,,,1]))
 dev.off()
 
-la=png::readPNG(figname,native = F)
-plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+la=plotPNGorTIF(figname)
 
 ```
 
@@ -220,9 +230,7 @@ im <- EBImage::resize(im, dim(im)[1]/1)
 plot(raster::as.raster(im[,,,1]))
 dev.off()
 
-la=png::readPNG(figname,native = F)
-plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+la=plotPNGorTIF(figname)
 ```
 
 
@@ -261,11 +269,7 @@ legend <- png::readPNG(paste0(OUTFIGS, filesep, "legend.png"))
 rasterImage(legend,850,600,1000,850)
 dev.off()
 
-la=png::readPNG(figname,native = F)
-plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
-
-
+la=plotPNGorTIF(figname)
 ```
 
 
@@ -273,22 +277,24 @@ rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
 Figure 1D: Fucci based pseudotime trajectory in PCA space. 
 ```{r}
 ## Jordan - color code matches - Yes, I believe (low pseudotime = "high" cellCyle)
-tmp=plot_dimred(model[[paste0("Fucci_",FoF)]],color_cells = "pseudotime")
+tmp=plot_dimred(model[[paste0("Fucci_",FoF)]],color_cells = "pseudotime", size_cells=0.4,size_milestones=0.4)
 tmp
-
-# ggsave(paste0(OUTFIGS,"Fig1D_Fucci_",FoF,"_pseudotimeTSNE_",thedate,".png"), plot=tmp)
+ggsave(paste0(OUTFIGS,filesep,"Fig1D_",thedate,"_Fucci_",FoF,"_pseudotimeTSNE.png"),units="px",width = 0.6*480, height = 480, plot=tmp)
 ```
 
 
 
 Figure 1E + supplementary Fig: Pseudotime is differentially distributed across the four discrete cell cycle classes. 
 ```{r}
-# pdf(paste0(OUTFIGS, filesep,"Fig1E_plusSIFig_",thedate,".pdf") )
+figname = paste0(OUTFIGS, filesep,"Fig1E_",thedate,"_plusSIFig.png")
+png( figname)
 par(mfrow=c(2,3))
 ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,names(model$Fucci_All$pseudotime),value=T))
 sapply(names(ii), function(x) boxplot(model$Fucci_All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="fucci pseudotime", main=x,cex.main=0.6, cex.axis=0.6))
 boxplot(model$Fucci_All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="fucci pseudotime", main="All",cex.main=0.6, cex.axis=0.6)
-# dev.off()
+dev.off()
+
+la=plotPNGorTIF(figname)
 ```
 
 
@@ -364,9 +370,7 @@ legend <- png::readPNG(paste0(OUTFIGS, filesep, "legend_2.png"))
 rasterImage(legend,25,900,225,1000)
 dev.off()
 
-la=png::readPNG(figname,native = F)
-plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+la=plotPNGorTIF(figname)
 
 # Added this here in case you wanted the nuclear + brightfield at any point
 figname = paste0(OUTFIGS, filesep, "Fig2Ab_",thedate,".png")
@@ -376,10 +380,7 @@ im <- EBImage::resize(im, dim(im)[1]/1)
 plot(raster::as.raster(im[,,,1]))
 dev.off()
 
-la=png::readPNG(figname,native = F)
-plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
-
+la=plotPNGorTIF(figname)
 ```
 
 
@@ -409,9 +410,7 @@ if(!file.exists(figname)){
 }
 
 ## For display in rmd only:
-la=png::readPNG(figname,native = F)
-plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+la=plotPNGorTIF(figname)
 ```
 
 
@@ -441,9 +440,7 @@ if(!file.exists(figname)){
 }
 
 ## For display in rmd only:
-la=png::readPNG(figname,native = F)
-plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+la=plotPNGorTIF(figname)
 ```
 
 
@@ -489,15 +486,10 @@ d <- (list_plots[[10]] + list_plots[[11]] + e)
 a/b/c/d
 figname <- paste0(OUTFIGS, filesep, "Fig2D_",thedate,".png")
 ggsave(figname, width = 15, height = 12)
-
-la=png::readPNG(figname,native = F)
-plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+la=plotPNGorTIF(figname)
 
 figname=paste0(OUTFIGS, filesep, "Fig2D_fill+color.png")
-la=png::readPNG(figname,native = F)
-plot(NA, xlim = c(0, ncol(la)/nrow(la)), ylim = c(0, 1), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-rasterImage(la, 0, 0, ncol(la)/nrow(la),1)
+la=plotPNGorTIF(figname)
 # dev.off()
 ```
 
@@ -517,28 +509,37 @@ Figure 3B: Performance of trained classifier on test set.
 ```{r}
 confMat = read.xlsx(paste0(OUTPSEUDOTIME, filesep,"cellCyclePrediction_svm_2024-05-15.xlsx"), sheetIndex = 1, row.names=T)
 tmp=sapply(c("Class..1","Class..2","Class..3","Class..4"), function(x) as.numeric(confMat[grep(x, rownames(confMat)),"Balanced.Accuracy"])) 
-# pdf(paste0(OUTFIGS, filesep,"Fig3B_",thedate,".pdf") )
+
+figname=paste0(OUTFIGS, filesep,"Fig3B_",thedate,".png")
+png(figname )
 boxplot(tmp, names=names(fuccicol), ylab="Balanced.Accuracy")
-# dev.off()
+dev.off()
+
+la=plotPNGorTIF(figname)
 ```
 
 
 Figure 3C: Unsupervised approach to predict continuous cell cycle progression from nuclei, mitochondria and cytoplasm features. . 
 ```{r}
-tmp=plot_dimred(model[[FoF]],color_cells = "pseudotime")
+tmp=plot_dimred(model[[FoF]],color_cells = "pseudotime", size_cells=0.4,size_milestones=0.4)
 tmp
-#ggsave(paste0(OUTFIGS,"Fig3C_labelFree_",FoF,"_pseudotimeTSNE_",thedate,".png"), plot=tmp)
-
+ggsave(paste0(OUTFIGS,filesep,"Fig3C_",thedate,"_labelFree_",FoF,"_pseudotimeTSNE.png"),units="px",width = 0.6*480, height = 480, plot=tmp)
 ```
 
 
 Figure 3D + supplementary Fig: Pseudotime derived from label free imaging features is differentially distributed across the four FUCCI-informed cell cycle classes.  
 ```{r}
-# pdf(paste0(OUTFIGS, filesep,"Fig3D_plusSIFig_",thedate,".pdf") )
+figname=paste0(OUTFIGS, filesep,"Fig3D_",thedate,"_plusSIFig.png")
+png(figname )
 par(mfrow=c(2,3))
 ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,rownames(fucci_raw),value=T))
 # sapply(names(ii), function(x) boxplot(model[[x]]$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x,cex.main=0.6))
 sapply(names(ii), function(x) boxplot(model$All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x, cex.axis=0.6,cex.main=0.6))
+dev.off()
+la=plotPNGorTIF(figname)
+
+figname=paste0(OUTFIGS, filesep,"Fig3D_",thedate,".png")
+png(figname )
 par(mfrow=c(1,2))
 boxplot(model$All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main="All",cex.main=0.6, cex.axis=0.6)
 ii=names(model$All$pseudotime)
@@ -548,7 +549,8 @@ col=rainbow(length(unique(fucci_raw[ii,"FoF"])))
 names(col)=unique(fucci_raw[ii,"FoF"])
 plot(model$All$pseudotime[ii], model$Fucci_All$pseudotime[ii], main=paste("r=",round(te$estimate,2),"P=",te$p.value), xlab="label free pseudotime",  ylab="fucci pseudotime",  col=col[fucci_raw[ii,"FoF"]])
 legend("bottomleft",sapply(strsplit(names(col),"_"),"[[",1),fill=col)
-# dev.off()
+dev.off()
+la=plotPNGorTIF(figname)
 ```
 
 
@@ -578,9 +580,11 @@ Figure 4: Sequencing imaging integration
 
 Figure 4A: Sequencing derived pseudotime of cell cycle progression
 ```{r}
-
-plot_dimred(model$Seq,color_cells = "pseudotime")
+tmp=plot_dimred(model$Seq,color_cells = "pseudotime", size_cells=0.4,size_milestones=0.4)
+tmp
+ggsave(paste0(OUTFIGS,filesep,"Fig4A_",thedate,"_scRNA_pseudotimeTSNE.png"),  units="px",width = 0.6*480, height = 480, plot=tmp)
 ```
+
 
 Figure 4B: Co-clustering of sequenced and imaged cells based on pseudotime
 ```{r}
@@ -598,10 +602,16 @@ rownames(dd)<-colnames(dd)<-rownames(stats)
 tr = ape::nj(dd)
 col = rep("red", length(tr$tip.label))
 col[grep("img",tr$tip.label) ] = "blue"
+
+figname=paste0(OUTFIGS, filesep,"Fig4B_",thedate,".png") 
+png(figname)
 par(mfrow=c(1,1))
 plot(tr,show.tip.label = T, tip.color = col, cex=0.36)
 legend("topright",c("sequenced cell","imaged cell"),fill=c("red","blue"),cex=1.8)
 ## jordan: prettify :)
+dev.off()
+
+la=plotPNGorTIF(figname)
 ```
 
 Figure 4C: Correlation between gene expression and imaging-derived features
@@ -644,16 +654,28 @@ rownames(cc) <- rownames(pval) <- tmp
 poi=unique(unlist(apply(abs(cc),2, function(x) which(x>0.5)), use.names = F))
 cc=cc[,!apply(is.na(cc[poi,]),2,all)]
 pval=pval[, colnames(cc)]
-heatmap.2(t(cc[poi,]),trace="n", margins = c(10,10), cexCol = 0.68)
+hm=heatmap.2(t(cc[poi,]),trace="n", margins = c(10,10), cexCol = 0.68)
+eval(hm$call)
 ## jordan: prettify :)
 # print(cc[p.adjust(pval, method = "fdr")<0.05])
 MINCC=sort(abs(cc), decreasing = T)[9]
 ii=which(abs(cc)>MINCC, arr.ind = T)
 ii=apply(ii,1, function(x) c(rownames(cc)[x[1]],colnames(cc)[x[2]]))
 colnames(ii)=apply(ii,2, paste, collapse="+")
+
+figname=paste0(OUTFIGS, filesep,"Fig4C_",thedate,".png") 
+png(figname)
+eval(hm$call)
+dev.off()
+
+figname=paste0(OUTFIGS, filesep,"Fig4C_",thedate,"_plusSIFig.png") 
+png(figname)
 par(mfrow=c(3,3))
 sapply(colnames(ii), function(x) plot(pairs[[x]]$s, pairs[[x]]$i, main=x, cex.main=0.65, xlab=ii[1,x], ylab=ii[2,x]))
+dev.off()
 ## jordan: prettify :)
+
+la=plotPNGorTIF(figname)
 ```
 
 
@@ -662,3 +684,64 @@ Figure 5: Allen model training
 
 ```
 
+
+
+
+Assemble panels to figure
+```{r}
+panels=list(Fig1=c("A","B","C","D","E"),Fig2=c("A","B","C","D"),Fig3=c("B","C","D"),Fig4=c("A","B","C"),Fig5=c("A","B","C","D","E"))
+plots=list()
+for(fig in names(panels)[1:4]){
+  plots[[fig]]=list()
+  for(panel in panels[[fig]]){
+    f=list.files(OUTFIGS, pattern=paste0(fig,panel,"_2024"), full.names = T)
+    f=grep(".pdf$",f, value = T, invert = T)
+    f=grep(".gif$",f, value = T, invert = T)
+    dates=sapply(f, function(x) strsplit(fileparts(x)$name,"_")[[1]][2])
+    print(paste0(fig,panel))
+    f=f[order(as.Date(dates),decreasing = T)[1]]
+    # print(f)
+    plots[[fig]][[panel]]=plotPNGorTIF(f)
+  }
+  print(sapply(plots[[fig]], dim))
+}
+
+
+```
+
+
+Assemble panels to figure
+```{r}
+BORDER=20
+## Figure 1
+for(fig in names(plots)){
+  print(fig)
+  sz=fliplr(sapply(plots[[fig]], dim))
+  print(sz)
+  ylim=sum(sz[2,])
+  xlim=max(sz[1,])
+  
+  figname = paste0(OUTFIGS, filesep, fig,"_",thedate,".png")
+  png(figname,width = xlim,height = ylim)
+  plot(NA, xlim = c(0, xlim), ylim = c(0, ylim), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+  panel = fliplr(names(plots[[fig]]))[1]
+  rasterImage(plots[[fig]][[panel]], 0, 0, sz[1,1],sz[2,1])
+  for(i in 2:length(plots[[fig]])){
+    panel = fliplr(names(plots[[fig]]))[i]
+    sz[2,]=sz[2,]+BORDER
+    sz[2,i]=sz[2,i-1]+sz[2,i]
+    rasterImage(plots[[fig]][[panel]], 0, sz[2,i-1], sz[1,i],sz[2,i])
+    # sz[2,]=sz[2,]+BORDER
+    # sz[2,3]=sz[2,2]+sz[2,3]
+    # rasterImage(plots[[fig]]$C, 0, sz[2,2], sz[1,3],sz[2,3])
+    # sz[2,]=sz[2,]+BORDER
+    # sz[2,4]=sz[2,3]+sz[2,4]
+    # rasterImage(plots[[fig]]$B, 0, sz[2,3], sz[1,4],sz[2,4])
+    # sz[2,]=sz[2,]+BORDER
+    # sz[2,5]=sz[2,4]+sz[2,5]
+    # rasterImage(plots[[fig]]$A, 0, sz[2,4], sz[1,5],sz[2,5])
+    # Jordan: arrange in rows and columns instead of single row + add panels (A, B, C...)
+  }
+  dev.off()
+}
+```
