@@ -5,8 +5,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R/data4paper")
-# knitr::opts_knit$set(root.dir = "C:/Users/80027908/Desktop/CC_project/PMO_MeasuringFitnessperClone-master/3D_Imaging/R/data4paper")
+# knitr::opts_knit$set(root.dir = "~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R/data4paper")
+knitr::opts_knit$set(root.dir = "C:/Users/80027908/Desktop/CC_project/PMO_MeasuringFitnessperClone-master/3D_Imaging/R/data4paper")
 library(xlsx)
 library(dyno)
 library(gplots)
@@ -20,7 +20,7 @@ library(e1071)
 library(slingshot)
 library(umap)
 library(patchwork)
-devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
+# devtools::source_url("https://github.com/noemiandor/Utils/master/grpstats.R?raw=TRUE")
 OUTLINKED="A06_multiSignals_Linked"
 OUTPSEUDOTIME="A08_Pseudotime"
 OUTSTATS="A07_LinkedSignals_Stats"
@@ -33,6 +33,49 @@ pixelsize_xy = 0.232 # um
 z_interval = 0.29 #  um 
 xyz=c("x","y","z")
 zslice=35
+
+
+grpstats <- function(x,g,statscols,q1=0.5){
+  allOut=list()
+  o=matrix(NA, length(unique(g)),ncol(x) )
+  rownames(o)=unique(g); colnames(o)=colnames(x);
+  for(col in statscols){
+    for(m in unique(g)){
+      ii=which(g==m);
+      v=NA;
+      if(col=='mean'){
+        v=apply(x[ii,,drop=F],2,mean,na.rm=T)
+      }else if(col=='sum'){
+        v=apply(x[ii,,drop=F],2,sum,na.rm=T)
+      }else if(col=='var'){
+        v=apply(x[ii,,drop=F],2,var)
+      }else if(col=='max'){
+        v=apply(x[ii,,drop=F],2,max,na.rm=T)
+      }else if(col=='min'){
+        v=apply(x[ii,,drop=F],2,min,na.rm=T)
+      }else if(col=='quantile'){
+        v=apply(x[ii,,drop=F],2,quantile,q1,na.rm=T)
+      }else if(col=='median'){
+        v=apply(x[ii,,drop=F],2,median,na.rm=T)
+      }else if(col=='numel+'){##Count elements >0 
+        v=apply(x[ii,,drop=F]>0,2,sum,na.rm=T)
+      }else if(col=='numel_u'){##Count unique elements 
+        v=apply(x[ii,,drop=F],2, function(k) length(unique(k)))
+      }else if(col=='fraction+'){##Fraction of elements> 0 out of all finite elements
+        v1=apply(!is.na(x[ii,,drop=F]),2,sum,na.rm=T)
+        v=apply(x[ii,,drop=F]>0,2,sum,na.rm=T)/v1
+      }else if(col=='maxcount'){##Most frequent value
+        v1=plyr::count(x[ii])
+        v=v1$x[which.max(v1$freq)]
+      }else{
+        v=get(col)(x[ii,,drop=F])
+      }
+      o[as.character(m),]=v;
+    }
+    allOut[[col]]=o;
+  }
+  return(allOut)
+}
 ```
 
 Define local functions and read image coordinates and features used in multiple Figures:
@@ -125,12 +168,13 @@ coord_[,c("x","y")] = coord_[,c("x","y")]/pixelsize_xy
 coord_ = coord_[coord_$z == zslice*z_interval, ]
 coord_$x=-coord_$x
 coord_$x=-max(coord_$x)+coord_$x-min(coord_$x)
+coord_1 <- coord_
 TIF=list.files(paste0(RAWDATA,filesep,FoF), pattern=paste0("_z",zslice), full.names = T)
 img=sapply(TIF, function(x) bioimagetools::readTIF(x), simplify = F)
 img=sapply(img, function(x) EBImage::rotate(x,-180), simplify = F)
 ```
 
-Figure 1A: Green and red Fucci channels overlayed. 
+Figure 1A: Green and red Fucci channels overlaid. 
 ```{r}
 ## Jordan - overlay green [[1]] and red [[3]] - done
 
@@ -170,7 +214,7 @@ la=plotPNGorTIF(figname)
 
 
 
-Figure 1B: Fucci based descrete cell cycle classification. 
+Figure 1B: Fucci based discrete cell cycle classification. 
 ```{r}
 ## Jordan - contour
 
@@ -241,8 +285,8 @@ Figure 1C: Fucci based pseudotime inference reveals cell cycle progression
 
 cc <-  fucci_ %>% 
   select(ID, pseudotime)
-coord_ <- left_join(coord_, cc, by = join_by(id == ID))
-coord_$order <- findInterval(coord_$pseudotime, sort(coord_$pseudotime))
+coord_a <- left_join(coord_, cc, by = join_by(id == ID))
+coord_a$order <- findInterval(coord_a$pseudotime, sort(coord_a$pseudotime))
 
 # Create legend image -> manually crop borders before producing the next graph
 # pal = colorRampPalette(c("#440154FF", "#31688EFF", "#35B779FF", "#FDE725FF"))
@@ -264,7 +308,7 @@ figname = paste0(OUTFIGS, filesep,"Fig1C_",thedate,".png")
 png(figname)
 bioimagetools::img(img[[2]][,,1]);
 fucci_[,"pseudotimeCol"]=round(fucci_[,"pseudotime"]*10)
-points(coord_$x,coord_$y,col=scales::alpha(pal(nrow(coord_))[coord_$order], 0.03),xaxt='n',yaxt='n', ann=FALSE,main=paste(FoF,"fucci pseudotime"))
+points(coord_a$x,coord_a$y,col=scales::alpha(pal(nrow(coord_a))[coord_a$order], 0.03),xaxt='n',yaxt='n', ann=FALSE,main=paste(FoF,"fucci pseudotime"))
 legend <- png::readPNG(paste0(OUTFIGS, filesep, "legend.png"))
 rasterImage(legend,850,600,1000,850)
 dev.off()
@@ -388,11 +432,12 @@ Figure 2B: Nuclei, mitochondria and cytoplasm of 10 representative cells from re
 ```{r}
 figname=paste0(OUTFIGS, filesep, "Fig2B_2024-05-16_100.png")
 
-if(!file.exists(figname)){
+if(file.exists(figname)){
   NCELLS=10
   coi=rownames(centroids)[order(o2)[1:NCELLS]]
   coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
   coord__=coord_[coord_$id %in% coi,]
+  assign("coord__", coord__, .GlobalEnv)
   zlim=getZLIM(coord__)
   rgl::close3d()
   col=rainbow(length(unique(coord__$id)))
@@ -487,10 +532,10 @@ a/b/c/d
 figname <- paste0(OUTFIGS, filesep, "Fig2D_",thedate,".png")
 ggsave(figname, width = 15, height = 12)
 la=plotPNGorTIF(figname)
+dev.off()
 
-figname=paste0(OUTFIGS, filesep, "Fig2D_fill+color.png")
-la=plotPNGorTIF(figname)
-# dev.off()
+# figname=paste0(OUTFIGS, filesep, "Fig2D_fill+color.png")
+# la=plotPNGorTIF(figname)
 ```
 
 
@@ -557,7 +602,7 @@ la=plotPNGorTIF(figname)
 Figure 3E: representative cell across cell cycle: fucci. 
 ```{r}
 # jordan: sample cells from 5+ timepoints (from fucci pseudotime) and visualize each with Fucci channels
-
+=
 tmp=plot_dimred(model[[paste0("Fucci_",FoF)]],color_cells = "pseudotime")
 tmp
 
@@ -567,6 +612,35 @@ tmp
 Figure 3F: representative cell across cell cycle: label free. 
 ```{r}
 # jordan: sample cells from 5+ timepoints (from pseudotime in Fig. 3C) and visualize each as in panel 2C
+
+cc <-  fucci_ %>%
+  select(ID, cellCycle)
+coord_a <- left_join(coord_1, cc, by = join_by(id == ID))
+
+model_list <- model_df %>% 
+  filter(abs(pseudotime-0)==min(abs(pseudotime-0)) | # cycle 2
+           abs(pseudotime-0.3)==min(abs(pseudotime-0.3)) |
+           abs(pseudotime-0.5)==min(abs(pseudotime-0.5)) | # cycle 4
+           abs(pseudotime-0.7)==min(abs(pseudotime-0.7)) |
+           abs(pseudotime-1)==min(abs(pseudotime-1))) %>%  # cycle 1
+  separate(cell_ID, into = c(NA, NA, NA, "cell"), sep = "_")
+
+
+cc <-  fucci_ %>%
+  select(ID, cellCycle)
+coord_b <- left_join(coord_a, cc, by = join_by(id == ID))
+
+coord_b$cell <- paste0("cell", coord_b$id)
+
+coord_c <- inner_join(coord_b, model_list, join_by(cell == cell)) 
+
+ggplot(coord_) +
+  geom_point(aes(x, y, color = as.character(cellCycle))) +
+  scale_color_manual(values = c("1" = "#FDE725FF",
+                                "2" = "#35B779FF",
+                                "3" = "#31688EFF",
+                                "4" = "#440154FF"))
+
 
 tmp=plot_dimred(model[[FoF]],color_cells = "pseudotime")
 tmp
@@ -580,6 +654,9 @@ Figure 4: Sequencing imaging integration
 
 Figure 4A: Sequencing derived pseudotime of cell cycle progression
 ```{r}
+# cell_ID <- model$Seq$cell_ids
+# model_df <- cbind(pseudotime = model$Seq$pseudotime, cell_ID)
+
 tmp=plot_dimred(model$Seq,color_cells = "pseudotime", size_cells=0.4,size_milestones=0.4)
 tmp
 ggsave(paste0(OUTFIGS,filesep,"Fig4A_",thedate,"_scRNA_pseudotimeTSNE.png"),  units="px",width = 0.6*480, height = 480, plot=tmp)
