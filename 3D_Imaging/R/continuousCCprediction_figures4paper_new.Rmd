@@ -214,15 +214,21 @@ la=plotPNGorTIF(figname)
 
 
 
-Figure 1B: Fucci based discrete cell cycle classification. 
+Figure 1B,G: Fucci based descrete cell cycle classification. 
 ```{r}
-## Jordan - contour
-
 library(viridis)
-
 palette(c("#FDE725FF", "#35B779FF", "#31688E", "#440154"))
+
+figname = paste0(OUTFIGS, filesep, "Fig1G_",thedate,".png")
+png(figname)
 plot(fucci_raw$Intensity_IntegratedIntensity_green, fucci_raw$Intensity_IntegratedIntensity_red, col=fucci_raw$cellCycle, pch=20, log="xy")
 legend("bottomright", names(fuccicol), fill=1:4)
+dev.off()
+
+la=plotPNGorTIF(figname)
+fr = plyr::count(names(fuccicol)[fucci_raw$cellCycle])
+fr$pct = fr$freq/sum(fr$freq)
+print(fr)
 
 ## Create two input images for loading into imagej
 # cc <-  fucci_ %>% 
@@ -330,7 +336,7 @@ ggsave(paste0(OUTFIGS,filesep,"Fig1D_",thedate,"_Fucci_",FoF,"_pseudotimeTSNE.pn
 
 Figure 1E + supplementary Fig: Pseudotime is differentially distributed across the four discrete cell cycle classes. 
 ```{r}
-figname = paste0(OUTFIGS, filesep,"Fig1E_",thedate,"_plusSIFig.png")
+figname = paste0(OUTFIGS, filesep,"Fig1E_",thedate,".png")
 png( figname)
 par(mfrow=c(2,3))
 ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,names(model$Fucci_All$pseudotime),value=T))
@@ -359,7 +365,7 @@ alpha=list(cytoplasm.p=0.035,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=0.135,mito.t
 
 Figure 2A: Predicted nuclei, mitochondria and cytoplasm signals. 
 ```{r}
-# Jordan - 3 channel overlay - Done
+## Jordan: Fig 2A: highlight in Figure which cells were used for panel 2B
 
 ## ImageJ macro for all channels image
 # open("C:/Users/80027908/Downloads/cytoplasm.p.tif");
@@ -774,6 +780,7 @@ for(fig in names(panels)[1:4]){
     f=list.files(OUTFIGS, pattern=paste0(fig,panel,"_2024"), full.names = T)
     f=grep(".pdf$",f, value = T, invert = T)
     f=grep(".gif$",f, value = T, invert = T)
+    f=grep("_plusSI",f, value = T, invert = T)
     dates=sapply(f, function(x) strsplit(fileparts(x)$name,"_")[[1]][2])
     print(paste0(fig,panel))
     f=f[order(as.Date(dates),decreasing = T)[1]]
@@ -789,12 +796,40 @@ for(fig in names(panels)[1:4]){
 
 Assemble panels to figure
 ```{r}
+captions = list(Fig1="FUCCI to characterize discrete and continuous cell cycle progression in NCI-N87. 
+A. Green and red Fucci channels overlayed. 
+B,G: Fucci based discrete cell cycle classification. 
+D: Fucci based pseudotime inference reveals cell cycle progression.
+E: Fucci based pseudotime trajectory in PCA space. Every dot represents a cell. 
+F: Pseudotime is differentially distributed across the four discrete cell cycle classes.", 
+
+Fig2="Label-free quantification of nucleus, cytoplasm and mitochndria at single cell resolution.
+A: Predicted nuclei, mitochondria and cytoplasm signals. 
+B: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. 
+C: Nuclei, mitochondria and cytoplasm of 1 representative cell from (B). Every data point is color-coded according to its organelle class. 
+D: Cell features quantified from label free imaging correlate with cell cycle classes as defined by FUCCI.",
+
+Fig3="Characterization of discrete and continuous cell cycle progression in NCI-N87 with label free imaging. 
+A: Supervised approach to predict discrete cell cycle state from nuclei, mitochondria and cytoplasm features. 
+B: Performance of trained classifier on test set.
+C: Unsupervised approach to predict continuous cell cycle progression from nuclei, mitochondria and cytoplasm features. 
+D + supplementary Fig: Pseudotime derived from label free imaging features is differentially distributed across the four FUCCI-informed cell cycle classes.  
+E: representative cell across cell cycle: fucci. 
+F: representative cell across cell cycle: label free.",
+
+Fig4="Sequencing imaging integration.
+A: Sequencing derived pseudotime of cell cycle progression.
+B: Co-clustering of sequenced and imaged cells based on pseudotime.
+C: Correlation between pathway activity and imaging-derived features.", 
+
+Fig5="Evaluating performance of a CNN to predict the spatial distribution of nuclei and mitochondria}. (A-C) Representative paired sets from model training using nucleus (train (N=37) / test (N=5) and mitochondria train (N=24) / test (N=5) models showing bright-field input, target signal and predicted signal (A), with train/validation rolling mean square error loss graphs for nucleus (B) and mitochondria (C). (D) Correlation coefficient of target fluorescence vs predicted fluorescence images paired with correlation coefficient from brightfield for the organelles that were used to train the models.")
+
+thedate=strsplit(as.character(Sys.time())," ")[[1]][1]
 BORDER=20
-## Figure 1
 for(fig in names(plots)){
-  print(fig)
+  # print(captions[[fig]])
   sz=fliplr(sapply(plots[[fig]], dim))
-  print(sz)
+  # print(sz)
   ylim=sum(sz[2,])
   xlim=max(sz[1,])
   
@@ -820,5 +855,12 @@ for(fig in names(plots)){
     # Jordan: arrange in rows and columns instead of single row + add panels (A, B, C...)
   }
   dev.off()
+  ## Print caption
+  print(cat("\\begin{figure}\n",
+              '\\includegraphics[width=\\textwidth,height=\\dimexpr \\textheight - 5\\baselineskip\\relax,keepaspectratio]{',gsub("../","",figname, fixed = T),"}\n",
+              '\\caption{',captions[[fig]],".}\n",
+              '\\label{',fig,"}\n",
+              '\\end{figure}\n'))
+
 }
 ```
