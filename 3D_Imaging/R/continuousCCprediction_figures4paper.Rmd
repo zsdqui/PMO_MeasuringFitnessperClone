@@ -679,9 +679,76 @@ la=plotPNGorTIF(figname)
 Figure 3E: representative cell across cell cycle: fucci. 
 ```{r}
 # jordan: sample cells from 5+ timepoints (from fucci pseudotime) and visualize each with Fucci channels
-=
-  tmp=plot_dimred(model[[paste0("Fucci_",FoF)]],color_cells = "pseudotime")
-tmp
+
+# Fucci signals
+fucci_df <- coord_[grep("nuc", coord_$signal),]
+fucci_df$cell <- paste0("cell", fucci_df$id)
+rownames(fucci_df) <- NULL
+
+pseud_df <- model$Fucci_All$pseudotime
+pseud_df$cell_id <- rownames(pseud_df)
+pseud_df <- as.tibble(pseud_df)
+pseud_df <- pseud_df %>% 
+  pivot_longer(cols = everything()) %>%
+  separate(name, into = c("FoF", NA, NA, "cell"), sep = "_") %>% 
+  filter(FoF == "FoF3")
+
+fucci_pseud <- left_join(fucci_df, pseud_df, by = join_by(cell == cell))
+colnames(fucci_pseud)[colnames(fucci_pseud) == 'value'] <- 'pseudotime'
+
+
+target_list <- pseud_df %>% 
+  filter(!if_any(value, is.na)) %>% 
+  filter(abs(value-0.1)==min(abs(value-0.1)) |
+           abs(value-0.3)==min(abs(value-0.3)) |
+           abs(value-0.5)==min(abs(value-0.5)) |
+           abs(value-0.7)==min(abs(value-0.7)) |
+           abs(value-0.9)==min(abs(value-0.9)))
+
+target_df <- fucci_pseud %>% 
+  filter(cell %in% target_list$cell)
+
+figname=paste0(OUTFIGS, filesep, "Fig3E_ch00_", thedate, ".png")
+if(!file.exists(figname)){
+  zlim=getZLIM(target_df)
+  rgl::close3d()
+  col=rainbow(length(unique(target_df$fucci_ch00)))
+  names(col)=as.character(unique(target_df$fucci_ch00))
+  rgl::plot3d(target_df$x, target_df$y, target_df$z, 
+              pch3d=20, zlim=zlim, size=2, axes=F, 
+              col=col[as.character(target_df$fucci_ch00)],
+              xlab="",ylab="", zlab="",alpha=1, add=T)
+  rgl::movie3d(movie=fileparts(figname)$name, 
+               rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  
+               duration = 3,  dir = OUTFIGS,  type = "gif", clean = TRUE)
+}
+
+figname=paste0(OUTFIGS, filesep, "Fig3E_ch02_", thedate, ".png")
+if(!file.exists(figname)){
+  zlim=getZLIM(target_df)
+  rgl::close3d()
+  col=rainbow(length(unique(target_df$fucci_ch02)))
+  names(col)=as.character(unique(target_df$fucci_ch02))
+  rgl::plot3d(target_df$x, target_df$y, target_df$z, 
+              pch3d=20, zlim=zlim, size=2, axes=F, 
+              col=col[as.character(target_df$fucci_ch02)],
+              xlab="",ylab="", zlab="",alpha=1, add=T)
+  rgl::movie3d(movie=fileparts(figname)$name, 
+               rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  
+               duration = 3,  dir = OUTFIGS,  type = "gif", clean = TRUE)
+}
+
+## Check pseudotimes
+# zlim=getZLIM(target_df)
+# rgl::close3d()
+# pal <- colorRampPalette(c("#FDE725FF", "#35B779FF", "#31688E", "#440154"))
+# col=pal(length(unique(target_df$pseudotime)))
+# names(col)=as.character(unique(target_df$pseudotime))
+# rgl::plot3d(target_df$x, target_df$y, target_df$z,
+#             pch3d=20, zlim=zlim, size=2, axes=F,
+#             col=col[as.character(target_df$pseudotime)],
+#             xlab="",ylab="", zlab="",alpha=1, add=T)
+
 
 ```
 
@@ -690,37 +757,63 @@ Figure 3F: representative cell across cell cycle: label free.
 ```{r}
 # jordan: sample cells from 5+ timepoints (from pseudotime in Fig. 3C) and visualize each as in panel 2C
 
-cc <-  fucci_ %>%
-  select(ID, cellCycle)
-coord_a <- left_join(coord_1, cc, by = join_by(id == ID))
+coord_df <- coord_
+coord_df$cell <- paste0("cell", coord_df$id)
 
-model_list <- model_df %>% 
-  filter(abs(pseudotime-0)==min(abs(pseudotime-0)) | # cycle 2
-           abs(pseudotime-0.3)==min(abs(pseudotime-0.3)) |
-           abs(pseudotime-0.5)==min(abs(pseudotime-0.5)) | # cycle 4
-           abs(pseudotime-0.7)==min(abs(pseudotime-0.7)) |
-           abs(pseudotime-1)==min(abs(pseudotime-1))) %>%  # cycle 1
-  separate(cell_ID, into = c(NA, NA, NA, "cell"), sep = "_")
+pseud_df <- model$All$pseudotime
+pseud_df$cell_id <- rownames(pseud_df)
+pseud_df <- as.tibble(pseud_df)
+pseud_df <- pseud_df %>% 
+  pivot_longer(cols = everything()) %>%
+  separate(name, into = c("FoF", NA, NA, "cell"), sep = "_") %>% 
+  filter(FoF == "FoF3")
+
+coord_pseud <- left_join(coord_df, pseud_df, by = join_by(cell == cell))
+colnames(coord_pseud)[colnames(coord_pseud) == 'value'] <- 'pseudotime'
+
+target_list <- pseud_df %>% 
+  filter(!if_any(value, is.na)) %>% 
+  filter(abs(value-0.1)==min(abs(value-0.1)) |
+           abs(value-0.3)==min(abs(value-0.3)) |
+           abs(value-0.5)==min(abs(value-0.5)) |
+           abs(value-0.7)==min(abs(value-0.7)) |
+           abs(value-0.9)==min(abs(value-0.9)))
+
+target_df <- coord_pseud %>% 
+  filter(cell %in% target_list$cell)
+
+figname=paste0(OUTFIGS, filesep, "Fig3F_", thedate, ".png")
+
+if(!file.exists(figname)) {
+  zlim=getZLIM(target_df)
+  col=rainbow(length(unique(target_df$signal))*1.3)
+  names(col)=as.character(unique(target_df$signal))
+  rgl::close3d()
+  for(s in names(signals)){
+    X=target_df[target_df$signal==s,]
+    if(s=="nucleus.p"){
+      rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[X$signal],alpha=4*alpha[[s]], add=T)
+    }else{
+      rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[X$signal],alpha=alpha[[s]]*4, add=T)
+    }
+  }
+  rgl::legend3d("bottomright",unique(target_df$signal),fill=col[unique(target_df$signal)])
+  rgl::movie3d( movie=paste0("Fig3F_",thedate), rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 1,  dir = OUTFIGS,  type = "gif", clean = TRUE)
+}
 
 
-cc <-  fucci_ %>%
-  select(ID, cellCycle)
-coord_b <- left_join(coord_a, cc, by = join_by(id == ID))
+## Check pseudotimes
+zlim=getZLIM(target_df)
+rgl::close3d()
+pal <- colorRampPalette(c("#FDE725FF", "#35B779FF", "#31688E", "#440154"))
+col=pal(length(unique(target_df$pseudotime)))
+names(col)=as.character(unique(target_df$pseudotime))
+rgl::plot3d(target_df$x, target_df$y, target_df$z,
+            pch3d=20, zlim=zlim, size=2, axes=F,
+            col=col[as.character(target_df$pseudotime)],
+            xlab="",ylab="", zlab="",alpha=1, add=T)
 
-coord_b$cell <- paste0("cell", coord_b$id)
-
-coord_c <- inner_join(coord_b, model_list, join_by(cell == cell)) 
-
-ggplot(coord_) +
-  geom_point(aes(x, y, color = as.character(cellCycle))) +
-  scale_color_manual(values = c("1" = "#FDE725FF",
-                                "2" = "#35B779FF",
-                                "3" = "#31688EFF",
-                                "4" = "#440154FF"))
-
-
-tmp=plot_dimred(model[[FoF]],color_cells = "pseudotime")
-tmp
+la=plotPNGorTIF(figname)
 
 ```
 
