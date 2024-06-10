@@ -166,6 +166,7 @@ for(FoF in FoFs){
 }
 
 thedate=strsplit(as.character(Sys.time())," ")[[1]][1]
+################################################################################################################################
 FoF=FoFs[3]
 OUTLINKED_=paste0(OUTLINKED,filesep,FoF,filesep)
 
@@ -197,14 +198,14 @@ img=sapply(img, function(x) EBImage::rotate(x,-180), simplify = F)
 
 Figure 1A: Green and red Fucci channels overlaid. 
 ```{r}
-## Jordan - overlay green [[1]] and red [[3]] -- brighter?
+## Jordan - brighter - Done
 
-# figname = paste0(OUTFIGS, filesep, "Fig1A_1_",thedate,".png") 
+# figname = paste0(OUTFIGS, filesep, "Fig1A_1_",thedate,".png")
 # png(figname)
 # bioimagetools::img(img[[1]][,,1]);
 # dev.off()
 # 
-# figname = paste0(OUTFIGS, filesep, "Fig1A_3_",thedate,".png") 
+# figname = paste0(OUTFIGS, filesep, "Fig1A_3_",thedate,".png")
 # png(figname)
 # bioimagetools::img(img[[3]][,,1]);
 # dev.off()
@@ -385,9 +386,51 @@ alpha=list(cytoplasm.p=0.035,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=0.135,mito.t
 
 
 
-Figure 2A: Predicted nuclei, mitochondria and cytoplasm signals. 
+Figure 2A: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. 
 ```{r}
-## Jordan: Fig 2A: highlight in Figure which cells were used for panel 2B
+coi=as.character(c(149, 222, 25, 259, 237, 45, 139, 82, 26, 89, 21, 215))
+coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
+coord__=coord_[coord_$id %in% coi,]
+  
+figname=paste0(OUTFIGS, filesep, "Fig2A_snapshot.tif")
+if(!file.exists(figname)){
+  # NCELLS=10
+  # coi=rownames(centroids)[order(o2)[1:NCELLS]]
+  assign("coord__", coord__, .GlobalEnv)
+  zlim=getZLIM(coord__)
+  rgl::close3d()
+  col=rainbow(length(unique(coord__$id)))
+  names(col)=as.character(unique(coord__$id))
+  for(s in names(signals)){
+    X=coord__[coord__$signal==s,]
+    if(s=="nucleus.p"){
+      rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[as.character(X$id)],alpha=alpha[[s]]*4, add=T)
+    }else{
+      rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[as.character(X$id)],alpha=alpha[[s]]*4, add=T)
+    }
+  }
+  
+  q <- cbind(id = unique(coord__$id)[order(unique(coord__$id))], cell = c(1:length(unique(coord__$id))))
+  q <- as_tibble(q)
+  rgl::legend3d("bottomright", as.character(q$cell), fill=col[as.character(q$id)])
+  rgl::movie3d( movie=fileparts(figname)$name, rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 3,  dir = OUTFIGS,  type = "gif", clean = TRUE)
+}
+
+## For display in rmd only:
+la=plotPNGorTIF(figname)
+
+
+figname = paste0(OUTFIGS, filesep, "Fig2A_",thedate,".png")
+png(figname)
+im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2A_snapshot.tif"))
+im <- EBImage::resize(im, dim(im)[1]/1)
+plot(raster::as.raster(im[,,,1]))
+dev.off()
+```
+
+Figure 2B: Predicted nuclei, mitochondria and cytoplasm signals. 
+```{r}
+## Jordan: Fig 2A: highlight in Figure which cells were used for panel 2B - done
 ## Jordan - make brighter - done
 
 ## ImageJ macro for all channels image
@@ -422,69 +465,100 @@ Figure 2A: Predicted nuclei, mitochondria and cytoplasm signals.
 #        cex = 2, text.font = 0.2)
 # dev.off()
 
-figname = paste0(OUTFIGS, filesep, "Fig2A_",thedate,".png")
-png(figname)
+cent_df <- coord__ %>% 
+  mutate(x = 1024 - (x*4.3103), y = y*4.3103)
+
+cent_df <- cent_df[order(cent_df$id),]
+
+cent_labels <- cent_df %>% 
+  group_by(id) %>% 
+  summarise(x = mean(x), y = mean(y)) %>% 
+  mutate(cell = row_number())
+
+figname = paste0(OUTFIGS, filesep, "Fig2B_",thedate,".png")
+png(figname, width = 1024, height = 1024, units = "px")
 im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2A_slice.tif"))
 im <- EBImage::resize(im, dim(im)[1]/1)
 plot(raster::as.raster(im[,,,1]))
+# points(cent_df$x, cent_df$y, col=col[as.character(cent_df$id)], pch=16, cex = 1)
+p <- cent_labels %>% 
+  filter(cell == 1)
+text(p$x, p$y+4, labels=expression(bold(1)), col="green", cex=1)
+
+p <- cent_labels %>% 
+  filter(cell == 2)
+text(p$x, p$y+4, labels=expression(bold(2)), col="green", cex=1)
+
+p <- cent_labels %>% 
+  filter(cell == 3)
+text(p$x, p$y+4, labels=expression(bold(3)), col="green", cex=1)
+
+p <- cent_labels %>% 
+  filter(cell == 4)
+text(p$x, p$y+4, labels=expression(bold(4)), col="green", cex=1)
+
+p <- cent_labels %>% 
+  filter(cell == 5)
+text(p$x, p$y+4, labels=expression(bold(5)), col="green", cex=1)
+
+p <- cent_labels %>% 
+  filter(cell == 6)
+text(p$x, p$y+4, labels=expression(bold(6)), col="green", cex=1)
+
+p <- cent_labels %>% 
+  filter(cell == 7)
+text(p$x, p$y+4, labels=expression(bold(7)), col="green", cex=1)
+
+p <- cent_labels %>% 
+  filter(cell == 8)
+text(p$x, p$y+4, labels=expression(bold(8)), col="green", cex=1)
+
+p <- cent_labels %>% 
+  filter(cell == 9)
+text(p$x, p$y+4, labels=expression(bold(9)), col="green", cex=1)
+
+p <- cent_labels %>% 
+  filter(cell == 10)
+text(p$x, p$y+4, labels=expression(bold(10)), col="green", cex=1)
+
+p <- cent_labels %>% 
+  filter(cell == 11)
+text(p$x, p$y+4, labels=expression(bold(11)), col="green", cex=1)
+
+p <- cent_labels %>% 
+  filter(cell == 12)
+text(p$x, p$y+4, labels=expression(bold(12)), col="green", cex=1)
 legend <- png::readPNG(paste0(OUTFIGS, filesep, "legend_2.png"))
 rasterImage(legend,0,0,200,100)
 dev.off()
 
 la=plotPNGorTIF(figname)
 
-```
-
-
-Figure 2B: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. 
-```{r}
-figname=paste0(OUTFIGS, filesep, "Fig2B_2024-05-16_100.png")
-
-if(file.exists(figname)){
-  NCELLS=10
-  coi=rownames(centroids)[order(o2)[1:NCELLS]]
-  coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
-  coord__=coord_[coord_$id %in% coi,]
-  assign("coord__", coord__, .GlobalEnv)
-  zlim=getZLIM(coord__)
-  rgl::close3d()
-  col=rainbow(length(unique(coord__$id)))
-  names(col)=as.character(unique(coord__$id))
-  for(s in names(signals)){
-    X=coord__[coord__$signal==s,]
-    if(s=="nucleus.p"){
-      rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[as.character(X$id)],alpha=alpha[[s]]*4, add=T)
-    }else{
-      rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[as.character(X$id)],alpha=alpha[[s]]*4, add=T)
-    }
-  }
-  
-  rgl::movie3d( movie=fileparts(figname)$name, rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 3,  dir = OUTFIGS,  type = "gif", clean = TRUE)
-}
-
-## For display in rmd only:
+figname = paste0(OUTFIGS, filesep, "Fig2B_crop.tif")
 la=plotPNGorTIF(figname)
 
-figname=paste0(OUTFIGS, filesep, "Fig2A_slice_marked.tif")
-la=plotPNGorTIF(figname)
+# figname = paste0(OUTFIGS, filesep, "Fig2B_b_",thedate,".png")
+# png(figname)
+# im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2B_crop.tif"))
+# im <- EBImage::resize(im, dim(im)[1]/1)
+# plot(raster::as.raster(im[,,,1]))
+# dev.off()
 ```
 
 
 
 Figure 2C: Nuclei, mitochondria and cytoplasm of 1 representative cell from (B). Every data point is color-coded according to its organelle class. 
 ```{r}
-figname=paste0(OUTFIGS, filesep, "Fig2C_2024-05-16_3.png")
-
+figname=paste0(OUTFIGS, filesep, "Fig2C_snapshot.png")
 if(!file.exists(figname)){
-  coi=rownames(centroids)[order(o2)[7]]
-  coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
-  coord__=coord_[coord_$id %in% coi,]
-  zlim=getZLIM(coord__)
-  col=rainbow(length(unique(coord__$signal))*1.3)
-  names(col)=as.character(unique(coord__$signal))
+  coord__2 <- filter(coord__, id == 237)
+  zlim=getZLIM(coord__2)
+  # col=rainbow(length(unique(coord__$signal))*1.3)
+  col=c("cyan", "yellow", "magenta")
+  names(col)=as.character(unique(coord__2$signal))
   rgl::close3d()
   for(s in names(signals)){
-    X=coord__[coord__$signal==s,]
+    X=coord__2[coord__2$signal==s,]
     if(s=="nucleus.p"){
       rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[X$signal],alpha=4*alpha[[s]], add=T)
     }else{
@@ -496,6 +570,14 @@ if(!file.exists(figname)){
 }
 
 ## For display in rmd only:
+la=plotPNGorTIF(figname)
+
+figname = paste0(OUTFIGS, filesep, "Fig2C_",thedate,".png")
+png(figname)
+im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2C_snapshot.tif"))
+im <- EBImage::resize(im, dim(im)[1]/1)
+plot(raster::as.raster(im[,,,1]))
+dev.off()
 la=plotPNGorTIF(figname)
 ```
 
@@ -664,6 +746,7 @@ Figure 3E: representative cell across cell cycle: fucci.
 
 # Fucci signals
 fucci_df <- coord_[grep("nuc", coord_$signal),]
+# fucci_df <- coord_
 fucci_df$cell <- paste0("cell", fucci_df$id)
 rownames(fucci_df) <- NULL
 
@@ -678,6 +761,11 @@ pseud_df <- pseud_df %>%
 fucci_pseud <- left_join(fucci_df, pseud_df, by = join_by(cell == cell))
 colnames(fucci_pseud)[colnames(fucci_pseud) == 'value'] <- 'pseudotime'
 
+# fucci_export <- fucci_pseud %>% 
+#   group_by(id) %>% 
+#   summarise(pseudotime = mean(pseudotime))
+
+# write.csv(fucci_pseud, file = paste0(OUTFIGS, filesep, FoF, "_fucci.csv"))
 
 target_list <- pseud_df %>% 
   filter(!if_any(value, is.na)) %>% 
@@ -690,28 +778,35 @@ target_list <- pseud_df %>%
 target_df <- fucci_pseud %>% 
   filter(cell %in% target_list$cell)
 
-max(target_df$fucci_ch02)
+min(target_df$z)
+max(target_df$z)
 
-pal <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
-sc <- scale_fill_gradientn(colours = pal(10), limits=c(0, 0.61))
-
+# pal <- colorRampPalette(brewer.pal(11, "Greys"))
+# sc <- scale_fill_gradientn(colours = pal(10), limits=c(0, 20.01))
+sc <- scale_fill_distiller(palette = 'Greys')
 for(i in unique(target_df$cell)) {
   p <- target_df %>% 
     filter(cell == i)
   a <- ggplot(p) +
-    geom_tile(aes(x, y, fill = fucci_ch00), alpha = 0.4) +
+    geom_tile(aes(x, y, fill = z), alpha = 0.4) +
     sc +
     theme_void() +
-    theme(legend.position = "none")
+    theme(legend.position = "none", 
+          panel.background = element_rect(fill = 'black', colour = 'black')) +
+    geom_tile(aes(x, y, alpha = fucci_ch00), fill = "green") +
+   scale_alpha(range = c(0, 0.3))
   
   xlab <- round(p[1,14], digits = 4)
   b <- ggplot(p) +
-    geom_tile(aes(x, y, fill = fucci_ch02), alpha = 0.4) + 
+    geom_tile(aes(x, y, fill = z), alpha = 0.4) + 
     sc +
     theme_void() +
-    theme(legend.position = "none")  +
+    theme(legend.position = "none", 
+          panel.background = element_rect(fill = 'black', colour = 'black'))  +
     theme(axis.title.x = element_text()) +
-    labs(x = xlab)
+    labs(x = xlab) +
+    geom_tile(aes(x, y, alpha = fucci_ch02), fill = "red") +
+   scale_alpha(range = c(0, 0.3))
   
   assign(paste0("plot_ch00_", i), a)
   assign(paste0("plot_ch02_", i), b)
@@ -721,17 +816,23 @@ for(i in unique(target_df$cell)) {
 p <- target_df %>% 
   filter(cell == "cell247")
 plot_ch00_cell247 <- ggplot(p) +
-  geom_tile(aes(x, y, fill = fucci_ch00), alpha = 0.4) +
-  sc +
-  theme_void()
+  geom_tile(aes(x, y, fill = z), alpha = 0.4) +
+  scale_fill_distiller(guide = "none", palette = 'Greys') +
+  theme_void() +
+  theme(panel.background = element_rect(fill = 'black', colour = 'black')) +
+  geom_tile(aes(x, y, alpha = fucci_ch00), fill = "green") +
+  scale_alpha(range = c(0, 0.3))
 
 xlab <- round(p[1,14], digits = 4)
 plot_ch02_cell247 <- ggplot(p) +
-  geom_tile(aes(x, y, fill = fucci_ch02), alpha = 0.4) +
-  sc + 
+  geom_tile(aes(x, y, fill = z), alpha = 0.4) +
+  scale_fill_distiller(guide = "none", palette = 'Greys') +
   theme_void() +
-  theme(axis.title.x = element_text()) +
-  labs(x = xlab)
+  theme(axis.title.x = element_text(),
+        panel.background = element_rect(fill = 'black', colour = 'black')) +
+  labs(x = xlab) +
+  geom_tile(aes(x, y, alpha = fucci_ch02), fill = "red") +
+  scale_alpha(range = c(0, 0.3))
 
 # Pseudotime increasing from left to right 
 grid.arrange(
@@ -793,13 +894,12 @@ grid.arrange(
 #             col=col[as.character(target_df$pseudotime)],
 #             xlab="",ylab="", zlab="",alpha=1, add=T)
 
-
 ```
 
 
 Figure 3F: representative cell across cell cycle: label free. 
 ```{r}
-# jordan: sample cells from 5+ timepoints (from pseudotime in Fig. 3C) and visualize each as in panel 2C
+# jordan: sample cells from 5+ timepoints (from pseudotime in Fig. 3C) and visualize each as in panel 2C - done
 '%!in%' <- function(x,y)!('%in%'(x,y))
 
 coord_df <- coord_
@@ -815,6 +915,8 @@ pseud_df <- pseud_df %>%
 
 coord_pseud <- left_join(coord_df, pseud_df, by = join_by(cell == cell))
 colnames(coord_pseud)[colnames(coord_pseud) == 'value'] <- 'pseudotime'
+
+# write.csv(coord_pseud, file = paste0(OUTFIGS, filesep, FoF, "_label_free.csv"))
 
 target_list_1 <- pseud_df %>% 
   filter(!if_any(value, is.na)) %>% 
@@ -929,7 +1031,7 @@ grid.arrange(
 )
 
 
-## For 3D
+# For 3D
 # figname=paste0(OUTFIGS, filesep, "Fig3F_", thedate, ".png")
 # if(!file.exists(figname)) {
 #   zlim=getZLIM(target_df)
@@ -960,6 +1062,23 @@ grid.arrange(
 #             col=col[as.character(target_df$pseudotime)],
 #             xlab="",ylab="", zlab="",alpha=1, add=T)
 # la=plotPNGorTIF(figname)
+
+
+# Get single cell visualizations
+# for(i in unique(coord_$id)) {
+#    p <- coord_ %>% 
+#      filter(id == i)
+#    
+#    print(ggplot(p) +
+#      geom_tile(aes(x, y, fill = signal, alpha = signal)) +
+#      scale_alpha_manual(values = c("nucleus.p" = 0.01, "mito.p" = 0.05, "cytoplasm.p" = 0.05)) +
+#      theme_void() +
+#      theme(legend.position = "none",
+#            panel.background = element_rect(fill = 'black', colour = 'black')) +
+#      scale_fill_manual(values = c("nucleus.p" = "magenta", "mito.p" = "yellow", "cytoplasm.p" = "cyan")))
+#    
+#    ggsave(paste0(OUTFIGS, filesep, "cell_images", filesep, FoF, "_cell_", i, ".png"))
+# }
 
 ```
 
@@ -1090,9 +1209,45 @@ writeLines(modified_table, tabname)
 poi=unique(unlist(apply(abs(cc),2, function(x) which(x>0.5)), use.names = F))
 cc=cc[,!apply(is.na(cc[poi,]),2,all)]
 pval=pval[, colnames(cc)]
-hm=heatmap.2(t(cc[poi,]),trace="n", margins = c(5,5), cexCol = 0.68)
+hm_df <- as.tibble(cc[poi,])
+rownames(hm_df) <- rownames(cc[poi,])
+# rownames(hm_df)[36] <- "PCNA replication complex recognition of DNA damage"
+rownames(hm_df)[38] <- "Resp. electrom transport/chemiosmotic ATP synthesis/protein heat production"
+# rownames(hm_df)[45] <- "Activate APC/C, APC/C:Cdc20 degradation of mitotic proteins"
+# rownames(hm_df)[56] <- "Amplify signal of unattached kinetochores via MAD2 inhibiton"
+# rownames(hm_df)[101] <- "Regulation of mRNA stability by AU-rich proteins"
+
+
+library(dendextend)
+distance = dist(as.matrix(hm_df), method = "manhattan")
+cluster_row = hclust(distance, method = "ward")
+distance = dist(t(as.matrix(hm_df)), method = "manhattan")
+cluster_col = hclust(distance, method = "ward")
+den_row <- as.dendrogram(cluster_row)
+den_column <- as.dendrogram(cluster_col)
+cols_branches <- c("gold", "blue", "forestgreen", "red", "purple3")
+den_row <- color_branches(den_row, k = 4, col = cols_branches[1:4])
+den_column <- color_branches(den_column, k = 5, col = cols_branches[1:5])
+
+# hm=heatmap.2(as.matrix(hm_df), trace="n", margins = c(11,31.9), 
+#              col = colorRampPalette(rev(brewer.pal(11, "Spectral"))), 
+#              cexCol = 0.8,
+#              cexRow = 0.8,
+#              Rowv = den_row,
+#              Colv = den_column
+# )
+
+hm=heatmap.2(as.matrix(hm_df), trace="n", margins = c(12, 31.9), 
+             col = colorRampPalette(rev(brewer.pal(11, "Spectral"))), 
+             cexCol = 0.8,
+             cexRow = 0.8,
+             Rowv = den_row,
+             Colv = den_column
+)
+
+
+
 eval(hm$call)
-## jordan: prettify :)
 # print(cc[p.adjust(pval, method = "fdr")<0.05])
 MINCC=sort(abs(cc), decreasing = T)[9]
 ii=which(abs(cc)>MINCC, arr.ind = T)
@@ -1100,9 +1255,10 @@ ii=apply(ii,1, function(x) c(rownames(cc)[x[1]],colnames(cc)[x[2]]))
 colnames(ii)=apply(ii,2, paste, collapse="+")
 
 figname=paste0(OUTFIGS, filesep,"Fig4C_",thedate,".png") 
-png(figname)
+png(figname, width = 1500,height = 1450)
 eval(hm$call)
 dev.off()
+la=plotPNGorTIF(figname)
 
 figname=paste0(OUTFIGS, filesep,"Fig4C_",thedate,"_plusSIFig.png") 
 png(figname,width = 1200,height = 1200)
@@ -1173,7 +1329,7 @@ captions = list(
   Fig4 = "Sequencing imaging integration. A: Sequencing derived pseudotime of cell cycle progression. B: Co-clustering of sequenced and imaged cells based on pseudotime. Color code indicates cluster membership. C: Correlation between pathway activity and imaging-derived features.",
   Fig5 = "Evaluating performance of a CNN to predict the spatial distribution of nuclei and mitochondria. (A-C) Representative paired sets from model training using nucleus (train (N=37) / test (N=5) and mitochondria train (N=24) / test (N=5) models showing bright-field input, target signal and predicted signal (A), with train/validation rolling mean square error loss graphs for nucleus (B) and mitochondria (C). (D) Correlation coefficient of target fluorescence vs predicted fluorescence images paired with correlation coefficient from brightfield for the organelles that were used to train the models."
 )
-thedate = "2024-05-22"
+
 BORDER = 1
 for (fig in names(plots)) {
   # Get the sizes of the plots
@@ -1197,9 +1353,9 @@ for (fig in names(plots)) {
     for (c in 1:ncol) {
       if (panel_index <= length(plots[[fig]])) {
         panel = names(plots[[fig]])[panel_index]
-        xleft = (c - 1) * (panel_width + BORDER)
+        xleft = if (fig == "Fig4" && panel == "C") 0 else (c - 1) * (panel_width + BORDER)  # Adjust xleft for Fig4C
         ybottom = total_height - r * (panel_height + BORDER)
-        xright = xleft + panel_width
+        xright = if (fig == "Fig4" && panel == "C") total_width else xleft + panel_width  # Adjust xright for Fig4C
         ytop = ybottom + panel_height
         rasterImage(plots[[fig]][[panel]], xleft, ybottom, xright, ytop)
         text(xleft + 5, ytop - 5, labels = panel, adj = c(0, 1), cex = 1.5+(fig=="Fig3")*1.5, col = "black", font = 2)
@@ -1217,12 +1373,15 @@ for (fig in names(plots)) {
             '\\end{figure}\n'))
   
 }
+
+
 ```
+
+
 
 
 Supplementary figures
 ```{r}
-thedate = "2024-05-27"
 captions = list(
   Fig1E = "Fucci-derived pseudtime is differentially distributed across the four cell cycle phases.",
   Fig4C = "Sequencing- and imaging derived features are correlated.",
@@ -1249,3 +1408,5 @@ for (fig in sort(unique(figs))) {
             '\\end{figure}\n'))
 }
 ```
+
+
