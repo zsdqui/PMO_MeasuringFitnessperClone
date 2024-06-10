@@ -386,13 +386,13 @@ alpha=list(cytoplasm.p=0.035,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=0.135,mito.t
 
 
 
-Figure 2A: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. 
+Figure 2B: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. 
 ```{r}
 coi=as.character(c(149, 222, 25, 259, 237, 45, 139, 82, 26, 89, 21, 215))
 coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
 coord__=coord_[coord_$id %in% coi,]
   
-figname=paste0(OUTFIGS, filesep, "Fig2A_snapshot.tif")
+figname=paste0(OUTFIGS, filesep, "Fig2B_snapshot.tif")
 if(!file.exists(figname)){
   # NCELLS=10
   # coi=rownames(centroids)[order(o2)[1:NCELLS]]
@@ -419,16 +419,15 @@ if(!file.exists(figname)){
 ## For display in rmd only:
 la=plotPNGorTIF(figname)
 
-
-figname = paste0(OUTFIGS, filesep, "Fig2A_",thedate,".png")
+figname = paste0(OUTFIGS, filesep, "Fig2B_",thedate,".png")
 png(figname)
-im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2A_snapshot.tif"))
+im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2B_snapshot.tif"))
 im <- EBImage::resize(im, dim(im)[1]/1)
 plot(raster::as.raster(im[,,,1]))
 dev.off()
 ```
 
-Figure 2B: Predicted nuclei, mitochondria and cytoplasm signals. 
+Figure 2A: Predicted nuclei, mitochondria and cytoplasm signals. 
 ```{r}
 ## Jordan: Fig 2A: highlight in Figure which cells were used for panel 2B - done
 ## Jordan - make brighter - done
@@ -475,7 +474,7 @@ cent_labels <- cent_df %>%
   summarise(x = mean(x), y = mean(y)) %>% 
   mutate(cell = row_number())
 
-figname = paste0(OUTFIGS, filesep, "Fig2B_",thedate,".png")
+figname = paste0(OUTFIGS, filesep, "Fig2A_",thedate,".png")
 png(figname, width = 1024, height = 1024, units = "px")
 im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2A_slice.tif"))
 im <- EBImage::resize(im, dim(im)[1]/1)
@@ -534,10 +533,10 @@ dev.off()
 
 la=plotPNGorTIF(figname)
 
-figname = paste0(OUTFIGS, filesep, "Fig2B_crop.tif")
-la=plotPNGorTIF(figname)
+# figname = paste0(OUTFIGS, filesep, "Fig2A_crop.tif")
+# la=plotPNGorTIF(figname)
 
-# figname = paste0(OUTFIGS, filesep, "Fig2B_b_",thedate,".png")
+# figname = paste0(OUTFIGS, filesep, "Fig2A_b_",thedate,".png")
 # png(figname)
 # im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2B_crop.tif"))
 # im <- EBImage::resize(im, dim(im)[1]/1)
