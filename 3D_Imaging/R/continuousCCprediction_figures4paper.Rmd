@@ -155,7 +155,7 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
   return(coord)
 }
 
-Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, level=0.5/length(xx),xlim=quantile(xx,c(0,1)),ylim=quantile(yy,c(0,1)),zlim=quantile(zz,c(0,1)), other=NULL, png=NULL) {
+Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, phi = 40, theta = 40, level=0.5/length(xx),xlim=quantile(xx,c(0,1)),ylim=quantile(yy,c(0,1)),zlim=quantile(zz,c(0,1))) {
   library(MASS)
   # print("datapoints nucleus:"); print(length(xx))
   # print("datapoints mito:"); print(nrow(other))
@@ -176,7 +176,7 @@ Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, level
   ##Contour
   n=1+c(qx[2]-qx[1], qy[2]-qy[1], qz[2]-qz[1])
   # print("nucleus:"); print(n)
-  dens2 <- misc3d::kde3d(xx, yy, zz); #,n=n ) 
+  dens2 <- misc3d::kde3d(xx, yy, zz,n=round(n) ) 
   RES=c(x=dens2$x[2]-dens2$x[1],y=dens2$y[2]-dens2$y[1],z=dens2$z[2]-dens2$z[1])
   
   ## Embed in larger array to render plots comparable across cells
@@ -184,32 +184,11 @@ Plot_ConcaveHull <- function(xx, yy, zz, lcolor="black", alpha=0.4, add=T, level
   # print("all:"); 
   print(dim(dens))
   dens[ceil(dens2$x/RES["x"]),ceil(dens2$y/RES["y"]), ceil(dens2$z/RES["z"])]=dens2$d
-  ## Plot
+  # print(quantile(dens2$x,c(0,1)))## Plot
   
-  if(!is.null(png)){
-    png(png)
-  }
-  plot.new()
-  par(mai=c(0,0,0,0))
-  plot3D::isosurf3D(x=1:nrow(dens),y=1:ncol(dens),z=1:dim(dens)[3],colvar = dens, col=lcolor, add=add, alpha=alpha,bty="n",phi = 40, theta = 40); #,drawlabels=F,lwd=2
-  # misc3d::contour3d(dens, level=level, color=lcolor, add=add, alpha=alpha); #,drawlabels=F,lwd=2
+  plot3D::isosurf3D(x=1:nrow(dens),y=1:ncol(dens),z=1:dim(dens)[3],colvar = dens, col=lcolor, add=add, alpha=alpha,bty="n",phi = phi, theta = theta); #,drawlabels=F,lwd=2
+  # rgl::plot3d(1:nrow(dens), 1:ncol(dens), 1:dim(dens)[3], pch3d=20, size=2, axes=F, xlab="",ylab="", zlab="",col=lcolor, add=add, alpha=alpha)
   
-  ## add other compartment to coordinate system:
-  dens_o=NULL
-  if(!is.null(other)){
-    other=sweep(other,MARGIN = 2, STATS = RES, FUN = "/")
-    plot3D::scatter3D(other[,1], other[,2], other[,3],pch3d=20, size=5, axes=F, xlab="",ylab="", zlab="",col="red",alpha=0.04, add=T,xlim=xlim,ylim=ylim,zlim=zlim)
-    dens_o=dens
-    dens_o[T]=0
-    for(i in 1:nrow(other)){
-      dens_o[other[i,1], other[i,2], other[i,3]] =1
-      ##@TODO: should this be assigned a smaller value?
-    }
-  }
-  if(!is.null(png)){
-    dev.off()
-  }
-  return(list(nucleus=dens, other=dens_o))
 }
 
 
@@ -448,7 +427,7 @@ Figure 2B: Nuclei, mitochondria and cytoplasm of 10 representative cells from re
 coi=as.character(c(149, 222, 25, 259, 237, 45, 139, 82, 26, 89, 21, 215))
 coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
 coord__=coord_[coord_$id %in% coi,]
-  
+
 figname=paste0(OUTFIGS, filesep, "Fig2B_snapshot.tif")
 if(!file.exists(figname)){
   # NCELLS=10
@@ -767,22 +746,23 @@ ggsave(paste0(OUTFIGS,filesep,"Fig3C_",thedate,"_labelFree_",FoF,"_pseudotimeTSN
 ```
 
 
-Figure 3D + supplementary Fig: Pseudotime derived from label free imaging features is differentially distributed across the four FUCCI-informed cell cycle classes.  
+Figure 3D + supplementary Fig: Pseudotime derived from label free imaging features is differentially distributed across the four FUCCI-informed cell cycle classes.   
 ```{r}
-figname=paste0(OUTFIGS, filesep,"Fig3D_",thedate,"_plusSIFig.png")
-png(figname, width = 1400, height = 400)
-par(mfrow=c(1,4))
-ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,rownames(fucci_raw),value=T))
-# sapply(names(ii), function(x) boxplot(model[[x]]$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x,cex.main=0.6))
-sapply(names(ii), function(x) boxplot(model$All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x,cex.lab=1.5, cex.axis=2,cex.main=1.2))
+figname=paste0(OUTFIGS, filesep,"Fig3D_",thedate,".png")
+png(figname)
+par(mfrow=c(1,1))
+boxplot(model$All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main="All",cex.main=0.6, cex.axis=0.6)
 dev.off()
 la=plotPNGorTIF(figname)
 
 
-figname=paste0(OUTFIGS, filesep,"Fig3D_",thedate,".png")
-png(figname )
-par(mfrow=c(1,2))
-boxplot(model$All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main="All",cex.main=0.6, cex.axis=0.6)
+figname=paste0(OUTFIGS, filesep,"Fig3D_",thedate,"_plusSIFig.png")
+png(figname, width = 1000, height = 800)
+par(mfrow=c(2,3))
+ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,rownames(fucci_raw),value=T))
+# sapply(names(ii), function(x) boxplot(model[[x]]$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x,cex.main=0.6))
+sapply(names(ii), function(x) boxplot(model$All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x,cex.lab=1.5, cex.axis=2,cex.main=1.2))
+
 ii=names(model$All$pseudotime)
 ii=grep(FoFs[1], ii, value=T, invert = T)
 te=cor.test(model$All$pseudotime[ii], model$Fucci_All$pseudotime[ii])
@@ -792,6 +772,7 @@ plot(model$All$pseudotime[ii], model$Fucci_All$pseudotime[ii], main=paste("r=",r
 legend("bottomleft",sapply(strsplit(names(col),"_"),"[[",1),fill=col)
 dev.off()
 la=plotPNGorTIF(figname)
+
 
 ```
 
@@ -850,7 +831,7 @@ for(i in unique(target_df$cell)) {
     theme(legend.position = "none", 
           panel.background = element_rect(fill = 'black', colour = 'black')) +
     geom_tile(aes(x, y, alpha = fucci_ch00), fill = "green") +
-   scale_alpha(range = c(0, 0.3))
+    scale_alpha(range = c(0, 0.3))
   
   xlab <- round(p[1,14], digits = 4)
   b <- ggplot(p) +
@@ -862,7 +843,7 @@ for(i in unique(target_df$cell)) {
     theme(axis.title.x = element_text()) +
     labs(x = xlab) +
     geom_tile(aes(x, y, alpha = fucci_ch02), fill = "red") +
-   scale_alpha(range = c(0, 0.3))
+    scale_alpha(range = c(0, 0.3))
   
   assign(paste0("plot_ch00_", i), a)
   assign(paste0("plot_ch02_", i), b)
@@ -908,16 +889,27 @@ grid.arrange(
 )
 
 
-coi=unique(target_df$id)
-# rgl::open3d()
-add = F
-for(cell in coi){
-    a <-  coord_ %>% 
-        filter(id == cell, signal=="nucleus.p")
-    hull=Plot_ConcaveHull(1+a$x, 1+a$y, 1+a$z, lcolor = which(cell==coi), alpha=0.5,add = add)
-    add = T
+for(coi in unique(target_df$id)){
+  a= coord_[coord_$id %in% coi,]
+  a[,xyz]=sweep(a[,xyz],MARGIN = 2,STATS = apply(a[,xyz],2, min),FUN = "-")
+  a[,xyz] = 1+ a[,xyz]
+  xyzlim=apply(a[,xyz],2, quantile, c(0,1))
+  a$z=z_interval*a$z
+  a_ <-  a %>% 
+    filter(id == coi, signal=="nucleus.p")
+  hull=Plot_ConcaveHull(a_$x, a_$y, a_$z, xlim = xyzlim[,"x"], ylim = xyzlim[,"y"], zlim = xyzlim[,"z"],level = 10, lcolor = "gray", alpha=0.25,add = F, phi = 30,theta = 140)
+  a_$fucci_ch00= round(a_$fucci_ch00,1)
+  a_$fucci_ch02= round(a_$fucci_ch02,2)
+  for(x in unique(a_$fucci_ch00)){
+    i = which(a_$fucci_ch00==x)
+    plot3D::points3D(a_$x[i], a_$y[i], a_$z[i],pch3d=20,  axes=F, xlab="",ylab="", zlab="",col="red",alpha=x, add=T)
+  }
+  for(x in unique(a_$fucci_ch02)){
+    i = which(a_$fucci_ch02==x)
+    plot3D::points3D(a_$x[i], a_$y[i], a_$z[i],pch3d=20,  axes=F, xlab="",ylab="", zlab="",col="green",alpha=x, add=T)
+  }
+  
 }
-rgl::view3d( theta = 0, phi = 0, fov=0)
 
 
 
@@ -1084,13 +1076,13 @@ grid.arrange(
     ncol = 6,
     widths = unit(c(0.1, rep(0.7, 4), 1), "null")
   ),
-    arrangeGrob(
+  arrangeGrob(
     textGrob("B", x = 0, y = 1, vjust = 1, hjust = 0, gp = gpar(fontsize = 12, fontface = "bold")),
     plot_cell63, plot_cell270, plot_cell208, plot_cell301, plot_cell216, 
     ncol = 6,
     widths = unit(c(0.1, rep(0.5, 4), 1), "null")
   ),
-    arrangeGrob(
+  arrangeGrob(
     textGrob("C", x = 0, y = 1, vjust = 1, hjust = 0, gp = gpar(fontsize = 12, fontface = "bold")),
     plot_cell40, plot_cell149, plot_cell21, plot_cell189, plot_cell80, 
     ncol = 6,
@@ -1236,7 +1228,7 @@ for(sFeature in setdiff(colnames(pq),toExclude)){
   cells=sapply(unique(stats_$cluster), function(x) rownames(stats_)[stats_$cluster==x])
   seqCells=sapply(cells, function(x) grep("Clone_",x, value=T))
   imgCells=sapply(cells, function(x) grep("FoF",x, value=T))
-
+  
   s = sapply(seqCells, function(x) mean(pq[x,sFeature]))
   pairs[[sFeature]] = list()
   for(iFeature in setdiff(colnames(imgStats), toExclude)){
