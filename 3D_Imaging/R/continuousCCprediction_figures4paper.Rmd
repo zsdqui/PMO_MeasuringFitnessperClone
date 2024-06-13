@@ -422,46 +422,44 @@ alpha=list(cytoplasm.p=0.035,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=0.135,mito.t
 
 
 
-Figure 2B: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. 
+
+Figure 2B,C: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. 
 ```{r}
 coi=as.character(c(149, 222, 25, 259, 237, 45, 139, 82, 26, 89, 21, 215))
 coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
+coi = coi[c(2,3,6,7,8,10,12)]
 coord__=coord_[coord_$id %in% coi,]
 
-figname=paste0(OUTFIGS, filesep, "Fig2B_snapshot.tif")
-if(!file.exists(figname)){
-  # NCELLS=10
-  # coi=rownames(centroids)[order(o2)[1:NCELLS]]
-  assign("coord__", coord__, .GlobalEnv)
-  zlim=getZLIM(coord__)
-  rgl::close3d()
-  col=rainbow(length(unique(coord__$id)))
-  names(col)=as.character(unique(coord__$id))
-  for(s in names(signals)){
-    X=coord__[coord__$signal==s,]
-    if(s=="nucleus.p"){
-      rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[as.character(X$id)],alpha=alpha[[s]]*4, add=T)
-    }else{
-      rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[as.character(X$id)],alpha=alpha[[s]]*4, add=T)
-    }
-  }
+panels=c("B","C")
+names(panels) = coi[c(1,4)]
+for(cell in names(panels)){
+  figname = paste0(OUTFIGS, filesep, "Fig2",panels[cell],"_",thedate,".png")
+  png(figname, width = 600,height = 600)
+  par(mfrow=c(1,1), mai=c(0,0,0,0))
   
-  q <- cbind(id = unique(coord__$id)[order(unique(coord__$id))], cell = c(1:length(unique(coord__$id))))
-  q <- as_tibble(q)
-  rgl::legend3d("bottomright", as.character(q$cell), fill=col[as.character(q$id)])
-  rgl::movie3d( movie=fileparts(figname)$name, rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 3,  dir = OUTFIGS,  type = "gif", clean = TRUE)
+  col=which(cell==coi)
+  a= coord__[coord__$id == cell,]
+  a[,xyz]=sweep(a[,xyz],MARGIN = 2,STATS = apply(a[,xyz],2, min),FUN = "-")
+  a[,xyz] = 1+ a[,xyz]
+  xyzlim=apply(a[,xyz],2, quantile, c(0,1))
+  a$z=z_interval*a$z
+  
+  a_ <-  a %>% 
+    filter(id == cell, signal=="nucleus.p")
+  Plot_ConcaveHull(a_$x, a_$y, a_$z, xlim = xyzlim[,"x"], ylim = xyzlim[,"y"], zlim = xyzlim[,"z"],level = 10, lcolor = "purple", alpha=0.25,add = F, phi = 40,theta = 40)
+  
+  a_ <-  a %>% 
+    filter(id == cell, signal=="mito.p")
+  plot3D::points3D(a_$x, a_$y, a_$z,pch3d=20,  axes=F, xlab="",ylab="", zlab="",col="yellow",alpha=0.05, add=T)
+  
+  a_ <-  a %>% 
+    filter(id == cell, signal=="cytoplasm.p")
+  plot3D::points3D(a_$x, a_$y, a_$z,pch3d=20,  axes=F, xlab="",ylab="", zlab="",col="cyan",alpha=0.05, add=T)
+  
+  dev.off()
 }
-
-## For display in rmd only:
-la=plotPNGorTIF(figname)
-
-figname = paste0(OUTFIGS, filesep, "Fig2B_",thedate,".png")
-png(figname)
-im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2B_snapshot.tif"))
-im <- EBImage::resize(im, dim(im)[1]/1)
-plot(raster::as.raster(im[,,,1]))
-dev.off()
 ```
+
 
 Figure 2A: Predicted nuclei, mitochondria and cytoplasm signals. 
 ```{r}
@@ -578,42 +576,6 @@ la=plotPNGorTIF(figname)
 # im <- EBImage::resize(im, dim(im)[1]/1)
 # plot(raster::as.raster(im[,,,1]))
 # dev.off()
-```
-
-
-
-Figure 2C: Nuclei, mitochondria and cytoplasm of 1 representative cell from (B). Every data point is color-coded according to its organelle class. 
-```{r}
-figname=paste0(OUTFIGS, filesep, "Fig2C_snapshot.png")
-if(!file.exists(figname)){
-  coord__2 <- filter(coord__, id == 237)
-  zlim=getZLIM(coord__2)
-  # col=rainbow(length(unique(coord__$signal))*1.3)
-  col=c("cyan", "yellow", "magenta")
-  names(col)=as.character(unique(coord__2$signal))
-  rgl::close3d()
-  for(s in names(signals)){
-    X=coord__2[coord__2$signal==s,]
-    if(s=="nucleus.p"){
-      rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[X$signal],alpha=4*alpha[[s]], add=T)
-    }else{
-      rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[X$signal],alpha=alpha[[s]]*4, add=T)
-    }
-  }
-  rgl::legend3d("bottomright",names(signals),fill=col[names(signals)])
-  rgl::movie3d( movie=paste0("Fig2C_",thedate), rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 1,  dir = OUTFIGS,  type = "gif", clean = TRUE)
-}
-
-## For display in rmd only:
-la=plotPNGorTIF(figname)
-
-figname = paste0(OUTFIGS, filesep, "Fig2C_",thedate,".png")
-png(figname)
-im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2C_snapshot.tif"))
-im <- EBImage::resize(im, dim(im)[1]/1)
-plot(raster::as.raster(im[,,,1]))
-dev.off()
-la=plotPNGorTIF(figname)
 ```
 
 
