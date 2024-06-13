@@ -407,9 +407,13 @@ la=plotPNGorTIF(figname)
 ```
 
 
+Figure 2: Allen model training
+```{r}
+
+```
 
 
-Figure 2: Quantification of nuclei, mitochondria and cytoplasm features at single-cell resolution with label free imaging. Setup first:
+Figure 3: Quantification of nuclei, mitochondria and cytoplasm features at single-cell resolution with label free imaging. Setup first:
 ```{r}
 coord_=readOrganelleCoordinates(signals_per_id[[FoF]], names(signals), OUTLINKED_)
 imgStats_=imgStats[imgStats$FoF==FoF,]
@@ -423,14 +427,14 @@ alpha=list(cytoplasm.p=0.035,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=0.135,mito.t
 
 
 
-Figure 2B,C: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. 
+Figure 3B,C: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. 
 ```{r}
 coi=as.character(c(168, 108, 218, 194, 77, 214))
 coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
 coord__=coord_[coord_$id %in% coi,]
 
 for(cell in coi){
-  figname = paste0(OUTFIGS, filesep, "Fig2_", cell,"_",thedate,".png")
+  figname = paste0(OUTFIGS, filesep, "Fig3_", cell,"_",thedate,".png")
   png(figname, width = 600,height = 600)
   par(mfrow=c(1,1), mai=c(0,0,0,0))
   
@@ -456,12 +460,12 @@ for(cell in coi){
   dev.off()
 }
 
-la=plotPNGorTIF(paste0(OUTFIGS, filesep, "Fig2B_2024-06-13.png"))
-la=plotPNGorTIF(paste0(OUTFIGS, filesep, "Fig2C_2024-06-13.png"))
+la=plotPNGorTIF(paste0(OUTFIGS, filesep, "Fig3B_2024-06-13.png"))
+la=plotPNGorTIF(paste0(OUTFIGS, filesep, "Fig3C_2024-06-13.png"))
 ```
 
 
-Figure 2A: Predicted nuclei, mitochondria and cytoplasm signals. 
+Figure 3A: Predicted nuclei, mitochondria and cytoplasm signals. 
 ```{r}
 ## Jordan: Fig 2A: highlight in Figure which cells were used for panel 2B - done
 ## Jordan - make brighter - done
@@ -479,9 +483,9 @@ Figure 2A: Predicted nuclei, mitochondria and cytoplasm signals.
 # selectImage("Result of cytoplasm.p.tif");
 # imageCalculator("Add create stack", "Result of cytoplasm.p.tif","mito.p.tif");
 # selectImage("Result of Result of cytoplasm.p.tif");
-# saveAs("Tiff", "C:/Users/80027908/Desktop/CC_project/Fig2A_stack.tif");
+# saveAs("Tiff", "C:/Users/80027908/Desktop/CC_project/Fig3A_stack.tif");
 # run("Slice Keeper", "first=14 last=14 increment=1");
-# saveAs("Tiff", "C:/Users/80027908/Desktop/CC_project/Fig2A_slice.tif");
+# saveAs("Tiff", "C:/Users/80027908/Desktop/CC_project/Fig3A_slice.tif");
 
 ## Create legend image -> manually crop borders before producing the next graph
 # pal = colorRampPalette(c("magenta", "white", "yellow", "white", "cyan"))
@@ -510,9 +514,9 @@ cent_labels <- cent_labels[order(-cent_labels$y),]
 cent_labels <- cent_labels %>% 
   mutate(cell = row_number())
 
-figname = paste0(OUTFIGS, filesep, "Fig2A_",thedate,".png")
+figname = paste0(OUTFIGS, filesep, "Fig3A_",thedate,".png")
 png(figname, width = 1024, height = 1024, units = "px")
-im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2A_slice.tif"))
+im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig3A_slice.tif"))
 im <- EBImage::resize(im, dim(im)[1]/1)
 plot(raster::as.raster(im[,,,1]))
 # points(cent_df$x, cent_df$y, col=col[as.character(cent_df$id)], pch=16, cex = 1)
@@ -523,12 +527,12 @@ dev.off()
 
 la=plotPNGorTIF(figname)
 
-# figname = paste0(OUTFIGS, filesep, "Fig2A_crop.tif")
+# figname = paste0(OUTFIGS, filesep, "Fig3A_crop.tif")
 # la=plotPNGorTIF(figname)
 
-# figname = paste0(OUTFIGS, filesep, "Fig2A_b_",thedate,".png")
+# figname = paste0(OUTFIGS, filesep, "Fig3A_b_",thedate,".png")
 # png(figname)
-# im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2B_crop.tif"))
+# im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig3B_crop.tif"))
 # im <- EBImage::resize(im, dim(im)[1]/1)
 # plot(raster::as.raster(im[,,,1]))
 # dev.off()
@@ -536,7 +540,7 @@ la=plotPNGorTIF(figname)
 
 
 
-Figure 2D: Cell features quantified from label free imaging correlate with cell cycle classes as defined by FUCCI. 
+Figure 3D: Cell features quantified from label free imaging correlate with cell cycle classes as defined by FUCCI. 
 ```{r}
 var_list <- svm$svmFeatures
 cycle <- fucci_raw[rownames(imgStats),"cellCycle"]
@@ -573,21 +577,21 @@ c <- (list_plots[[7]] + list_plots[[8]] + list_plots[[9]])
 d <- (list_plots[[10]] + list_plots[[11]] + e)
 
 
-figname <- paste0(OUTFIGS, filesep, "Fig2D_",thedate,".png")
+figname <- paste0(OUTFIGS, filesep, "Fig3D_",thedate,".png")
 ggsave(figname,units="px",width = 480, height = 480, plot=list_plots[[1]] + list_plots[[2]], dpi=140)
 la=plotPNGorTIF(figname)
 
 a/b/c/d
-figname <- paste0(OUTFIGS, filesep, "Fig2D_",thedate,"_plusSIFig.png")
+figname <- paste0(OUTFIGS, filesep, "Fig3D_",thedate,"_plusSIFig.png")
 ggsave(figname,units="px",width = 1980, height = 2380, dpi=300)
 
-# figname=paste0(OUTFIGS, filesep, "Fig2D_fill+color.png")
+# figname=paste0(OUTFIGS, filesep, "Fig3D_fill+color.png")
 # la=plotPNGorTIF(figname)
 ```
 
 
-Figure 3: Characterization of discrete and continuous cell cycle progression in NCI-N87 with label free imaging. 
-Figure 3A: Supervised approach to predict discrete cell cycle state from nuclei, mitochondria and cytoplasm features. 
+Figure 4: Characterization of discrete and continuous cell cycle progression in NCI-N87 with label free imaging. 
+Figure 4A: Supervised approach to predict discrete cell cycle state from nuclei, mitochondria and cytoplasm features. 
 ```{r}
 ## Make diagram in pptx showing:
 print(paste("Total cells:",nrow(imgStats),"split into:"), quote = F)
@@ -606,7 +610,7 @@ num_cells_B <- length(unlist(svm$testing))
 num_features <- length(svm$svmFeatures)
 
 
-figname = paste0(OUTFIGS, filesep, "Fig3A_",thedate,".png")
+figname = paste0(OUTFIGS, filesep, "Fig4A_",thedate,".png")
 # Create the diagram using the grViz function
 # Create the graph object using the create_graph function
 graph <- grViz(glue("
@@ -642,12 +646,12 @@ graph
 ```
 
 
-Figure 3B: Performance of trained classifier on test set. 
+Figure 4B: Performance of trained classifier on test set. 
 ```{r}
 confMat = read.xlsx(paste0(OUTPSEUDOTIME, filesep,"cellCyclePrediction_svm_2024-05-15.xlsx"), sheetIndex = 1, row.names=T)
 tmp=sapply(c("Class..1","Class..2","Class..3","Class..4"), function(x) as.numeric(confMat[grep(x, rownames(confMat)),"Balanced.Accuracy"])) 
 
-figname=paste0(OUTFIGS, filesep,"Fig3B_",thedate,".png")
+figname=paste0(OUTFIGS, filesep,"Fig4B_",thedate,".png")
 png(figname )
 boxplot(tmp, names=names(fuccicol), ylab="Balanced.Accuracy")
 dev.off()
@@ -656,17 +660,17 @@ la=plotPNGorTIF(figname)
 ```
 
 
-Figure 3C: Unsupervised approach to predict continuous cell cycle progression from nuclei, mitochondria and cytoplasm features. . 
+Figure 4C: Unsupervised approach to predict continuous cell cycle progression from nuclei, mitochondria and cytoplasm features. . 
 ```{r}
 tmp=plot_dimred(model[[FoF]],color_cells = "pseudotime", size_cells=0.4,size_milestones=0.4)
 tmp
-ggsave(paste0(OUTFIGS,filesep,"Fig3C_",thedate,"_labelFree_",FoF,"_pseudotimeTSNE.png"),units="px",width = 0.9*480, height = 480, plot=tmp, dpi=100)
+ggsave(paste0(OUTFIGS,filesep,"Fig4C_",thedate,"_labelFree_",FoF,"_pseudotimeTSNE.png"),units="px",width = 0.9*480, height = 480, plot=tmp, dpi=100)
 ```
 
 
-Figure 3D + supplementary Fig: Pseudotime derived from label free imaging features is differentially distributed across the four FUCCI-informed cell cycle classes.   
+Figure 4D + supplementary Fig: Pseudotime derived from label free imaging features is differentially distributed across the four FUCCI-informed cell cycle classes.   
 ```{r}
-figname=paste0(OUTFIGS, filesep,"Fig3D_",thedate,".png")
+figname=paste0(OUTFIGS, filesep,"Fig4D_",thedate,".png")
 png(figname)
 par(mfrow=c(1,1))
 boxplot(model$All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main="All",cex.main=0.6, cex.axis=0.6)
@@ -674,7 +678,7 @@ dev.off()
 la=plotPNGorTIF(figname)
 
 
-figname=paste0(OUTFIGS, filesep,"Fig3D_",thedate,"_plusSIFig.png")
+figname=paste0(OUTFIGS, filesep,"Fig4D_",thedate,"_plusSIFig.png")
 png(figname, width = 1000, height = 800)
 par(mfrow=c(2,3))
 ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,rownames(fucci_raw),value=T))
@@ -695,7 +699,7 @@ la=plotPNGorTIF(figname)
 ```
 
 
-Figure 3E: representative cell across cell cycle: fucci. 
+Figure 4E: representative cell across cell cycle: fucci. 
 ```{r}
 # Jordan - fucci pseudotime - done
 
@@ -735,7 +739,7 @@ for(coi in unique(target_df$id)){
   a$z <- z_interval * a$z
   a_ <-  a %>% 
     filter(id == coi, signal == "nucleus.p")
-  png(paste0(OUTFIGS, filesep, "Fig3E_", coi, ".png"), width = 600, height = 600)
+  png(paste0(OUTFIGS, filesep, "Fig4E_", coi, ".png"), width = 600, height = 600)
   Plot_ConcaveHull(a_$x, a_$y, a_$z, xlim = xyzlim[,"x"], ylim = xyzlim[,"y"], zlim = xyzlim[,"z"], level = 10, lcolor = "gray", alpha = 0.25, add = F, phi = 30, theta = 140)
   a_$fucci_ch00 <- round(a_$fucci_ch00, 1)
   a_$fucci_ch02 <- round(a_$fucci_ch02, 2)
@@ -752,7 +756,7 @@ for(coi in unique(target_df$id)){
 ```
 
 
-Figure 3F: representative cell across cell cycle: label free. 
+Figure 4F: representative cell across cell cycle: label free. 
 ```{r}
 # jordan: sample cells from 5+ timepoints (from pseudotime in Fig. 3C) and visualize each as in panel 2C - done
 '%!in%' <- function(x,y)!('%in%'(x,y))
@@ -890,20 +894,20 @@ grid.arrange(
 
 
 
-Figure 4: Sequencing imaging integration
+Figure 5: Sequencing imaging integration
 
-Figure 4A: Sequencing derived pseudotime of cell cycle progression
+Figure 5A: Sequencing derived pseudotime of cell cycle progression
 ```{r}
 # cell_ID <- model$Seq$cell_ids
 # model_df <- cbind(pseudotime = model$Seq$pseudotime, cell_ID)
 
 tmp=plot_dimred(model$Seq,color_cells = "pseudotime", size_cells=0.4,size_milestones=0.4)
 tmp
-ggsave(paste0(OUTFIGS,filesep,"Fig4A_",thedate,"_scRNA_pseudotimeTSNE.png"),  units="px",width = 0.9*480, height = 480, plot=tmp, dpi=100)
+ggsave(paste0(OUTFIGS,filesep,"Fig5A_",thedate,"_scRNA_pseudotimeTSNE.png"),  units="px",width = 0.9*480, height = 480, plot=tmp, dpi=100)
 ```
 
 
-Figure 4B: Co-clustering of sequenced and imaged cells based on pseudotime
+Figure 5B: Co-clustering of sequenced and imaged cells based on pseudotime
 ```{r}
 ## co-cluster image and sequencing stats
 load(paste0(OUTPSEUDOTIME, filesep,"scRNAdataset_2024-05-15.RObj")); ## loads pq
@@ -926,7 +930,7 @@ stats=stats[order(stats$pseudotime),]
 # # la=cutree(as.hclust(tr),h = 0.1)
 # col = rep("red", length(tr$tip.label))
 # col[grep("img",tr$tip.label) ] = "blue"
-# figname=paste0(OUTFIGS, filesep,"Fig4B_",thedate,".png") 
+# figname=paste0(OUTFIGS, filesep,"Fig5B_",thedate,".png") 
 # png(figname)
 # par(mfrow=c(1,1))
 # plot(tr,show.tip.label = T, tip.color = col, cex=0.36)
@@ -946,7 +950,7 @@ print(paste(length(unique(stats$cluster)),"clusters identified" ))
 print(paste(100*length(unique(stats_$cluster))/length(unique(stats$cluster)),"% clusters contain both sequenced and imaged cells" ))
 
 
-figname=paste0(OUTFIGS, filesep,"Fig4B_",thedate,".png") 
+figname=paste0(OUTFIGS, filesep,"Fig5B_",thedate,".png") 
 col=rainbow(max(stats_$cluster))
 png(figname)
 ii=which(stats_$type=="Img")
@@ -961,7 +965,7 @@ la=plotPNGorTIF(figname)
 ```
 
 
-Figure 4C: Correlation between gene expression and imaging-derived features
+Figure 5C: Correlation between gene expression and imaging-derived features
 ```{r}
 
 # ## correlation btw gene expression and img features
@@ -1059,13 +1063,13 @@ ii=which(abs(cc)>MINCC, arr.ind = T)
 ii=apply(ii,1, function(x) c(rownames(cc)[x[1]],colnames(cc)[x[2]]))
 colnames(ii)=apply(ii,2, paste, collapse="+")
 
-figname=paste0(OUTFIGS, filesep,"Fig4C_",thedate,".png") 
+figname=paste0(OUTFIGS, filesep,"Fig5C_",thedate,".png") 
 png(figname, width = 2900,height = 1850)
 eval(hm$call)
 dev.off()
 la=plotPNGorTIF(figname)
 
-figname=paste0(OUTFIGS, filesep,"Fig4C_",thedate,"_plusSIFig.png") 
+figname=paste0(OUTFIGS, filesep,"Fig5C_",thedate,"_plusSIFig.png") 
 png(figname,width = 1200,height = 1200)
 par(mfrow=c(3,3))
 sapply(colnames(ii), function(x) plot(pairs[[x]]$s, pairs[[x]]$i, main="", cex.main=2, xlab=ii[1,x], ylab=ii[2,x], pch=20,cex=2, cex.lab=2))
@@ -1075,15 +1079,9 @@ la=plotPNGorTIF(figname)
 ```
 
 
-Figure 5: Allen model training
-```{r}
-
-```
-
-
 Assemble panels to figure
 ```{r}
-panels = list(Fig1 = c("A", "B", "C", "D", "E","G"), Fig2 = c("A", "B", "C", "D"), Fig3 = c("A", "B", "C", "D","F"), Fig4 = c("A", "B", "C"), Fig5 = c("A", "B", "C", "D", "E"))
+panels = list(Fig1 = c("A", "B", "C", "D", "E","G"), Fig3 = c("A", "B", "C", "D"), Fig4 = c("A", "B", "C", "D","F"), Fig5 = c("A", "B", "C"), Fig2 = c("A", "B", "C", "D", "E"))
 plots = list()
 for (fig in names(panels)[1:4]) {
   plots[[fig]] = list()
@@ -1107,13 +1105,13 @@ Assemble panels to figure
 ```{r}
 # print("SVM Balanced.Accuracy")
 # print(confMat[confMat$FoF=="Median","Balanced.Accuracy",drop=F])
-# Figure 2D
-# figname <- paste0(OUTFIGS, filesep, "Fig2D_",thedate,".png")
+# Figure 3D
+# figname <- paste0(OUTFIGS, filesep, "Fig3D_",thedate,".png")
 # ggsave(figname,units="px",width = 480, height = 480, plot=list_plots[[1]] + list_plots[[2]], dpi=140)
 # la=plotPNGorTIF(figname)
 # 
 # a/b/c/d
-# figname <- paste0(OUTFIGS, filesep, "Fig2D_",thedate,"_plusSIFig.png")
+# figname <- paste0(OUTFIGS, filesep, "Fig3D_",thedate,"_plusSIFig.png")
 # ggsave(figname,units="px",width = 1980, height = 2380, dpi=300)
 # Also entire Figure 1E, and 3A and 3D
 # Add dpi=100 and replace 0.6*480 with 0.9*480 in all ggsave
@@ -1129,10 +1127,10 @@ calculate_layout <- function(num_panels) {
 # Assemble panels to figure
 captions = list(
   Fig1 = "FUCCI to characterize discrete and continuous cell cycle progression in NCI-N87. A. Green and red Fucci channels overlayed. B,G: Fucci based discrete cell cycle classification. D: Fucci based pseudotime inference reveals cell cycle progression. E: Fucci based pseudotime trajectory in PCA space. Every dot represents a cell. F: Pseudotime is differentially distributed across the four discrete cell cycle classes.",
-  Fig2 = "Label-free quantification of nucleus, cytoplasm and mitochndria at single cell resolution. A: Predicted nuclei, mitochondria and cytoplasm signals. B: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. C: Nuclei, mitochondria and cytoplasm of 1 representative cell from (B). Every data point is color-coded according to its organelle class. D: Cell features quantified from label free imaging correlate with cell cycle classes as defined by FUCCI.",
-  Fig3 = "Characterization of discrete and continuous cell cycle progression in NCI-N87 with label free imaging. A: Supervised approach to predict discrete cell cycle state from nuclei, mitochondria and cytoplasm features. B: Performance of trained classifier on test set. C: Unsupervised approach to predict continuous cell cycle progression from nuclei, mitochondria and cytoplasm features. D + supplementary Fig: Pseudotime derived from label free imaging features is differentially distributed across the four FUCCI-informed cell cycle classes. E: representative cell across cell cycle: fucci. F: representative cell across cell cycle: label free.",
-  Fig4 = "Sequencing imaging integration. A: Sequencing derived pseudotime of cell cycle progression. B: Co-clustering of sequenced and imaged cells based on pseudotime. Color code indicates cluster membership. C: Correlation between pathway activity and imaging-derived features.",
-  Fig5 = "Evaluating performance of a CNN to predict the spatial distribution of nuclei and mitochondria. (A-C) Representative paired sets from model training using nucleus (train (N=37) / test (N=5) and mitochondria train (N=24) / test (N=5) models showing bright-field input, target signal and predicted signal (A), with train/validation rolling mean square error loss graphs for nucleus (B) and mitochondria (C). (D) Correlation coefficient of target fluorescence vs predicted fluorescence images paired with correlation coefficient from brightfield for the organelles that were used to train the models."
+  Fig3 = "Label-free quantification of nucleus, cytoplasm and mitochndria at single cell resolution. A: Predicted nuclei, mitochondria and cytoplasm signals. B: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. C: Nuclei, mitochondria and cytoplasm of 1 representative cell from (B). Every data point is color-coded according to its organelle class. D: Cell features quantified from label free imaging correlate with cell cycle classes as defined by FUCCI.",
+  Fig4 = "Characterization of discrete and continuous cell cycle progression in NCI-N87 with label free imaging. A: Supervised approach to predict discrete cell cycle state from nuclei, mitochondria and cytoplasm features. B: Performance of trained classifier on test set. C: Unsupervised approach to predict continuous cell cycle progression from nuclei, mitochondria and cytoplasm features. D + supplementary Fig: Pseudotime derived from label free imaging features is differentially distributed across the four FUCCI-informed cell cycle classes. E: representative cell across cell cycle: fucci. F: representative cell across cell cycle: label free.",
+  Fig5 = "Sequencing imaging integration. A: Sequencing derived pseudotime of cell cycle progression. B: Co-clustering of sequenced and imaged cells based on pseudotime. Color code indicates cluster membership. C: Correlation between pathway activity and imaging-derived features.",
+  Fig2 = "Evaluating performance of a CNN to predict the spatial distribution of nuclei and mitochondria. (A-C) Representative paired sets from model training using nucleus (train (N=37) / test (N=5) and mitochondria train (N=24) / test (N=5) models showing bright-field input, target signal and predicted signal (A), with train/validation rolling mean square error loss graphs for nucleus (B) and mitochondria (C). (D) Correlation coefficient of target fluorescence vs predicted fluorescence images paired with correlation coefficient from brightfield for the organelles that were used to train the models."
 )
 
 BORDER = 1
@@ -1158,12 +1156,12 @@ for (fig in names(plots)) {
     for (c in 1:ncol) {
       if (panel_index <= length(plots[[fig]])) {
         panel = names(plots[[fig]])[panel_index]
-        xleft = if (fig == "Fig4" && panel == "C") 0 else (c - 1) * (panel_width + BORDER)  # Adjust xleft for Fig4C
+        xleft = if (fig == "Fig5" && panel == "C") 0 else (c - 1) * (panel_width + BORDER)  # Adjust xleft for Fig5C
         ybottom = total_height - r * (panel_height + BORDER)
-        xright = if (fig == "Fig4" && panel == "C") total_width else xleft + panel_width  # Adjust xright for Fig4C
+        xright = if (fig == "Fig5" && panel == "C") total_width else xleft + panel_width  # Adjust xright for Fig5C
         ytop = ybottom + panel_height
         rasterImage(plots[[fig]][[panel]], xleft, ybottom, xright, ytop)
-        text(xleft + 5, ytop - 5, labels = panel, adj = c(0, 1), cex = 1.5+(fig=="Fig3")*1.5, col = "black", font = 2)
+        text(xleft + 5, ytop - 5, labels = panel, adj = c(0, 1), cex = 1.5+(fig=="Fig4")*1.5, col = "black", font = 2)
         panel_index = panel_index + 1
       }
     }
@@ -1189,9 +1187,9 @@ Supplementary figures
 ```{r}
 captions = list(
   Fig1E = "Fucci-derived pseudtime is differentially distributed across the four cell cycle phases.",
-  Fig4C = "Sequencing- and imaging derived features are correlated.",
-  Fig3D = "Pseudtime derived from label-free imaging is differentially distributed across the four cell cycle phases.",
-  Fig2D = "Cell features derived from label free imaging correlate with FUCCI derived cell cycle progression."
+  Fig5C = "Sequencing- and imaging derived features are correlated.",
+  Fig4D = "Pseudtime derived from label-free imaging is differentially distributed across the four cell cycle phases.",
+  Fig3D = "Cell features derived from label free imaging correlate with FUCCI derived cell cycle progression."
 )
 f = list.files(OUTFIGS, pattern = "_plusSI", full.names = TRUE)
 f = grep(".pdf$", f, value = TRUE, invert = TRUE)
