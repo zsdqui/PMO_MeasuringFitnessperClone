@@ -5,8 +5,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R/data4paper")
-# knitr::opts_knit$set(root.dir = "C:/Users/80027908/Desktop/CC_project/PMO_MeasuringFitnessperClone-master/3D_Imaging/R/data4paper")
+# knitr::opts_knit$set(root.dir = "~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R/data4paper")
+knitr::opts_knit$set(root.dir = "C:/Users/80027908/Desktop/CC_project/PMO_MeasuringFitnessperClone-master/3D_Imaging/R/data4paper")
 library(xlsx)
 library(dyno)
 library(gplots)
@@ -425,15 +425,12 @@ alpha=list(cytoplasm.p=0.035,cytoplasm.t=0.01,nucleus.t=1,nucleus.p=0.135,mito.t
 
 Figure 2B,C: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. 
 ```{r}
-coi=as.character(c(149, 222, 25, 259, 237, 45, 139, 82, 26, 89, 21, 215))
+coi=as.character(c(168, 108, 218, 194, 77, 214))
 coi=setdiff(coi, rownames(imgStats_)[imgStats_$segmentationError])
-coi = coi[c(2,3,6,7,8,10,12)]
 coord__=coord_[coord_$id %in% coi,]
 
-panels=c("B","C")
-names(panels) = coi[c(1,4)]
-for(cell in names(panels)){
-  figname = paste0(OUTFIGS, filesep, "Fig2",panels[cell],"_",thedate,".png")
+for(cell in coi){
+  figname = paste0(OUTFIGS, filesep, "Fig2_", cell,"_",thedate,".png")
   png(figname, width = 600,height = 600)
   par(mfrow=c(1,1), mai=c(0,0,0,0))
   
@@ -446,7 +443,7 @@ for(cell in names(panels)){
   
   a_ <-  a %>% 
     filter(id == cell, signal=="nucleus.p")
-  Plot_ConcaveHull(a_$x, a_$y, a_$z, xlim = xyzlim[,"x"], ylim = xyzlim[,"y"], zlim = xyzlim[,"z"],level = 10, lcolor = "purple", alpha=0.25,add = F, phi = 40,theta = 40)
+  Plot_ConcaveHull(a_$x, a_$y, a_$z, xlim = xyzlim[,"x"], ylim = xyzlim[,"y"], zlim = xyzlim[,"z"],level = 10, lcolor = "magenta", alpha=0.25,add = F, phi = 40,theta = 40)
   
   a_ <-  a %>% 
     filter(id == cell, signal=="mito.p")
@@ -458,6 +455,9 @@ for(cell in names(panels)){
   
   dev.off()
 }
+
+la=plotPNGorTIF(paste0(OUTFIGS, filesep, "Fig2B_2024-06-13.png"))
+la=plotPNGorTIF(paste0(OUTFIGS, filesep, "Fig2C_2024-06-13.png"))
 ```
 
 
@@ -498,14 +498,16 @@ Figure 2A: Predicted nuclei, mitochondria and cytoplasm signals.
 #        cex = 2, text.font = 0.2)
 # dev.off()
 
-cent_df <- coord__ %>% 
+cent_df <- coord_ %>% 
+  filter(id %in% coi) %>% 
   mutate(x = 1024 - (x*4.3103), y = y*4.3103)
-
-cent_df <- cent_df[order(cent_df$id),]
 
 cent_labels <- cent_df %>% 
   group_by(id) %>% 
-  summarise(x = mean(x), y = mean(y)) %>% 
+  summarise(x = mean(x), y = mean(y))
+
+cent_labels <- cent_labels[order(-cent_labels$y),]
+cent_labels <- cent_labels %>% 
   mutate(cell = row_number())
 
 figname = paste0(OUTFIGS, filesep, "Fig2A_",thedate,".png")
@@ -514,53 +516,7 @@ im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig2A_slice.tif"))
 im <- EBImage::resize(im, dim(im)[1]/1)
 plot(raster::as.raster(im[,,,1]))
 # points(cent_df$x, cent_df$y, col=col[as.character(cent_df$id)], pch=16, cex = 1)
-p <- cent_labels %>% 
-  filter(cell == 1)
-text(p$x, p$y+4, labels=expression(bold(1)), col="green", cex=1)
-
-p <- cent_labels %>% 
-  filter(cell == 2)
-text(p$x, p$y+4, labels=expression(bold(2)), col="green", cex=1)
-
-p <- cent_labels %>% 
-  filter(cell == 3)
-text(p$x, p$y+4, labels=expression(bold(3)), col="green", cex=1)
-
-p <- cent_labels %>% 
-  filter(cell == 4)
-text(p$x, p$y+4, labels=expression(bold(4)), col="green", cex=1)
-
-p <- cent_labels %>% 
-  filter(cell == 5)
-text(p$x, p$y+4, labels=expression(bold(5)), col="green", cex=1)
-
-p <- cent_labels %>% 
-  filter(cell == 6)
-text(p$x, p$y+4, labels=expression(bold(6)), col="green", cex=1)
-
-p <- cent_labels %>% 
-  filter(cell == 7)
-text(p$x, p$y+4, labels=expression(bold(7)), col="green", cex=1)
-
-p <- cent_labels %>% 
-  filter(cell == 8)
-text(p$x, p$y+4, labels=expression(bold(8)), col="green", cex=1)
-
-p <- cent_labels %>% 
-  filter(cell == 9)
-text(p$x, p$y+4, labels=expression(bold(9)), col="green", cex=1)
-
-p <- cent_labels %>% 
-  filter(cell == 10)
-text(p$x, p$y+4, labels=expression(bold(10)), col="green", cex=1)
-
-p <- cent_labels %>% 
-  filter(cell == 11)
-text(p$x, p$y+4, labels=expression(bold(11)), col="green", cex=1)
-
-p <- cent_labels %>% 
-  filter(cell == 12)
-text(p$x, p$y+4, labels=expression(bold(12)), col="green", cex=1)
+text(cent_labels$x, cent_labels$y+4, labels=cent_labels$cell, col="green", cex=1)
 legend <- png::readPNG(paste0(OUTFIGS, filesep, "legend_2.png"))
 rasterImage(legend,0,0,200,100)
 dev.off()
@@ -760,12 +716,6 @@ pseud_df <- pseud_df %>%
 fucci_pseud <- left_join(fucci_df, pseud_df, by = join_by(cell == cell))
 colnames(fucci_pseud)[colnames(fucci_pseud) == 'value'] <- 'pseudotime'
 
-# fucci_export <- fucci_pseud %>% 
-#   group_by(id) %>% 
-#   summarise(pseudotime = mean(pseudotime))
-
-# write.csv(fucci_pseud, file = paste0(OUTFIGS, filesep, FoF, "_fucci.csv"))
-
 target_list <- pseud_df %>% 
   filter(!if_any(value, is.na)) %>% 
   filter(abs(value-0.1)==min(abs(value-0.1)) |
@@ -777,146 +727,28 @@ target_list <- pseud_df %>%
 target_df <- fucci_pseud %>% 
   filter(cell %in% target_list$cell)
 
-min(target_df$z)
-max(target_df$z)
-
-# pal <- colorRampPalette(brewer.pal(11, "Greys"))
-# sc <- scale_fill_gradientn(colours = pal(10), limits=c(0, 20.01))
-sc <- scale_fill_distiller(palette = 'Greys')
-for(i in unique(target_df$cell)) {
-  p <- target_df %>% 
-    filter(cell == i)
-  a <- ggplot(p) +
-    geom_tile(aes(x, y, fill = z), alpha = 0.4) +
-    sc +
-    theme_void() +
-    theme(legend.position = "none", 
-          panel.background = element_rect(fill = 'black', colour = 'black')) +
-    geom_tile(aes(x, y, alpha = fucci_ch00), fill = "green") +
-    scale_alpha(range = c(0, 0.3))
-  
-  xlab <- round(p[1,14], digits = 4)
-  b <- ggplot(p) +
-    geom_tile(aes(x, y, fill = z), alpha = 0.4) + 
-    sc +
-    theme_void() +
-    theme(legend.position = "none", 
-          panel.background = element_rect(fill = 'black', colour = 'black'))  +
-    theme(axis.title.x = element_text()) +
-    labs(x = xlab) +
-    geom_tile(aes(x, y, alpha = fucci_ch02), fill = "red") +
-    scale_alpha(range = c(0, 0.3))
-  
-  assign(paste0("plot_ch00_", i), a)
-  assign(paste0("plot_ch02_", i), b)
-}
-
-
-p <- target_df %>% 
-  filter(cell == "cell247")
-plot_ch00_cell247 <- ggplot(p) +
-  geom_tile(aes(x, y, fill = z), alpha = 0.4) +
-  scale_fill_distiller(guide = "none", palette = 'Greys') +
-  theme_void() +
-  theme(panel.background = element_rect(fill = 'black', colour = 'black')) +
-  geom_tile(aes(x, y, alpha = fucci_ch00), fill = "green") +
-  scale_alpha(range = c(0, 0.3))
-
-xlab <- round(p[1,14], digits = 4)
-plot_ch02_cell247 <- ggplot(p) +
-  geom_tile(aes(x, y, fill = z), alpha = 0.4) +
-  scale_fill_distiller(guide = "none", palette = 'Greys') +
-  theme_void() +
-  theme(axis.title.x = element_text(),
-        panel.background = element_rect(fill = 'black', colour = 'black')) +
-  labs(x = xlab) +
-  geom_tile(aes(x, y, alpha = fucci_ch02), fill = "red") +
-  scale_alpha(range = c(0, 0.3))
-
-# Pseudotime increasing from left to right 
-grid.arrange(
-  arrangeGrob(
-    textGrob("A", x = 0, y = 1, vjust = 1, hjust = 0, gp = gpar(fontsize = 12, fontface = "bold")),
-    plot_ch00_cell151, plot_ch00_cell256, plot_ch00_cell288, plot_ch00_cell84, plot_ch00_cell247, 
-    ncol = 6,
-    widths = unit(c(0.1, rep(0.2, 4), 0.35), "null")
-  ),
-  arrangeGrob(
-    textGrob("B", x = 0, y = 1, vjust = 1, hjust = 0, gp = gpar(fontsize = 12, fontface = "bold")),
-    plot_ch02_cell151, plot_ch02_cell256, plot_ch02_cell288, plot_ch02_cell84, plot_ch02_cell247, 
-    ncol = 6,
-    widths = unit(c(0.1, rep(0.2, 4), 0.35), "null")
-  ),
-  nrow = 2
-)
-
-
 for(coi in unique(target_df$id)){
-  a= coord_[coord_$id %in% coi,]
-  a[,xyz]=sweep(a[,xyz],MARGIN = 2,STATS = apply(a[,xyz],2, min),FUN = "-")
-  a[,xyz] = 1+ a[,xyz]
-  xyzlim=apply(a[,xyz],2, quantile, c(0,1))
-  a$z=z_interval*a$z
+  a <- coord_[coord_$id %in% coi,]
+  a[,xyz] <- sweep(a[,xyz], MARGIN = 2, STATS = apply(a[,xyz], 2, min), FUN = "-")
+  a[,xyz] <- 1 + a[,xyz]
+  xyzlim <- apply(a[,xyz], 2, quantile, c(0,1))
+  a$z <- z_interval * a$z
   a_ <-  a %>% 
-    filter(id == coi, signal=="nucleus.p")
-  Plot_ConcaveHull(a_$x, a_$y, a_$z, xlim = xyzlim[,"x"], ylim = xyzlim[,"y"], zlim = xyzlim[,"z"],level = 10, lcolor = "gray", alpha=0.25,add = F, phi = 30,theta = 140)
-  a_$fucci_ch00= round(a_$fucci_ch00,1)
-  a_$fucci_ch02= round(a_$fucci_ch02,2)
+    filter(id == coi, signal == "nucleus.p")
+  png(paste0(OUTFIGS, filesep, "Fig3E_", coi, ".png"), width = 600, height = 600)
+  Plot_ConcaveHull(a_$x, a_$y, a_$z, xlim = xyzlim[,"x"], ylim = xyzlim[,"y"], zlim = xyzlim[,"z"], level = 10, lcolor = "gray", alpha = 0.25, add = F, phi = 30, theta = 140)
+  a_$fucci_ch00 <- round(a_$fucci_ch00, 1)
+  a_$fucci_ch02 <- round(a_$fucci_ch02, 2)
   for(x in unique(a_$fucci_ch00)){
-    i = which(a_$fucci_ch00==x)
-    plot3D::points3D(a_$x[i], a_$y[i], a_$z[i],pch3d=20,  axes=F, xlab="",ylab="", zlab="",col="red",alpha=x, add=T)
+    i <- which(a_$fucci_ch00 == x)
+    plot3D::points3D(a_$x[i], a_$y[i], a_$z[i], pch3d = 20, axes = F, xlab = "", ylab = "", zlab = "", col = "red", alpha = x, add = T)
   }
   for(x in unique(a_$fucci_ch02)){
-    i = which(a_$fucci_ch02==x)
-    plot3D::points3D(a_$x[i], a_$y[i], a_$z[i],pch3d=20,  axes=F, xlab="",ylab="", zlab="",col="green",alpha=x, add=T)
+    i <- which(a_$fucci_ch02 == x)
+    plot3D::points3D(a_$x[i], a_$y[i], a_$z[i], pch3d = 20, axes = F, xlab = "", ylab = "", zlab = "", col = "green", alpha = x, add = T)
   }
-  
+  dev.off()
 }
-
-
-
-## For 3D images
-# figname=paste0(OUTFIGS, filesep, "Fig3E_ch00_", thedate, ".png")
-# if(!file.exists(figname)){
-#   zlim=getZLIM(target_df)
-#   rgl::close3d()
-#   col=rainbow(length(unique(target_df$fucci_ch00)))
-#   names(col)=as.character(unique(target_df$fucci_ch00))
-#   rgl::plot3d(target_df$x, target_df$y, target_df$z, 
-#               pch3d=20, zlim=zlim, size=2, axes=F, 
-#               col=col[as.character(target_df$fucci_ch00)],
-#               xlab="",ylab="", zlab="",alpha=1, add=T)
-#   rgl::movie3d(movie=fileparts(figname)$name, 
-#                rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  
-#                duration = 3,  dir = OUTFIGS,  type = "gif", clean = TRUE)
-# }
-
-# figname=paste0(OUTFIGS, filesep, "Fig3E_ch02_", thedate, ".png")
-# if(!file.exists(figname)){
-#   zlim=getZLIM(target_df)
-#   rgl::close3d()
-#   col=rainbow(length(unique(target_df$fucci_ch02)))
-#   names(col)=as.character(unique(target_df$fucci_ch02))
-#   rgl::plot3d(target_df$x, target_df$y, target_df$z, 
-#               pch3d=20, zlim=zlim, size=2, axes=F, 
-#               col=col[as.character(target_df$fucci_ch02)],
-#               xlab="",ylab="", zlab="",alpha=1, add=T)
-#   rgl::movie3d(movie=fileparts(figname)$name, 
-#                rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  
-#                duration = 3,  dir = OUTFIGS,  type = "gif", clean = TRUE)
-# }
-
-## Check pseudotimes
-# zlim=getZLIM(target_df)
-# rgl::close3d()
-# pal <- colorRampPalette(c("#FDE725FF", "#35B779FF", "#31688E", "#440154"))
-# col=pal(length(unique(target_df$pseudotime)))
-# names(col)=as.character(unique(target_df$pseudotime))
-# rgl::plot3d(target_df$x, target_df$y, target_df$z,
-#             pch3d=20, zlim=zlim, size=2, axes=F,
-#             col=col[as.character(target_df$pseudotime)],
-#             xlab="",ylab="", zlab="",alpha=1, add=T)
-
 ```
 
 
@@ -1052,56 +884,6 @@ grid.arrange(
   ),
   nrow = 3
 )
-
-
-# For 3D
-# figname=paste0(OUTFIGS, filesep, "Fig3F_", thedate, ".png")
-# if(!file.exists(figname)) {
-#   zlim=getZLIM(target_df)
-#   col=rainbow(length(unique(target_df$signal))*1.3)
-#   names(col)=as.character(unique(target_df$signal))
-#   rgl::close3d()
-#   for(s in names(signals)){
-#     X=target_df[target_df$signal==s,]
-#     if(s=="nucleus.p"){
-#       rgl::plot3d(X$x, X$y, X$z, pch3d=20, zlim=zlim, size=2, axes=F, xlab="",ylab="", zlab="",col=col[X$signal],alpha=4*alpha[[s]], add=T)
-#     }else{
-#       rgl::points3d(X$x, X$y, X$z, pch3d=20, col=col[X$signal],alpha=alpha[[s]]*4, add=T)
-#     }
-#   }
-#   rgl::legend3d("bottomright",unique(target_df$signal),fill=col[unique(target_df$signal)])
-#   rgl::movie3d( movie=paste0("Fig3F_",thedate), rgl::spin3d( axis = c(1, 1, 1), rpm = 8),  duration = 1,  dir = OUTFIGS,  type = "gif", clean = TRUE)
-# }
-
-
-## Check pseudotimes
-# zlim=getZLIM(target_df)
-# rgl::close3d()
-# pal <- colorRampPalette(c("#FDE725FF", "#35B779FF", "#31688E", "#440154"))
-# col=pal(length(unique(target_df$pseudotime)))
-# names(col)=as.character(unique(target_df$pseudotime))
-# rgl::plot3d(target_df$x, target_df$y, target_df$z,
-#             pch3d=20, zlim=zlim, size=2, axes=F,
-#             col=col[as.character(target_df$pseudotime)],
-#             xlab="",ylab="", zlab="",alpha=1, add=T)
-# la=plotPNGorTIF(figname)
-
-
-# Get single cell visualizations
-# for(i in unique(coord_$id)) {
-#    p <- coord_ %>% 
-#      filter(id == i)
-#    
-#    print(ggplot(p) +
-#      geom_tile(aes(x, y, fill = signal, alpha = signal)) +
-#      scale_alpha_manual(values = c("nucleus.p" = 0.01, "mito.p" = 0.05, "cytoplasm.p" = 0.05)) +
-#      theme_void() +
-#      theme(legend.position = "none",
-#            panel.background = element_rect(fill = 'black', colour = 'black')) +
-#      scale_fill_manual(values = c("nucleus.p" = "magenta", "mito.p" = "yellow", "cytoplasm.p" = "cyan")))
-#    
-#    ggsave(paste0(OUTFIGS, filesep, "cell_images", filesep, FoF, "_cell_", i, ".png"))
-# }
 
 ```
 
@@ -1301,7 +1083,7 @@ Figure 5: Allen model training
 
 Assemble panels to figure
 ```{r}
-panels = list(Fig1 = c("A", "B", "C", "D", "E","G"), Fig2 = c("A", "B", "C", "D"), Fig3 = c("A", "B", "C", "D","E","F"), Fig4 = c("A", "B", "C"), Fig5 = c("A", "B", "C", "D", "E"))
+panels = list(Fig1 = c("A", "B", "C", "D", "E","G"), Fig2 = c("A", "B", "C", "D"), Fig3 = c("A", "B", "C", "D","F"), Fig4 = c("A", "B", "C"), Fig5 = c("A", "B", "C", "D", "E"))
 plots = list()
 for (fig in names(panels)[1:4]) {
   plots[[fig]] = list()
