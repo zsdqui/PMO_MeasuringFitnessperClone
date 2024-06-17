@@ -219,7 +219,7 @@ Figure 1: FUCCI to characterize discrete and continuous cell cycle progression i
 
 ```{r}
 fuccicol=fliplr(rainbow(max(fucci_raw$cellCycle)*1.2)[1:max(fucci_raw$cellCycle)])
-names(fuccicol) = c("G1", "G1/S transition","S","G2/M")
+names(fuccicol) = c("G1", "G1/S","S","G2/M")
 fucci_=fucci_raw[fucci_raw$FoF==FoF,]
 coord_=readOrganelleCoordinates(signals_per_id[[FoF]], "nucleus.p", OUTLINKED_)
 coord_[,c("x","y")] = coord_[,c("x","y")]/pixelsize_xy
@@ -272,13 +272,13 @@ la=plotPNGorTIF(figname)
 
 
 
-Figure 1B,G: Fucci based descrete cell cycle classification. 
+Figure 1B,C: Fucci based descrete cell cycle classification. 
 ```{r}
 palette(c("#FDE725FF", "#35B779FF", "#31688E", "#440154"))
 
-figname = paste0(OUTFIGS, filesep, "Fig1G_",thedate,".png")
+figname = paste0(OUTFIGS, filesep, "Fig1B_",thedate,".png")
 png(figname)
-plot(fucci_raw$Intensity_IntegratedIntensity_green, fucci_raw$Intensity_IntegratedIntensity_red, col=fucci_raw$cellCycle, pch=20, log="xy")
+plot(fucci_raw$Intensity_IntegratedIntensity_green, fucci_raw$Intensity_IntegratedIntensity_red, col=fucci_raw$cellCycle, pch=20, log="xy", xlab="green signal", ylab="red signal", cex.lab=2, cex.axis=2)
 legend("bottomright", names(fuccicol), fill=1:4)
 dev.off()
 
@@ -330,9 +330,9 @@ print(fr)
 # run("Flatten");
 # saveAs("Tiff", "C:/Users/80027908/Desktop/CC_project/Fig1B_contour.tif");
 
-figname = paste0(OUTFIGS, filesep, "Fig1B_",thedate,".png")
+figname = paste0(OUTFIGS, filesep, "Fig1C_",thedate,".png")
 png(figname)
-im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig1B_contour.tif"))
+im <- bioimagetools::readTIF(paste0(OUTFIGS, filesep,"Fig1C_contour.tif"))
 im <- EBImage::resize(im, dim(im)[1]/1)
 plot(raster::as.raster(im[,,,1]))
 dev.off()
@@ -341,8 +341,15 @@ la=plotPNGorTIF(figname)
 ```
 
 
+Figure 1D: Fucci based pseudotime trajectory in PCA space. 
+```{r}
+tmp=plot_dimred(model[[paste0("Fucci_",FoF)]],color_cells = "pseudotime", size_cells=0.4,size_milestones=0.4)
+tmp
+ggsave(paste0(OUTFIGS,filesep,"Fig1D_",thedate,"_Fucci_",FoF,"_pseudotimeTSNE.png"),units="px",width =480, height = 380, plot=tmp, dpi=100)
+```
 
-Figure 1C: Fucci based pseudotime inference reveals cell cycle progression
+
+Figure 1E: Fucci based pseudotime inference reveals cell cycle progression
 ```{r}
 cc <-  fucci_ %>% 
   select(ID, pseudotime)
@@ -365,7 +372,7 @@ coord_a$order <- findInterval(coord_a$pseudotime, sort(coord_a$pseudotime))
 # dev.off()
 
 pal = colorRampPalette(c("#440154", "#31688E", "#35B779FF", "#FDE725FF"))
-figname = paste0(OUTFIGS, filesep,"Fig1C_",thedate,".png")
+figname = paste0(OUTFIGS, filesep,"Fig1E_",thedate,".png")
 png(figname)
 bioimagetools::img(img[[2]][,,1]);
 fucci_[,"pseudotimeCol"]=round(fucci_[,"pseudotime"]*10)
@@ -379,29 +386,20 @@ la=plotPNGorTIF(figname)
 
 
 
-Figure 1D: Fucci based pseudotime trajectory in PCA space. 
+Figure 1F + supplementary Fig: Pseudotime is differentially distributed across the four discrete cell cycle classes. 
 ```{r}
-tmp=plot_dimred(model[[paste0("Fucci_",FoF)]],color_cells = "pseudotime", size_cells=0.4,size_milestones=0.4)
-tmp
-ggsave(paste0(OUTFIGS,filesep,"Fig1D_",thedate,"_Fucci_",FoF,"_pseudotimeTSNE.png"),units="px",width = 0.9*480, height = 480, plot=tmp, dpi=100)
-```
-
-
-
-Figure 1E + supplementary Fig: Pseudotime is differentially distributed across the four discrete cell cycle classes. 
-```{r}
-figname = paste0(OUTFIGS, filesep,"Fig1E_",thedate,"_plusSIFig.png")
+figname = paste0(OUTFIGS, filesep,"Fig1F_",thedate,"_plusSIFig.png")
 png( figname, width = 1400, height = 400)
 par(mfrow=c(1,4))
 ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,names(model$Fucci_All$pseudotime),value=T))
-sapply(names(ii), function(x) boxplot(model$Fucci_All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="fucci pseudotime", main=x,cex.lab=1.5,cex.main=1.2, cex.axis=2))
+sapply(names(ii), function(x) boxplot(model$Fucci_All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="fucci pseudotime", main=x,cex.lab=2,cex.main=1.2, cex.axis=2)); #
 dev.off()
 la=plotPNGorTIF(figname)
 
 
-figname = paste0(OUTFIGS, filesep,"Fig1E_",thedate,".png")
-png( figname,width = 280,height = 480)
-boxplot(model$Fucci_All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="fucci pseudotime", main="All",cex.main=0.6, cex.axis=0.6)
+figname = paste0(OUTFIGS, filesep,"Fig1F_",thedate,".png")
+png( figname,width = 480,height = 480)
+boxplot(model$Fucci_All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="fucci pseudotime", main="",cex.main=0.6, cex.axis=2, cex.lab=2)
 dev.off()
 la=plotPNGorTIF(figname)
 ```
@@ -655,7 +653,7 @@ tmp=sapply(c("Class..1","Class..2","Class..3","Class..4"), function(x) as.numeri
 
 figname=paste0(OUTFIGS, filesep,"Fig4B_",thedate,".png")
 png(figname )
-boxplot(tmp, names=names(fuccicol), ylab="Balanced.Accuracy")
+boxplot(tmp, names=names(fuccicol), ylab="Balanced.Accuracy",cex.axis=2, cex.lab=1.7)
 dev.off()
 
 la=plotPNGorTIF(figname)
@@ -675,7 +673,7 @@ Figure 4D + supplementary Fig: Pseudotime derived from label free imaging featur
 figname=paste0(OUTFIGS, filesep,"Fig4D_",thedate,".png")
 png(figname)
 par(mfrow=c(1,1))
-boxplot(model$All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main="All",cex.main=0.6, cex.axis=0.6)
+boxplot(model$All$pseudotime[rownames(fucci_raw)]~fucci_raw[,"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main="",cex.main=0.6, cex.axis=1.506, cex.lab=1.7)
 dev.off()
 la=plotPNGorTIF(figname)
 
@@ -685,7 +683,7 @@ png(figname, width = 1000, height = 800)
 par(mfrow=c(2,3))
 ii = sapply(FoFs[c(1,2,4,3)], function(x) grep(x,rownames(fucci_raw),value=T))
 # sapply(names(ii), function(x) boxplot(model[[x]]$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x,cex.main=0.6))
-sapply(names(ii), function(x) boxplot(model$All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x,cex.lab=1.5, cex.axis=2,cex.main=1.2))
+sapply(names(ii), function(x) boxplot(model$All$pseudotime[ii[[x]]]~fucci_raw[ii[[x]],"cellCycle"], xlab="", names=names(fuccicol), ylab="label free pseudotime", main=x,cex.lab=1.7, cex.axis=2,cex.main=1.2))
 
 ii=names(model$All$pseudotime)
 ii=grep(FoFs[1], ii, value=T, invert = T)
@@ -1011,11 +1009,11 @@ figname=paste0(OUTFIGS, filesep,"Fig5B_",thedate,".png")
 col=rainbow(max(stats_$cluster))
 png(figname, width = 680)
 ii=which(stats_$type=="Img")
-plot(1:length(ii), stats_$pseudotime[ii], col=col[stats_$cluster[ii]], xlab="cell", ylab="pseudotime", pch=3)
+plot(1:length(ii), stats_$pseudotime[ii], col=col[stats_$cluster[ii]], xlab="cell", ylab="pseudotime", pch=3, cex.axis=2, cex.lab=2)
 ij=setdiff(1:nrow(stats_),ii)
 ij=sort(sample(ij,length(ii)))
 points(1:length(ij), stats_$pseudotime[ij], col=col[stats_$cluster[ij]], pch=1)
-legend("topleft",c("sequenced cell","imaged cell"),pch=c(1,3),cex=1.2)
+legend("topleft",c("sequenced cell","imaged cell"),pch=c(1,3),cex=2.2)
 dev.off()
 
 la=plotPNGorTIF(figname)
@@ -1129,7 +1127,7 @@ la=plotPNGorTIF(figname)
 Assemble panels to figure
 ```{r}
 panels = list(
-  Fig1 = c("A", "B", "C", "D", "E", "G"), 
+  Fig1 = c("A", "B", "C", "D", "E", "F"), 
   Fig3 = c("A", "B", "C", "D"), 
   Fig4 = c("A", "B", "C", "D", "E", "F"), 
   Fig5 = c("A", "B", "C"), 
@@ -1137,7 +1135,7 @@ panels = list(
 )
 
 plots = list()
-for (fig in names(panels)[1:4]) {
+for (fig in names(panels)[1:3]) {
   plots[[fig]] = list()
   for (panel in panels[[fig]]) {
     f = list.files(OUTFIGS, pattern = paste0("^", fig, panel, "_2024"), full.names = TRUE)
@@ -1176,14 +1174,14 @@ calculate_layout <- function(fig) {
 
 # Assemble panels to figure
 captions = list(
-  Fig1 = "FUCCI to characterize discrete and continuous cell cycle progression in NCI-N87. A. Green and red Fucci channels overlayed. B,G: Fucci based discrete cell cycle classification. D: Fucci based pseudotime inference reveals cell cycle progression. E: Fucci based pseudotime trajectory in PCA space. Every dot represents a cell. F: Pseudotime is differentially distributed across the four discrete cell cycle classes.",
+  Fig1 = "FUCCI to characterize discrete and continuous cell cycle progression in NCI-N87. A. Green and red Fucci channels overlayed. B,C: Fucci based discrete cell cycle classification. D: Fucci based pseudotime trajectory in PCA space. Every dot represents a cell. E: Fucci based pseudotime inference reveals cell cycle progression. F: Pseudotime is differentially distributed across the four discrete cell cycle classes.",
   Fig3 = "Label-free quantification of nucleus, cytoplasm and mitochondria at single cell resolution. A: Predicted nuclei, mitochondria and cytoplasm signals. B: Nuclei, mitochondria and cytoplasm of 10 representative cells from region highlighted in (A). Every data point is color-coded according to its cell membership. C: Nuclei, mitochondria and cytoplasm of 1 representative cell from (B). Every data point is color-coded according to its organelle class. D: Cell features quantified from label free imaging correlate with cell cycle classes as defined by FUCCI.",
   Fig4 = "Characterization of discrete and continuous cell cycle progression in NCI-N87 with label free imaging. A: Supervised approach to predict discrete cell cycle state from nuclei, mitochondria and cytoplasm features. B: Performance of trained classifier on test set. C: Unsupervised approach to predict continuous cell cycle progression from nuclei, mitochondria and cytoplasm features. D + supplementary Fig: Pseudotime derived from label free imaging features is differentially distributed across the four FUCCI-informed cell cycle classes. E: representative cell across cell cycle: fucci. F: representative cell across cell cycle: label free.",
   Fig5 = "Sequencing imaging integration. A: Sequencing derived pseudotime of cell cycle progression. B: Co-clustering of sequenced and imaged cells based on pseudotime. Color code indicates cluster membership. C: Correlation between pathway activity and imaging-derived features.",
   Fig2 = "Evaluating performance of a CNN to predict the spatial distribution of nuclei and mitochondria. (A-C) Representative paired sets from model training using nucleus (train (N=37) / test (N=5) and mitochondria train (N=24) / test (N=5) models showing bright-field input, target signal and predicted signal (A), with train/validation rolling mean square error loss graphs for nucleus (B) and mitochondria (C). (D) Correlation coefficient of target fluorescence vs predicted fluorescence images paired with correlation coefficient from brightfield for the organelles that were used to train the models."
 )
 
-BORDER = 1
+BORDER = 30
 for (fig in names(plots)) {
   # Get the sizes of the plots
   sz = sapply(plots[[fig]], dim)
