@@ -1283,11 +1283,11 @@ for (fig in names(plots)) {
   
   dev.off()
   ## Print caption
-  print(cat("\\begin{figure}\n",
-            '\\includegraphics[width=\\textwidth,height=\\dimexpr \\textheight - 5\\baselineskip\\relax,keepaspectratio]{', gsub("../", "", figname, fixed = T), "}\n",
-            '\\caption{', captions[[fig]], ".}\n",
-            '\\label{', fig, "}\n",
-            '\\end{figure}\n"))'))
+  print(cat("\\begin{figure}\n ",
+            '\\includegraphics[width=\\textwidth,height=\\dimexpr \\textheight - 5\\baselineskip\\relax,keepaspectratio]{', gsub("../", "", figname, fixed = T), "}\n ",
+            '\\caption{', captions[[fig]], ".}\n ",
+            '\\label{', fig, "}\n ",
+            '\\end{figure}\n"))', sep = ""))
 }
 
 
@@ -1322,7 +1322,7 @@ for (fig in sort(unique(figs))) {
             '\\includegraphics[width=\\textwidth,height=\\dimexpr \\textheight - 5\\baselineskip\\relax,keepaspectratio]{',gsub("../","",figname, fixed = T),"}\n",
             '\\caption{',captions[[fig]],".}\n",
             '\\label{',gsub(fig, paste0("SI",fig),fig),"}\n",
-            '\\end{figure}\n'))
+            '\\end{figure}\n', sep = ""))
 }
 ```
 
