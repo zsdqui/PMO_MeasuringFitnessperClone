@@ -1133,8 +1133,8 @@ descriptions <- c(
   "total pixel count of cytoplasm",
   "total pixel count of mitochondria",
   "total pixel count of nucleus",
-  "count of cytoplasm: number of independent segments of cytoplasm",   # !!
-  "count of mitochondria: number of individual mitochondria",          # !!
+  "number of independent segments of cytoplasm",   # !!
+  "number of individual mitochondria",          # !!
   "slice depth",
   "area of cell",
   "volume of cell",
@@ -1191,10 +1191,18 @@ descriptions <- c(
   "ratio of nuclear volume to nuclear area"
 )
 
+table_df <- data.frame("Cell Feature" = features, "Description" = descriptions)
+cc_ <- xtable(table_df)
+table_code <- print(cc_, type = "latex", include.rownames = FALSE, comment = FALSE, print.results = T)
 
-table <- cbind(features, descriptions)
-colnames(table) <- c("cell feature","description")
-print(xtable(table, type = "latex"), file = tabname)
+# Convert the original LaTeX table to the desired format
+modified_table <- gsub("\\\\begin\\{table\\}\\[ht\\]", "\\\\begin{longtable}[H]{| p{0.35\\\\textwidth} | p{.65\\\\textwidth}}", table_code)
+modified_table <- gsub("\\\\end\\{table\\}", "\\\\caption{ Caption }\n \\\\label{ Label }\n \\\\end{longtable}", modified_table)
+modified_table <- gsub("\\\\centering", "", modified_table)
+modified_table <- gsub("\\\\begin\\{tabular\\}\\{ll\\}", "", modified_table)
+modified_table <- gsub("\\\\end\\{tabular\\}", "", modified_table)
+writeLines(modified_table, tabname)
+
 ```
 
 
