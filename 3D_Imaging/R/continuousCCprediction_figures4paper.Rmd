@@ -987,8 +987,15 @@ stats_=stats[typeRepr[stats$cluster+1]==2,]
 stats_=stats[stats$cluster>0,]; ## exclude noise
 print(paste(length(unique(stats$cluster)),"clusters identified" ))
 print(paste(100*length(unique(stats_$cluster))/length(unique(stats$cluster)),"% clusters contain both sequenced and imaged cells" ))
+## Average number of cells per cluster
+stats_split=sapply(c("Seq","Img"), function(x) stats_[stats_$type==x,], simplify = F)
+stats_split=sapply(names(stats_split), function(x) plyr::count(stats_split[[x]]$cluster)$freq, simplify = F)
+sapply(stats_split, hist)
+sapply(stats_split, mean)
+sapply(stats_split, median)
+sapply(stats_split, sum)
 
-
+       
 figname=paste0(OUTFIGS, filesep,"Fig5B_",thedate,".png") 
 col=rainbow(max(stats_$cluster))
 png(figname, width = 680)
@@ -1045,7 +1052,7 @@ cc_ <- xtable(cc_)
 table_code <- print(cc_, type = "latex", include.rownames = FALSE, comment = FALSE, print.results = F)
 # Convert the original LaTeX table to the desired format
 modified_table <- gsub("\\\\begin\\{table\\}\\[ht\\]", "\\\\begin{longtable}[H]{| p{0.5\\\\textwidth} | p{.3\\\\textwidth} | p{.1\\\\textwidth} | p{.1\\\\textwidth} |}", table_code)
-modified_table <- gsub("\\\\end\\{table\\}", "\\\\caption{ Correlation between imaging and sequencing derived feature pairs. Only the top 150 most significant correlations are displayed. P-values are Bonferroni-corrected. }\n \\\\label{ table_imgseq_corr }\n \\\\end{longtable}", modified_table)
+modified_table <- gsub("\\\\end\\{table\\}", "\\\\caption{ Correlation between imaging and sequencing derived feature pairs. Only the top 150 most significant correlations are displayed. P-values are Bonferroni-corrected. }\n \\\\label{table_imgseq_corr}\n \\\\end{longtable}", modified_table)
 modified_table <- gsub("\\\\centering", "", modified_table)
 modified_table <- gsub("\\\\begin\\{tabular\\}\\{llrr\\}", "", modified_table)
 modified_table <- gsub("\\\\end\\{tabular\\}", "", modified_table)
@@ -1133,12 +1140,12 @@ descriptions <- c(
   "total pixel count of cytoplasm",
   "total pixel count of mitochondria",
   "total pixel count of nucleus",
-  "number of independent segments of cytoplasm",   # !!
-  "number of individual mitochondria",          # !!
+  "number of cytoplasm DBSCAN clusters",
+  "number of mitochondria DBSCAN clusters",
   "slice depth",
   "area of cell",
   "volume of cell",
-  "height range of cell",                                              # !!
+  "height range of cell",                  
   "relative area of cell lost to indentations",                            
   "packing of cell",                                                   # !!
   "roundness of cell: spheres have a sphericity of 1",                     
@@ -1146,28 +1153,28 @@ descriptions <- c(
   "maximum area of available crossections of the cell",
   "degree of wrinkling of the cell",
   "total pixel count of cell",
-  "height range of cytoplasm",                                         # !!
+  "height range of cytoplasm",
   "relative area of cytoplasm lost to indentations",                            
   "packing of cytoplasm",                                              # !!
   "roundness of cytoplasm: spheres have a sphericity of 1",                     
   "sma cytoplasm",                                                     # !!
   "csf cytoplasm",                                                     # !!
-  "MinDist_cytoplasm.p_mito.p",                                        # !!
-  "MaxDist_cytoplasm.p_mito.p",                                        # !!
-  "MedianDist_cytoplasm.p_mito.p",                                     # !!
-  "MinDist_cytoplasm.p_nucleus.p",                                     # !!
-  "MaxDist_cytoplasm.p_nucleus.p",                                     # !!
-  "MedianDist_cytoplasm.p_nucleus.p",                                  # !!
-  "height range of mitochondria",                                      # !!
+  "Distance between cytoplasm and mitochondria (minimum)",
+  "Distance between cytoplasm and mitochondria (maximum)",
+  "Distance between cytoplasm and mitochondria (median)",
+  "Distance between cytoplasm and nucleus (minimum)",
+  "Distance between cytoplasm and nucleus (maximum)",
+  "Distance between cytoplasm and nucleus (median)",
+  "height range of mitochondria",               
   "relative area of mitochondria lost to indentations",                        
   "packing of mitochondria",                                           # !!
   "roundness of mitochondria: spheres have a sphericity of 1",                  
   "sma mitochondria",                                                  # !!
   "csf mitochondria",                                                  # !!
-  "MinDist_mito.p_nucleus.p",                                          # !!
-  "MaxDist_mito.p_nucleus.p",                                          # !!
-  "MedianDist_mito.p_nucleus.p",                                       # !!
-  "height range of nucleus",                                           # !!
+  "Distance between mitochondria and nucleus (minimum)",
+  "Distance between mitochondria and nucleus (maximum)",
+  "Distance between mitochondria and nucleus (median)",
+  "height range of nucleus",
   "relative area of nucleus lost to indentations",                             
   "packing of nucleus",                                                # !!
   "roundness of nucleus: spheres have a sphericity of 1",                        
@@ -1182,22 +1189,22 @@ descriptions <- c(
   "median intensity of mutochondria",
   "maximum intensity of mitochondria",
   "minimum intensity of mitochondria",
-  "pixel count per mitochondria",                                      # how is this different from the other pixels per mitochondria
+  "average pixel count per mitochondria",                                      # how is this different from the other pixels per mitochondria -- it is the average
   "resolution of mitochondria",
-  "ratio of nuclei count to mitochondrial count",                      # !!
+  "ratio of nuclei count to mitochondrial count",             
   "resolution of cytoplasm",
   "resolution of mutitochondria",
   "resolution of nucleus",
   "ratio of nuclear volume to nuclear area"
 )
 
-table_df <- data.frame("Cell Feature" = features, "Description" = descriptions)
+table_df <- data.frame("Imaging feature" = features, "Description" = descriptions)
 cc_ <- xtable(table_df)
 table_code <- print(cc_, type = "latex", include.rownames = FALSE, comment = FALSE, print.results = T)
 
 # Convert the original LaTeX table to the desired format
 modified_table <- gsub("\\\\begin\\{table\\}\\[ht\\]", "\\\\begin{longtable}[H]{| p{0.35\\\\textwidth} | p{.65\\\\textwidth}}", table_code)
-modified_table <- gsub("\\\\end\\{table\\}", "\\\\caption{ Caption }\n \\\\label{ Label }\n \\\\end{longtable}", modified_table)
+modified_table <- gsub("\\\\end\\{table\\}", "\\\\caption{Definition of imaging features}\n \\\\label{table_imgfeature_def}\n \\\\end{longtable}", modified_table)
 modified_table <- gsub("\\\\centering", "", modified_table)
 modified_table <- gsub("\\\\begin\\{tabular\\}\\{ll\\}", "", modified_table)
 modified_table <- gsub("\\\\end\\{tabular\\}", "", modified_table)
