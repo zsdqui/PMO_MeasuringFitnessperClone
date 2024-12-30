@@ -27,12 +27,12 @@ def normalize8(I):
         I = ((I - mn)/mx) * 255
         return I.astype(np.uint8)
 
-def load_data(dataframe):
+def load_data(train_dir, dataframe):
     images = []
     labels = []
     for imagePath,label in tqdm(zip(dataframe['image'].tolist(),dataframe['label'].tolist())):
         if imagePath.endswith('.png') or imagePath.endswith('.jpg'):
-            image = cv2.imread(imagePath,-1)
+            image = cv2.imread(os.path.join(train_dir, imagePath),-1)
         else:
             image = tifffile.imread(imagePath)
         #img_temp = image[0,:,:]
@@ -87,7 +87,7 @@ def load_cellCycleData(path2Data):
         for cellCycleImage in os.listdir(os.path.join(path2Data,folder,'images_padded')):
             if not cellCycleImage.startswith('FoF'):
                 continue
-            imagePath = os.path.join(path2Data,folder,'images_padded',cellCycleImage)
+            imagePath = os.path.join(folder,'images_padded',cellCycleImage)
             image_label = int(cellCycleImage.split('cellCyle')[1].split('_')[0])
             list_of_names.append(imagePath)
             list_of_labels.append(image_label-1)

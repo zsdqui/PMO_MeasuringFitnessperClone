@@ -143,10 +143,10 @@ def get_test_accuracy_per_label(df):
     return df_results_summary
 
         
-def test(test_dir,exp,arch):
+def test(train_dir, test_dir,exp,arch):
     #test_datagen = image.ImageDataGenerator(rescale=1./255)
     df = pd.read_csv(os.path.join(test_dir + 'test_data.csv'))
-    img_list,labels = load_data(df)
+    img_list,labels = load_data(train_dir,df)
     #test_datagen.fit(img_list_test)
     print(len(img_list))
     #img_test = np.concatenate(img_list, axis=0)
@@ -177,8 +177,10 @@ def test(test_dir,exp,arch):
     print('state_pred {}'.format(pred.shape))
     print('state_true {}'.format(labels_true.shape))
 
+    df['pred'] = pred
+    df['true_labels'] = labels_true
     #print bottleneck features to csv with labels
-    combined_df = pd.concat([df_labels,df_preds,df_feats],axis=1)
+    combined_df = pd.concat([df['true_labels'],df['pred'],df_feats],axis=1)
     combined_df.to_csv(os.path.join('./Results', exp + '_bottleneck_features.csv'), index=False)
 
     accuracy = accuracy_score(labels_true,pred)
@@ -188,15 +190,13 @@ def test(test_dir,exp,arch):
         txt.write('accuracy for {} is \n {}\n\n'.format(exp,accuracy))
     print('Accuracy is {}'.format(accuracy))
         
-    df['pred'] = pred
-    df['true_labels'] = labels_true
     df_results = get_test_accuracy_per_label(df)
     df_results.to_csv(os.path.join('Results',exp+'_test.txt'), header=True, index=None, sep=' ', mode='a')
     
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-trainDir',help='Train directory',required=False)
+    parser.add_argument('-dataDir',help='Train directory',required=False)
     parser.add_argument('-valDir',help='Val directory',required=False)
     parser.add_argument('-epochs',help='training epochs', required=False)
     parser.add_argument('-arch',help='name of architecture to use, custom_resnet is for the method implement in the paper titled'
@@ -221,10 +221,10 @@ def main():
             sys.exit()
         elif args.finetune and args.path2Model is not None:
             print('Started finetuning of {} model from path {}'.format(args.arch,args.path2Model))
-            train(args.trainDir,args.valDir,args.nlabel,int(args.finetune_epochs),args.exp+'_fine-tuned',args.arch,int(args.batch_size),args.path2Model,args.pre_augment)
+            train(args.dataDir,args.valDir,args.nlabel,int(args.finetune_epochs),args.exp+'_fine-tuned',args.arch,int(args.batch_size),args.path2Model,args.pre_augment)
         elif not args.finetune:
             print('Started training  {} model '.format(args.exp))
-            train(args.trainDir,args.valDir,args.nlabel,int(args.epochs),args.exp,args.arch,int(args.batch_size),None,args.pre_augment)
+            train(args.dataDir,args.valDir,args.nlabel,int(args.epochs),args.exp,args.arch,int(args.batch_size),None,args.pre_augment)
     else:
         if args.testDir == '':
             print('Error, please enter test directory')
@@ -232,7 +232,7 @@ def main():
         else:
             print('Started testing {} model'.format(args.exp))
             if args.finetune:
-                test(args.testDir, args.exp+'_fine-tuned',args.arch) #testing finetuned model
+                test(args.trainDir, args.testDir, args.exp+'_fine-tuned',args.arch) #testing finetuned model
             else:
                 test(args.testDir,args.exp,args.arch) #testing 
 
