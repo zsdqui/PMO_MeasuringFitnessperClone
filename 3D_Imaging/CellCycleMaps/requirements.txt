@@ -1,0 +1,8 @@
+keras
+numpy
+opencv_python
+pandas
+scikit_learn
+tensorflow
+tifffile
+tqdm
