@@ -232,9 +232,9 @@ def main():
         else:
             print('Started testing {} model'.format(args.exp))
             if args.finetune:
-                test(args.trainDir, args.testDir, args.exp+'_fine-tuned',args.arch) #testing finetuned model
+                test(args.dataDir, args.testDir, args.exp+'_fine-tuned',args.arch) #testing finetuned model
             else:
-                test(args.testDir,args.exp,args.arch) #testing 
+                test(args.dataDir, args.testDir,args.exp,args.arch) #testing 
 
 
 if __name__ =="__main__":
