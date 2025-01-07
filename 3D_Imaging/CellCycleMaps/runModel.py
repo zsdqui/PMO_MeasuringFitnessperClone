@@ -179,9 +179,6 @@ def test(train_dir, test_dir,exp,arch):
 
     df['pred'] = pred
     df['true_labels'] = labels_true
-    #print bottleneck features to csv with labels
-    combined_df = pd.concat([df['true_labels'],df['pred'],df_feats],axis=1)
-    combined_df.to_csv(os.path.join('./Results', exp + '_bottleneck_features.csv'), index=False)
 
     accuracy = accuracy_score(labels_true,pred)
     if not os.path.exists('./Results'):
@@ -192,7 +189,10 @@ def test(train_dir, test_dir,exp,arch):
         
     df_results = get_test_accuracy_per_label(df)
     df_results.to_csv(os.path.join('Results',exp+'_test.txt'), header=True, index=None, sep=' ', mode='a')
-    
+    #print bottleneck features to csv with labels
+    combined_df = pd.concat([df['true_labels'],df['pred'],df_feats],axis=1)
+    combined_df.to_csv(os.path.join('./Results', exp + '_bottleneck_features.csv'), index=False)
+
 def main():
     parser = argparse.ArgumentParser()
 
