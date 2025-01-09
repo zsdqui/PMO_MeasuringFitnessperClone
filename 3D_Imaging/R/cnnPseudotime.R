@@ -87,7 +87,7 @@ dataset <- wrap_expression(
 # Infer trajectory using ti_angle
 model <- infer_trajectory(
   dataset,
-  method = ti_angle(dimred='umap)
+  method = ti_angle(dimred='umap')
 )
 
 # Add pseudotime to the filtered data
