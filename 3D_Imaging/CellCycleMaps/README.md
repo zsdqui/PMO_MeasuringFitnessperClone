@@ -3,15 +3,26 @@ These scripts predict the cell cycle assignment of specially formatted imaging d
 
 ## 1) Install requirements (tested with conda package manager, python 3.10)
 ```bash
+conda env create -f environment.yml
+```
+or
+```bash
 pip install -r requirements.txt
 ```
+or run in docker to ensure stable environment
+```bash
+docker run -it -v DATADIR:/data
+```
+
 ## 2) (optional) train model:
 ```bash
 python runModel.py -m train -epochs N_epochs -dataDir dataPATH
 ```
+At the first run, the script will split the dataset into train/val/test splits and corresponding csvs with fovs linked to cell cycle labels will be generated
 
 ## 3) test model/generate bottleneck features (reproduce results in Alahmari et al.):
 ```bash
-python runModel.py -dataDir dataPATH -m test -testDir ./ -arch custom_cnn -exp CNN_exp1_merged_data_ch1
+python runModel.py -dataDir DATADIR -m test -testCSV ./models/test_1ch.csv -arch custom_cnn -exp CNN_exp1_merged_data_ch1
 ```
 A new results folder should be created with accuracy results and features csv file, containing a true cell cycle label, predicted label, and 244 features
+
