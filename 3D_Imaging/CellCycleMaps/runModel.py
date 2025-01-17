@@ -204,10 +204,7 @@ def test(train_dir, testCSV, exp, arch):
     df = pd.read_csv(testCSV)
     img_list, labels = load_data(train_dir, df)
     # test_datagen.fit(img_list_test)
-    print(len(img_list))
-    # img_test = np.concatenate(img_list, axis=0)
     img_test = np.array(img_list)
-    print(img_test.shape)
     img_test = img_test / 255.0
 
     # CellCycle_true,_ = Binarize_labels(labels)
@@ -228,12 +225,9 @@ def test(train_dir, testCSV, exp, arch):
 
     # results = model.evaluate(test_datagen.flow(img_list_test,y=s_label_numeric_test, batch_size = 32, shuffle=False))
     cellCycle = model.predict(img_test)
-    print(cellCycle.shape)
 
     pred = np.argmax(cellCycle, axis=1)
     labels_true = np.argmax(CellCycle_true, axis=1)
-    print("state_pred {}".format(pred.shape))
-    print("state_true {}".format(labels_true.shape))
 
     df["pred"] = pred
     df["true_labels"] = labels_true
