@@ -32,6 +32,7 @@ def normalize8(I):
 def load_data(train_dir, dataframe):
     images = []
     labels = []
+    print("Loading data...")
     for imagePath, label in tqdm(
         zip(dataframe["image"].tolist(), dataframe["label"].tolist())
     ):
