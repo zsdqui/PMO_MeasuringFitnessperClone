@@ -5,13 +5,9 @@ These scripts predict the cell cycle assignment of specially formatted imaging d
 ```bash
 conda env create -f environment.yml
 ```
-or
-```bash
-pip install -r requirements.txt
-```
 or run in docker to ensure stable environment
 ```bash
-docker run -it -v DATADIR:/data
+docker run -it -v DATADIR:/data ghcr.io/zsdqui/cellcycle_cnn:v0.1
 ```
 
 ## 2) (optional) train model:
@@ -24,5 +20,6 @@ At the first run, the script will split the dataset into train/val/test splits a
 ```bash
 python runModel.py -dataDir DATADIR -m test -testCSV ./models/test_1ch.csv -arch custom_cnn -exp CNN_exp1_merged_data_ch1
 ```
+Note: when using this to infer results on a different dataset, replace the test_1ch.csv with your own csv file.
 A new results folder should be created with accuracy results and features csv file, containing a true cell cycle label, predicted label, and 244 features
 
