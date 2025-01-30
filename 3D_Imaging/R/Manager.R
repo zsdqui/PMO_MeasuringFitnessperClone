@@ -4,7 +4,7 @@ setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
 source("CorrectCellposeSegmentation.R")
 source("assignCompartment2Nucleus.R")
 source("compareCells.R")
-source("clusterMito.R")
+# source("clusterMito.R")
 source("generateImageMask.R")
 source("Utils.R")
 source("visualizeSingleCells.R")
@@ -42,12 +42,7 @@ OUTSTATS="A07_LinkedSignals_Stats"
 dirCreate(OUTLINKED, permission = "a+w")
 dirCreate(OUTSTATS, permission = "a+w")
 xmlfiles=list.files('A01_rawData/',pattern=".xml",full.names=T)
-FUCCIDIR=paste0(ROOT,filesep,"I08_3DCellProfiler_FUCCI")
-fucci=read.csv(list.files(FUCCIDIR,recursive = T, pattern="object.csv", full.names = T))
-fucci$FileName_bright=gsub(".ome.tif","",gsub("stk_0001_","",fucci$FileName_bright))
-colnames(fucci)=gsub("Location_Center_","", colnames(fucci))
-ii=which(colnames(fucci) %in% toupper(xyz))
-colnames(fucci)[ii]=tolower(colnames(fucci)[ii])
+
 
 ## Local helper functions
 correctSegmentations<-function(FoF, signals, eps){
@@ -89,18 +84,29 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 }
 
 
+REGEX="240918_fluorescent.nucleus"
+#REGEX="231005_fluorescent.nucleus"
+MINGREEN = 250
+MINRED = 600
+
+##########################
+### read fucci results ###
+FUCCIDIR=paste0(ROOT,filesep,"I08_3DCellProfiler_FUCCI/FoFX_", REGEX)
+fucci=read.csv(list.files(FUCCIDIR,recursive = T, pattern="object.csv", full.names = T))
+fucci$FileName_bright=gsub(".ome.tif","",gsub("stk_0001_","",fucci$FileName_bright))
+colnames(fucci)=gsub("Location_Center_","", colnames(fucci))
+ii=which(colnames(fucci) %in% toupper(xyz))
+colnames(fucci)[ii]=tolower(colnames(fucci)[ii])
+fucci$FileName_bright=gsub("_ch1","",fucci$FileName_bright)
+
 ###############################################
 ######Allen model performance evaluation#######
 ###############################################
 
 ## Input and output:
-# FoFs=paste0("FoF",1:5,"007_220523_brightfield")
-# FoFs=paste0("FoF",1:5,"001_220721_brightfield")
-# FoFs=list.files(INDIR, pattern="001003_221018_brightfield")
-# FoFs=list.files(INDIR, pattern="001005_221018_brightfield")
-FoFs=list.files(INDIR, pattern="231005_fluorescent.nucleus")
-# FoFs=c(list.files(INDIR, pattern="FoF20020"), list.files(INDIR, pattern="FoF40020")); FoFs=grep("221018_brightfield",FoFs, value = T)
-signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv", cytoplasm.p="cytoplasm.p_Cells_Centers.csv")
+# FoFs=list.files(INDIR, pattern=REGEX)
+FoFs=list.files(INDIR, pattern=REGEX)
+signals=list(nucleus.p="nucleus.p_Cells_Centers.csv");#,mito.p="mito.p_Cells_Centers.csv", cytoplasm.p="cytoplasm.p_Cells_Centers.csv")
 # signals=list(nucleus.p="nucleus.p_Cells_Centers.csv"); #nucleus.t="nucleus.t_Cells_Centers.csv",
 # signals=list(nucleus.t="nucleus.t_Cells_Centers.csv"); 
 stats=list()
@@ -116,6 +122,7 @@ for(FoF in FoFs){
   ###### Correcting Cellpose Segmentation #######
   ###############################################
   CorrectCellposeSegmentation(FoF,signal=names(signals)[1],INDIR,OUTCORRECTED,doplot=0,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
+  OUTLINKED_=paste0(getwd(),filesep,OUTCORRECTED,filesep,FoF,filesep,"All_Cells_coordinates")
   ncells[[FoF]]= length(list.files(paste0(OUTCORRECTED,filesep,FoF,filesep,"All_Cells_coordinates"),pattern = "nucleus"))
   # # ## For live-cell tracking:
   # # # # CorrectCellposeSegmentation(FoF,signal=names(signals),INDIR,OUTCORRECTED,doplot=F,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
@@ -161,31 +168,59 @@ for(FoF in FoFs){
   ## Save cellprofiler output with matching nucleus ID:
   fucci_=fucci[fucci$FileName_bright==FoF,]
   fucci_$ID=NA
+  colnames(fucci_) = gsub("fluor_1","green",colnames(fucci_)) ## fluor_1 = green
+  colnames(fucci_) = gsub("fluor_2","red",colnames(fucci_)) ## fluor_2 = red
+  ## classify cell cycle phase
+  fucci_$cellCycle = 2
+  fucci_$cellCycle[fucci_$Intensity_IntegratedIntensity_green>MINGREEN & fucci_$Intensity_IntegratedIntensity_red<MINRED] = 1
+  fucci_$cellCycle[fucci_$Intensity_IntegratedIntensity_green<MINGREEN & fucci_$Intensity_IntegratedIntensity_red>MINRED] = 3
+  fucci_$cellCycle[fucci_$Intensity_IntegratedIntensity_green>MINGREEN & fucci_$Intensity_IntegratedIntensity_red>MINRED] = 4
   for(x in f){
     coord=read.csv(file=x,check.names = F,stringsAsFactors = F)
     coord_ = coord
     coord_[,xyz] = coord_[,xyz]+1
     coord$fucci_ch00=apply(coord_,1, function(p) fucci_coord$ch00[p["y"],p["x"],p["z"]])
     coord$fucci_ch02=apply(coord_,1, function(p) fucci_coord$ch02[as.numeric(p["y"]),as.numeric(p["x"]),as.numeric(p["z"])] )
-    ## Save output -- overwrite
-    write.csv(coord, file=x,quote = F,row.names = F)
-    ## Assign FUCCI ID:
+     ## Assign FUCCI ID:
     d=dist2(t(as.matrix(apply(coord_[,xyz],2,mean))), fucci_[,xyz])
     fucci_$ID[which.min(d)] = as.numeric(strsplit(fileparts(x)$name,"_")[[1]][3])
+    
+    coord$cellCycle = fucci_$cellCycle[which.min(d)]
+    ## Save output -- overwrite
+    write.csv(coord, file=x,quote = F,row.names = F)
   }
   fucci_=fucci_[!is.na(fucci_$ID),]
-  colnames(fucci_) = gsub("fluor_1","green",colnames(fucci_)) ## fluor_1 = green
-  colnames(fucci_) = gsub("fluor_2","red",colnames(fucci_)) ## fluor_2 = red
+  rownames(fucci_)=fucci_$ID
   write.table(fucci_, file=paste0(OUTLINKED_,filesep,FoF,"_fucci.txt"), quote = F,row.names = F, sep="\t")
-
   
-  ## Visualize cells
-  cells=unique(sapply(strsplit(list.files(OUTLINKED_,pattern = "nucleus.p"),"_"),"[[",3))
-  tmp=sapply(cells, function(i) visualizeSingleCells(i, signals$mito.p, signals$nucleus.p, OUTLINKED_))
+  # ## Visualize cells
+  # cells=unique(sapply(strsplit(list.files(OUTLINKED_,pattern = "nucleus.p"),"_"),"[[",3))
+  # tmp=sapply(cells, function(i) visualizeSingleCells(i, signals$mito.p, signals$nucleus.p, OUTLINKED_))
   
   # ## Compare each predicted to its linked target nucleus
   # stats[[FoF]]=compareCells(signals$nucleus.t, signals$nucleus.p, OUTLINKED_)
 }
+
+
+## keep only cells with all three signals:
+signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv",cytoplasm.p="cytoplasm.p_Cells_Centers.csv")
+signals_per_id=list()
+## Input and output:
+for(FoF in FoFs){
+  OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
+  
+  f=list.files(OUTLINKED_,full.names = T, pattern = ".csv")
+  signals_per_id_=plyr::count(sapply(strsplit(f,"_"), function(x) x[length(x)-1]))
+  toRM=signals_per_id_$x[signals_per_id_$freq<length(signals)]
+  for(x in toRM){
+    y=list.files(OUTLINKED_,full.names = T,pattern = paste0("_",x,"_"))
+    file.remove(y)
+  }
+  signals_per_id[[FoF]]=signals_per_id_[!signals_per_id_$x %in% toRM,]
+}
+barplot(sapply(signals_per_id,nrow), names=names(signals_per_id))
+
+
 barplot(unlist(ncells), names=names(ncells))
 save(file="~/Downloads/stats.RObj","stats")
 ## save as h5 for Ilastik
@@ -240,42 +275,16 @@ for(FoF in FoFs){
 barplot(sapply(signals_per_id,nrow), names=names(signals_per_id))
 
 
-
-#################################
-###### Linking organelles #######
-#################################
-# 2005, 2006, 1005, 1003
-# 1 = unsynchronized, 2 = synchronized
-setwd(ROOT)
-FoFs=list.files(OUTLINKED, pattern="231005_fluorescent.nucleus")
-# FoFs=list.files(OUTLINKED, pattern="001003_221018_brightfield")
-# FoFs=list.files(OUTLINKED, pattern="002005_221018_brightfield")
-# FoFs=list.files(OUTLINKED, pattern="001005_221018_brightfield")
-signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv",cytoplasm.p="cytoplasm.p_Cells_Centers.csv")
-# FoFs="FoF13_220228_fluorescent.cytoplasm"
-# signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv",cytoplasm.t="cytoplasm.t_Cells_Centers.csv")
-signals_per_id=list()
-## Input and output:
-for(FoF in FoFs){
-  OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
-  
-  # ## link each predicted nucleus to its closest target nucleus
-  # setwd(paste0(OUTCORRECTED,filesep,FoF,filesep,"Cells_center_coordinates"))
-  # assignCompartment2Nucleus(signals$mito.p, signals$nucleus.p, OUTLINKED_)
-  # # assignCompartment2Nucleus(signals$cytoplasm.t, signals$nucleus.p, OUTLINKED_)
-  # setwd(ROOT)
-  
-  ## keep only cells with all three signals:
-  f=list.files(OUTLINKED_,full.names = T, pattern = ".csv")
-  signals_per_id_=plyr::count(sapply(strsplit(f,"_"), function(x) x[length(x)-1]))
-  toRM=signals_per_id_$x[signals_per_id_$freq<length(signals)]
-  for(x in toRM){
-    y=list.files(OUTLINKED_,full.names = T,pattern = paste0("_",x,"_"))
-    file.remove(y)
-  }
-  signals_per_id[[FoF]]=signals_per_id_[!signals_per_id_$x %in% toRM,]
+## write masks classified by cell cycle state for Saeed 
+for(x in FoFs[1:3]){
+  OUTLINKED_=paste0(ROOT,filesep,OUTCORRECTED,filesep,x,filesep,"All_Cells_coordinates")
+  fucci_=read.table(file=paste0(OUTLINKED_,filesep,x,"_fucci.txt"), sep="\t", header=T)
+  rownames(fucci_)=fucci_$ID
+  coord_=readOrganelleCoordinates(signals_per_id[[x]], "nucleus.p", paste0(OUTLINKED,filesep,x,filesep) )
+  coord__=coord_[coord_$z>8.4 & coord_$z<11.5, ]
+  coord__$cellCycle=fucci_[coord__$id,]$cellCycle
+  write.table(coord__,file=paste0("~/Downloads/",x,"_fucciDiscreteCellCycle.txt"), sep="\t", quote = F, row.names = F)
 }
-barplot(sapply(signals_per_id,nrow), names=names(signals_per_id))
 
 
 ###########################
