@@ -152,7 +152,7 @@ for(FoF in FoFs){
   # # # assignCompartment2Nucleus(signals$nucleus.p, signals$nucleus.t, OUTLINKED_)
   # assignCompartment2Nucleus(signals$mito.p, signals$nucleus.p, OUTLINKED_, save_cell_gif=F)
   # assignCompartment2Nucleus(signals$cytoplasm.p, signals$nucleus.p, OUTLINKED_, save_cell_gif=F)
-  assignCompartment2Nucleus(MITOTIF, CYTOTIF,OUTLINKED_, signals$nucleus.p, save_cell_gif=T)
+  assignCompartment2Nucleus(MITOTIF, CYTOTIF,OUTLINKED_, signals$nucleus.p, save_cell_gif=F)
   setwd(ROOT)
   
   
