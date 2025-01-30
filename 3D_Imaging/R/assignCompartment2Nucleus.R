@@ -160,7 +160,7 @@ assignCompartment2Nucleus<-function(MITOTIF, CYTOTIF,OUTD, nuc_center_coord, sav
       write.csv(assigned_coord$nucleus.p[[i]][,c("x", "y", "z")],paste0(OUTD,"nucleus.p_cell_",i,"_coordinates.csv"), row.names = F, quote = F)
       ##Visualize cell
       if(save_cell_gif){
-        visualizeSingleCells(i, organelle, nuc_center_coord,OUTD)
+        try(visualizeSingleCells(i, organelle, nuc_center_coord,OUTD))
       }
     }
   }
