@@ -48,23 +48,32 @@ assignCompartment2Nucleus<-function(MITOTIF, CYTOTIF,OUTD, nuc_center_coord, sav
     coord_$signal=1
     coord_$what="nucleus.p"
     coord_$id=rownames(coord_)
+    stop=F
     for(organelle in names(organelle_coord)){
       o_coord =organelle_coord[[organelle]]
       ii=which(o_coord$y>rspan[1,"y"] & o_coord$y<rspan[2,"y"] & o_coord$x>rspan[1,"x"] & o_coord$x<rspan[2,"x"] & o_coord$z>rspan[1,"z"] & o_coord$z<rspan[2,"z"])
+      if(isempty(ii)){
+        stop=T;
+        break;
+      }
       o_coord_ = o_coord[ii, c(xyz,"signal")]
       o_coord_$what=organelle
       o_coord_$id=rownames(o_coord_)
       coord_=rbind(coord_[,c(xyz,"what","signal","id")],o_coord_[,c(xyz,"what","signal","id")])
     }
+    if(stop){
+      print(paste("not all organelles are represented for cell",j,". Excluding this cell"))
+      next;
+    }
     coord_$cell=j
     clusters=dbscan::dbscan(coord_[,c("x", "y", "z")], eps=1,minPts = 2, weights=coord_$signal)
     # clusters=dbscan::dbscan(mito_coord[,c("x_adj", "y_adj", "z_adj")], eps=z_interval,minPts = 1, weights=mito_coord$signal)
     fr=plyr::count(clusters$cluster)
-    print(paste("Found",nrow(fr),"clusters"))
-    print(paste(100*fr[1,2]/nrow(mito_coord),"% of datapoints clustered as noise"))
+    print(paste("cell",j,": Found",nrow(fr),"clusters"))
+    # print(paste(100*fr[1,2]/nrow(mito_coord),"% of datapoints clustered as noise"))
     print(vegan::diversity(fr$freq/sum(fr$freq),"simpson"))
     
-    # ## plot
+    # # plot
     # try(rgl.close())
     # tmp = quantile(coord_$z,c(0,1))
     # space=tmp[2]-tmp[1]
@@ -72,7 +81,8 @@ assignCompartment2Nucleus<-function(MITOTIF, CYTOTIF,OUTD, nuc_center_coord, sav
     # jj=which(clusters$cluster>0)
     # jj=jj[sample(length(jj),length(jj)*0.25)]
     # rgl::plot3d(coord_$x[jj], coord_$y[jj], coord_$z[jj], pch3d=20, size=2, zlim=zlim,axes=F, xlab="",ylab="", zlab="",col=clusters$cluster[jj]+1,alpha=alpha[coord_$what[jj]], add=F)
-    # # rgl::plot3d(coord_$x[jj], coord_$y[jj], coord_$z[jj], pch3d=20, size=2, zlim=zlim,axes=F, xlab="",ylab="", zlab="",col=col_org[coord_$what[jj]],alpha=alpha[coord_$what[jj]], add=F)
+    # # # rgl::plot3d(coord_$x[jj], coord_$y[jj], coord_$z[jj], pch3d=20, size=2, zlim=zlim,axes=F, xlab="",ylab="", zlab="",col=col_org[coord_$what[jj]],alpha=alpha[coord_$what[jj]], add=F)
+    # # # rgl.postscript("~/Downloads/plot.pdf",fmt="pdf")
     
     ## find out which cluster has nucleus of interest in it:
     fr=plyr::count(clusters$cluster[coord_$what=="nucleus.p"])
@@ -83,6 +93,15 @@ assignCompartment2Nucleus<-function(MITOTIF, CYTOTIF,OUTD, nuc_center_coord, sav
       assigned_coord[[organelle]][[as.character(j)]]=coord_[ii,,drop=F]
     }
     assigned_coord[["nucleus.p"]][[as.character(j)]]=coord_[coord_$what=="nucleus.p",,drop=F]
+    
+    # ##plot
+    # la=sapply(assigned_coord, function(x) x[[as.character(j)]][,c(xyz,"what")], simplify=F)
+    # coord_=do.call(rbind,la)
+    # try(rgl.close())
+    # tmp = quantile(coord_$z,c(0,1))
+    # space=tmp[2]-tmp[1]
+    # zlim=c(tmp[1]-space/2, tmp[2]+space/2)
+    # rgl::plot3d(coord_$x, coord_$y, coord_$z, pch3d=20, size=2, zlim=zlim,axes=F, xlab="",ylab="", zlab="",col=col_org[coord_$what],alpha=alpha[coord_$what], add=F)
   }
   
   ## correct doubly assigned coordinates
