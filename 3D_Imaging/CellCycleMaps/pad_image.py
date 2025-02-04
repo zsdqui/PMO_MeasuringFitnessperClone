@@ -115,7 +115,10 @@ def pad_data(list_of_data, df_max_cell):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Pad image patches to 64x64 for training.')
     parser.add_argument('path2Patches', type=str, help='Path to the patches directory.')
-    parser.add_argument('path2Save',type=str,help='Path to directory for saving the patches')
+    parser.add_argument('path2Save',type=str,default='same_as_path2Patches',help='Path to directory for saving the patches',nargs='?')
     args = parser.parse_args()
-    list_of_data, df_max_cell = get_cell_data(args.path2Patches,args.path2Save)
+    if args.path2Save == 'same_as_path2Patches':
+        list_of_data, df_max_cell = get_cell_data(args.path2Patches,args.path2Patches)
+    else:
+        list_of_data, df_max_cell = get_cell_data(args.path2Patches,args.path2Save)
     pad_data(list_of_data, df_max_cell)
