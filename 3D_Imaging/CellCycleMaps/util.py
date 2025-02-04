@@ -1,5 +1,4 @@
 # Util file
-
 import numpy as np
 from enum import unique
 import os
@@ -36,6 +35,7 @@ def load_data(train_dir, dataframe):
     for imagePath, label in tqdm(
         zip(dataframe["image"].tolist(), dataframe["label"].tolist())
     ):
+        imagePath = imagePath.lstrip(os.sep)
         if imagePath.endswith(".png") or imagePath.endswith(".jpg"):
             image = cv2.imread(os.path.join(train_dir, imagePath), -1)
         else:
