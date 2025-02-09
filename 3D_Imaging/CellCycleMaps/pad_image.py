@@ -5,6 +5,7 @@ import tifffile as tifffile
 from tqdm import tqdm
 import pandas as pd
 import argparse  # Add argparse to handle user arguments
+import sys
 
 def pad_image_to_64x64(img, output_path):
     # Get the size of the image
@@ -96,7 +97,11 @@ def pad_data(list_of_data, df_max_cell):
             if percentage_reduction_x == 0 and percentage_reduction_y == 0:
                 image_resized = image
                 pass
-            else:
+            else:  # update reduction percentages if it is zero to avoid issues with cv2.resize      
+                if percentage_reduction_x  == 0:
+                    percentage_reduction_x = 1
+                if percentage_reduction_y == 0:
+                    percentage_reduction_y = 1    
                 if len(image.shape) > 2:
                     new_x = image.shape[1] * percentage_reduction_x
                     new_y = image.shape[2] * percentage_reduction_y
