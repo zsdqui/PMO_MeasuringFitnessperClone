@@ -139,6 +139,8 @@ class DataGenerator(keras.utils.Sequence):
                 img = img_transposed
             if 'cell' in img_name and self.augment:
                 label2 = 0
+                if not img.dtype == np.uint8:
+                    img = self.normalize8(img)
                 if not img.shape[-1] == 3:
                     #img  = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
                     img = np.stack([img,img,img], axis = -1)
@@ -148,6 +150,8 @@ class DataGenerator(keras.utils.Sequence):
                 y1_train = y1_train + y1 
                 #y2_train = y2_train + y2
             else:
+                if not img.dtype == np.uint8:
+                    img = self.normalize8(img)
                 if not img.shape[-1] == 3:
                     img = np.stack([img,img,img],axis = -1)
                     #img  = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
