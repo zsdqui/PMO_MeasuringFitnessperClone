@@ -9,8 +9,9 @@ import tensorflow as tf
 import tifffile as tifffile
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, samples,num_classes, batch_size=32, dim=(64,64), n_channels=1, shuffle=True,augment=False,n_labels=1):
+    def __init__(self,data_path,samples,num_classes, batch_size=32, dim=(64,64), n_channels=1, shuffle=True,augment=False,n_labels=1):
         'Initialization'
+        self.data_path = data_path
         self.dim = dim
         self.augment = augment
         self.batch_size = batch_size
@@ -56,37 +57,10 @@ class DataGenerator(keras.utils.Sequence):
         aug_list = []
         aug_list.append(image)
         #Rotation 
-        ''' 
-        for i in range(90,360,90):
+        for i in range(10,360,10):
             #print('rotation angle {}'.format(i))
             aug_image = self.augmentor.apply_transform(image,{'theta':i})
             aug_list.append(aug_image)
-        
-        if 'cellCyle3' in img_name:
-            #Shifting horizontally 
-            for i in [0.2,0.3,0.4,0.5]:
-                #print('shifting amount {}'.format(i))
-                aug_image = self.augmentor.apply_transform(image,{'tx':i})
-                aug_list.append(aug_image)
-                aug_image = self.augmentor.apply_transform(image,{'ty':i})
-                aug_list.append(aug_image)
-        
-        #Shear augmentation 
-        if 'cellCyle3' in img_name:
-            for i in  [0.2,0.3,0.4,0.5]:
-                #print('shear angle {}'.format(i))
-                aug_image = self.augmentor.apply_transform(image,{'shear':i})
-                aug_list.append(aug_image)
-        '''
-        '''
-        #Zoom in x and y directions
-        for i in  [-0.02,-0.01,0.02,0.01]:
-            #print('zoom by {}'.format(i))
-            aug_image = self.augmentor.apply_transform(image,{'zx':i})
-            aug_list.append(aug_image)
-            aug_image = self.augmentor.apply_transform(image,{'zy':i})
-            aug_list.append(aug_image)
-        '''
         for i in range(10): # generate 10x random images. 
             aug_image = tf.image.random_brightness(image, max_delta=0.1)  # Random brightness
             aug_list.append(aug_image)
@@ -145,11 +119,11 @@ class DataGenerator(keras.utils.Sequence):
             #print(batch_sample)
             img_name = self.samples.iloc[ind]['image']
             #print(img_name)
-            label1 = self.samples.iloc[ind]['label']  # TBD  change this to get the label from the image name.
+            label1 = self.samples.iloc[ind]['label']
             if img_name.endswith('.png') or img_name.endswith('.jpg'): 
-                img = cv2.imread(img_name,-1)
+                img = cv2.imread(os.path.join(self.data_path,img_name),-1)
             else:
-                img = tifffile.imread(img_name)
+                img = tifffile.imread(os.path.join(self.data_path,img_name))
             #Just to check if three channels impact the performance 
             #img_temp = img[0,:,:]
             #img = img_temp
@@ -165,9 +139,6 @@ class DataGenerator(keras.utils.Sequence):
                 img = img_transposed
             if 'cell' in img_name and self.augment:
                 label2 = 0
-                if not img.dtype == np.uint8:
-                    img = self.normalize8(img)
-                #print(img.shape)
                 if not img.shape[-1] == 3:
                     #img  = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
                     img = np.stack([img,img,img], axis = -1)
@@ -177,20 +148,15 @@ class DataGenerator(keras.utils.Sequence):
                 y1_train = y1_train + y1 
                 #y2_train = y2_train + y2
             else:
-                if not img.dtype == np.uint8:
-                    img = self.normalize8(img)
-
                 if not img.shape[-1] == 3:
                     img = np.stack([img,img,img],axis = -1)
                     #img  = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-                
-                #img = img.astype(np.float32)
                 X_train.append(img)
                 y1_train.append(label1)
 
         # Make sure they're numpy arrays (as opposed to lists)
         X_train = np.array(X_train)
-        #X_train = X_train.astype(np.float32)
+        X_train = X_train.astype(np.float32)
         X_train = X_train / 255.0
         y1_train = np.array(y1_train)
         # The generator-y part: yield the next training batch

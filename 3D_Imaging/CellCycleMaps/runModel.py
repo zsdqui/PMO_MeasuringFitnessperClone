@@ -117,18 +117,18 @@ def train(
             Augmentor = AugmentImages(train_dir, train_dir + "-aug")
             Augmentor.iterate_df()
         train_df = load_cellCycleData(train_dir + "-aug")
-        training_generator = DataGenerator(
+        training_generator = DataGenerator(train_dir+'-aug',
             train_df, num_classes=4, batch_size=batch_size, augment=False
         )
-        val_generator = DataGenerator(
+        val_generator = DataGenerator(train_dir,
             val_df, num_classes=4, batch_size=batch_size, augment=False
         )
     else:
         # val_df = pd.read_csv('./'+train_dir+'/val_data.csv')
-        training_generator = DataGenerator(
+        training_generator = DataGenerator(train_dir,
             train_df, num_classes=4, batch_size=batch_size, augment=True
         )
-        val_generator = DataGenerator(
+        val_generator = DataGenerator(train_dir,
             val_df, num_classes=4, batch_size=batch_size, augment=True
         )
 
@@ -161,15 +161,13 @@ def train(
             print("Loading pre-trained model, please wait...")
             model = load_keras_model(path2PretrainedModel)
     model.summary()
-    print("Fitting the model with images of one label")
-    model.fit(
-        training_generator,
+    print("Fitting the model ...")
+    model.fit(training_generator,
         validation_data=val_generator,
         batch_size=batch_size,
         steps_per_epoch=int(training_generator.__len__() / batch_size),
         epochs=nepochs,
-        callbacks=[model_checkpoint],
-    )
+        callbacks=[model_checkpoint])
 
 
 def get_test_accuracy_per_label(df):

@@ -46,15 +46,17 @@ class AugmentImages():
         df_train = pd.read_csv(os.path.join(self.path2Data,'train_data.csv'))
         for filePath,label in tqdm(zip(df_train['image'].tolist(),df_train['label'].tolist())):
             try:
-                image = tifffile.imread(filePath)
+                #print(filePath)
+                image = tifffile.imread(os.path.join(self.path2Data,filePath))
                 image_name = os.path.basename(filePath)
+                dir_name = os.path.dirname(filePath)
                 label_name = image_name.split('_')[-2]
                 if image.shape[0] == 3:
                     image_rgb = image.transpose(1 , 2 , 0)
                 else:
                     image_rgb = np.stack([image,image,image], axis = -1)
                 aug_image,labels = self.random_augmentation(image_rgb,label_name,image_name)
-                self.save_aug_images(aug_image,labels,image_name)
+                self.save_aug_images(aug_image,labels,dir_name,image_name)
             except Exception as e:
                 print("Error in image {}  {}.".format(image_name,e))
 
@@ -70,26 +72,26 @@ class AugmentImages():
         I = ((I - mn)/mx) * 255
         return I.astype(np.uint8)
 
-    def save_aug_images(self,aug_images,labels,image_name=None):
+    def save_aug_images(self,aug_images,labels,dir_name,image_name=None):
         index = 0
         for image,folder in zip(aug_images,labels):
-            if not os.path.exists(os.path.join(self.path2Save,folder,'images_padded')):
-                os.makedirs(os.path.join(self.path2Save,folder,'images_padded'))
+            if not os.path.exists(os.path.join(self.path2Save,dir_name)):
+                os.makedirs(os.path.join(self.path2Save,dir_name))
             aug_image_name = image_name.split('.tif')[0] + '_aug_'+str(index)+'.png'
             image = self.normalize8(image)
-            cv2.imwrite(os.path.join(self.path2Save,folder,'images_padded',aug_image_name),image)
+            cv2.imwrite(os.path.join(self.path2Save,dir_name,aug_image_name),image)
             index = index + 1
     def random_augmentation(self,image,y1,img_name):
             #print(image.shape) 
             aug_list = []
             aug_list.append(image)
             #Rotation  
-            for i in range(5,360,5):
+            for i in range(15,360,15):
                 #print('rotation angle {}'.format(i))
                 aug_image = self.augmentor.apply_transform(image,{'theta':i})
                 aug_list.append(aug_image)
             
-            for i in range(50): # generate 10x random images. 
+            for i in range(10): # generate 10x random images. 
                 aug_image = tf.image.random_brightness(image, max_delta=0.1)  # Random brightness
                 aug_list.append(aug_image)
                 aug_image = tf.image.random_contrast(image, lower=0.8, upper=1.2)  # Random contrast

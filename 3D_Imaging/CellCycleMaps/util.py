@@ -1,4 +1,5 @@
 # Util file
+
 import numpy as np
 from enum import unique
 import os
@@ -35,7 +36,6 @@ def load_data(train_dir, dataframe):
     for imagePath, label in tqdm(
         zip(dataframe["image"].tolist(), dataframe["label"].tolist())
     ):
-        imagePath = imagePath.lstrip(os.sep)
         if imagePath.endswith(".png") or imagePath.endswith(".jpg"):
             image = cv2.imread(os.path.join(train_dir, imagePath), -1)
         else:
@@ -62,8 +62,8 @@ def load_data(train_dir, dataframe):
         else:
             image = cv2.resize(image, (64, 64), interpolation=cv2.INTER_CUBIC)
 
-        if not image.dtype == np.uint8:
-            image = normalize8(image)
+       #if not image.dtype == np.uint8:
+       #     image = normalize8(image)
         if image.shape[-1] == 3:
             pass
         else:
@@ -97,21 +97,21 @@ def load_cellCycleData(path2Data):
     list_of_names = []
     list_of_labels = []
     df = pd.DataFrame()
-    for folder in os.listdir(path2Data):
-        if folder.startswith("._") or not os.path.isdir(
-            os.path.join(path2Data, folder)
+    for FoF in os.listdir(path2Data):
+        if FoF.startswith("._") or not os.path.isdir(
+            os.path.join(path2Data, FoF)
         ):
             continue
-        for cellCycleImage in os.listdir(
-            os.path.join(path2Data, folder, "images_padded")
+        for CellCycle in os.listdir(
+            os.path.join(path2Data, FoF)
         ):
-            if not cellCycleImage.startswith("FoF"):
+            if not CellCycle.startswith("cellCycle"):
                 continue
-            imagePath = os.path.join(folder, "images_padded", cellCycleImage)
-            image_label = int(cellCycleImage.split("cellCyle")[1].split("_")[0])
-            list_of_names.append(imagePath)
-            list_of_labels.append(image_label - 1)
-
+            for ImageName in os.listdir(os.path.join(path2Data,FoF,CellCycle,"images_padded")):
+                imagePath = os.path.join(FoF, CellCycle,"images_padded",ImageName)
+                image_label = int(ImageName.split("cellCycle")[1].split("_")[0])
+                list_of_names.append(imagePath)
+                list_of_labels.append(image_label - 1)
     df["image"] = list_of_names
     df["label"] = list_of_labels
     return df
@@ -137,6 +137,3 @@ def load_keras_model(filePath):
         model = K.models.load_model(os.path.join(filePath, model_names[0]))
         return model
 
-
-# path2Data = '/Volumes/WD Element/Collaboration/Moffitt_Noemi/BioinformaticsPaper/code/patches'
-# data = load_cellCycleData(path2Data)
