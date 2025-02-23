@@ -9,7 +9,7 @@ import tensorflow as tf
 import tifffile as tifffile
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self,data_path,samples,num_classes, batch_size=32, dim=(64,64), n_channels=1, shuffle=True,augment=False,n_labels=1):
+    def __init__(self,data_path,samples,num_classes, batch_size=32, dim=(64,64), n_channels=1, shuffle=True,single_channel=False, augment=False,n_labels=1):
         'Initialization'
         self.data_path = data_path
         self.dim = dim
@@ -20,6 +20,7 @@ class DataGenerator(keras.utils.Sequence):
         self.shuffle = shuffle
         self.n_labels= n_labels
         self.num_classes = num_classes
+        self.single_channel = single_channel
         self.indexes = range(0,self.samples.shape[0])
         self.augmentor = ImageDataGenerator(
             rotation_range=90,
@@ -57,28 +58,26 @@ class DataGenerator(keras.utils.Sequence):
         aug_list = []
         aug_list.append(image)
         #Rotation 
-        for i in range(10,360,10):
+
+       # if 'cellCycle1' in img_name:
+       #     aug_image = self.augmentor.apply_transform(image,{'theta':45})
+       #     aug_list.append(aug_image)
+       # for i in range(45,360,45):
+       #     aug_image = self.augmentor.apply_transform(image,{'theta':i})
+       #     aug_list.append(aug_image)
+        #if 'cellCycle4' in img_name:
+        #    aug_image = self.augmentor.apply_transform(image,{'theta':45})
+        #    aug_list.append(aug_image)
+        
+        for i in range(5,360,5):
             #print('rotation angle {}'.format(i))
             aug_image = self.augmentor.apply_transform(image,{'theta':i})
             aug_list.append(aug_image)
-        for i in range(10): # generate 10x random images. 
-            aug_image = tf.image.random_brightness(image, max_delta=0.1)  # Random brightness
+        for i in range(20): # generate 10x random images. 
+            aug_image = tf.image.random_brightness(image, max_delta=0.7)  # Random brightness
             aug_list.append(aug_image)
-            aug_image = tf.image.random_contrast(image, lower=0.8, upper=1.2)  # Random contrast
+            aug_image = tf.image.random_contrast(image, lower=0.8, upper=2.2)  # Random contrast
             aug_list.append(aug_image)
-            aug_image = tf.image.random_saturation(image, lower=0.8, upper=1.2)  # Random saturation
-            aug_list.append(aug_image)
-            aug_image = tf.image.random_hue(image, max_delta=0.1)  # Random hue
-            aug_list.append(aug_image)
-            if 'cellCyle3' in img_name:
-                aug_image = tf.image.random_brightness(image, max_delta=0.1)  # Random brightness
-                aug_list.append(aug_image)
-                aug_image = tf.image.random_contrast(image, lower=0.8, upper=1.2)  # Random contrast
-                aug_list.append(aug_image)
-                aug_image = tf.image.random_saturation(image, lower=0.8, upper=1.2)  # Random saturation
-                aug_list.append(aug_image)
-                aug_image = tf.image.random_hue(image, max_delta=0.1)  # Random hue
-                aug_list.append(aug_image)
         #flipping 
         
         aug_image = self.augmentor.apply_transform(image,{'flip_horizontal':True})
@@ -128,6 +127,8 @@ class DataGenerator(keras.utils.Sequence):
             #img_temp = img[0,:,:]
             #img = img_temp
             # apply any kind of preprocessing
+            if self.single_channel and img.shape[0] == 3:
+                img = img[0,:,:] # take only the nuclues
             if not img.shape[0] == 3:
                 img = cv2.resize(img,(64,64),interpolation=cv2.INTER_CUBIC)
             else:
@@ -162,6 +163,9 @@ class DataGenerator(keras.utils.Sequence):
         X_train = np.array(X_train)
         X_train = X_train.astype(np.float32)
         X_train = X_train / 255.0
+        #print(X_train.max())
+        #print(X_train.min())
+        #X_train = X_train.astype(np.float32)
         y1_train = np.array(y1_train)
         # The generator-y part: yield the next training batch
         #tf.keras.utils.to_categorical( y, num_classes=None, dtype='float32')

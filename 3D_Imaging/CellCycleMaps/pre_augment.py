@@ -7,6 +7,7 @@ import numpy as np
 from tqdm import tqdm
 import argparse
 import pandas as pd
+
 class AugmentImages():
     def __init__(self,path2Data,path2Save):
         self.path2Data = path2Data 
@@ -47,7 +48,12 @@ class AugmentImages():
         for filePath,label in tqdm(zip(df_train['image'].tolist(),df_train['label'].tolist())):
             try:
                 #print(filePath)
-                image = tifffile.imread(os.path.join(self.path2Data,filePath))
+                if filePath.endswith('.png') or filePath.endswith('jpg'):
+                    image = cv2.imread(os.path.join(self.path2Data,filePath))
+                elif filePath.endswith('tif') or filePath.endwith('tiff'):
+                    image = tifffile.imread(os.path.join(self.path2Data,filePath))
+                else:
+                    print('unexpected image extention')
                 image_name = os.path.basename(filePath)
                 dir_name = os.path.dirname(filePath)
                 label_name = image_name.split('_')[-2]
@@ -79,38 +85,26 @@ class AugmentImages():
                 os.makedirs(os.path.join(self.path2Save,dir_name))
             aug_image_name = image_name.split('.tif')[0] + '_aug_'+str(index)+'.png'
             image = self.normalize8(image)
-            cv2.imwrite(os.path.join(self.path2Save,dir_name,aug_image_name),image)
+            image = image.transpose(2 , 0 , 1)
+            #print(image.shape)
+
+            tifffile.imwrite(os.path.join(self.path2Save,dir_name,aug_image_name),image,photometric='minisblack')
             index = index + 1
     def random_augmentation(self,image,y1,img_name):
             #print(image.shape) 
             aug_list = []
             aug_list.append(image)
             #Rotation  
-            for i in range(15,360,15):
+            for i in range(5,360,5):
                 #print('rotation angle {}'.format(i))
                 aug_image = self.augmentor.apply_transform(image,{'theta':i})
                 aug_list.append(aug_image)
-            
-            for i in range(10): # generate 10x random images. 
-                aug_image = tf.image.random_brightness(image, max_delta=0.1)  # Random brightness
+            for i in range(20): # generate 10x random images. 
+                aug_image = tf.image.random_brightness(image, max_delta=0.7)  # Random brightness
                 aug_list.append(aug_image)
-                aug_image = tf.image.random_contrast(image, lower=0.8, upper=1.2)  # Random contrast
+                aug_image = tf.image.random_contrast(image, lower=0.8, upper=2.2)  # Random contrast
                 aug_list.append(aug_image)
-                aug_image = tf.image.random_saturation(image, lower=0.8, upper=1.2)  # Random saturation
-                aug_list.append(aug_image)
-                aug_image = tf.image.random_hue(image, max_delta=0.1)  # Random hue
-                aug_list.append(aug_image)
-                if 'cellCyle 3' in img_name:
-                    aug_image = tf.image.random_brightness(image, max_delta=0.1)  # Random brightness
-                    aug_list.append(aug_image)
-                    aug_image = tf.image.random_contrast(image, lower=0.8, upper=1.2)  # Random contrast
-                    aug_list.append(aug_image)
-                    aug_image = tf.image.random_saturation(image, lower=0.8, upper=1.2)  # Random saturation
-                    aug_list.append(aug_image)
-                    aug_image = tf.image.random_hue(image, max_delta=0.1)  # Random hue
-                    aug_list.append(aug_image)
             #flipping 
-            
             aug_image = self.augmentor.apply_transform(image,{'flip_horizontal':True})
             aug_list.append(aug_image)
 

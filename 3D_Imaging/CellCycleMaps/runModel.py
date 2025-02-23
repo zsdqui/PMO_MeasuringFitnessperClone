@@ -78,6 +78,7 @@ def train(
     batch_size,
     path2PretrainedModel=None,
     pre_augment=False,
+    single_channel=False,
 ):
     try:
         sess.close()
@@ -109,6 +110,18 @@ def train(
         train_df = pd.read_csv(train_dir + "/train_data.csv")
         val_df = pd.read_csv(train_dir + "/val_data.csv")
     # Pre-augment option goes here and updating the df_train file
+    max_count = train_df['label'].value_counts().max()
+    min_count_val = val_df['label'].value_counts().max()
+    print('Applying oversampling with max_count is {}'.format(max_count))
+    # Oversample
+    train_df = train_df.groupby('label', group_keys=False).apply(lambda x: x.sample(n=max_count, replace=True,random_state=42))
+    #train_df = train_df.groupby("label").sample(n=967,replace=True,random_state=42)
+    #counts = train_df.groupby("label").size()
+    val_df = val_df.groupby("label",group_keys=False).apply(lambda x: x.sample(n=min_count_val,replace=True,random_state=42))
+    counts_train = train_df.groupby("label").size()
+    counts_val = val_df.groupby("label").size()
+    print(counts_train)
+    print(counts_val)
     if pre_augment == True:
         if train_dir.endswith("/"):  # remove the most right '/' in the path to images.
             train_dir = train_dir.rsplit("/", 1)[0]
@@ -117,6 +130,10 @@ def train(
             Augmentor = AugmentImages(train_dir, train_dir + "-aug")
             Augmentor.iterate_df()
         train_df = load_cellCycleData(train_dir + "-aug")
+        max_count = train_df['label'].value_counts().max()
+        train_df = train_df.groupby('label',group_keys=False).apply(lambda x: x.sample(n=max_count,replace=True,random_state=42))
+        counts_train = train_df.groupby("label").size()
+        print('train after pre_augment size is {}'.format(counts_train))
         training_generator = DataGenerator(train_dir+'-aug',
             train_df, num_classes=4, batch_size=batch_size, augment=False
         )
@@ -126,10 +143,10 @@ def train(
     else:
         # val_df = pd.read_csv('./'+train_dir+'/val_data.csv')
         training_generator = DataGenerator(train_dir,
-            train_df, num_classes=4, batch_size=batch_size, augment=True
+            train_df, num_classes=4, batch_size=batch_size,single_channel=single_channel, augment=True,
         )
         val_generator = DataGenerator(train_dir,
-            val_df, num_classes=4, batch_size=batch_size, augment=True
+            val_df, num_classes=4, batch_size=batch_size, single_channel = single_channel, augment=False,
         )
 
     model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
@@ -162,6 +179,8 @@ def train(
             model = load_keras_model(path2PretrainedModel)
     model.summary()
     print("Fitting the model ...")
+    print(len(training_generator))
+    print(len(val_generator))
     model.fit(training_generator,
         validation_data=val_generator,
         batch_size=batch_size,
@@ -197,12 +216,13 @@ def get_test_accuracy_per_label(df):
     return df_results_summary
 
 
-def test(train_dir, testCSV, exp, arch):
+def test(train_dir, testCSV, exp, arch,single_channel):
     # test_datagen = image.ImageDataGenerator(rescale=1./255)
     df = pd.read_csv(testCSV)
-    img_list, labels = load_data(train_dir, df)
+    img_list, labels = load_data(train_dir, df,single_channel)
     # test_datagen.fit(img_list_test)
     img_test = np.array(img_list)
+    img_test = img_test.astype(np.float32)
     img_test = img_test / 255.0
 
     # CellCycle_true,_ = Binarize_labels(labels)
@@ -296,6 +316,11 @@ def main():
         help="Pre-augment images before start training, if False, online-augmentation per batch is done",
         action="store_true",
     )
+    parser.add_argument(
+        "--single_channel",
+        help="If data consist of 3 channels, then use the nucleus only (first channel) for training.",
+        action="store_true"
+    )
     args = parser.parse_args()
     if args.m == "train":
         if args.finetune and args.path2Model is None:
@@ -320,6 +345,7 @@ def main():
                 int(args.batch_size),
                 args.path2Model,
                 args.pre_augment,
+                args.single_channel,
             )
         elif not args.finetune:
             print("Started training  {} model ".format(args.exp))
@@ -333,6 +359,7 @@ def main():
                 int(args.batch_size),
                 None,
                 args.pre_augment,
+                args.single_channel,
             )
     else:
         if args.testCSV == "":
@@ -342,10 +369,10 @@ def main():
             print("Started testing {} model".format(args.exp))
             if args.finetune:
                 test(
-                    args.dataDir, args.testCSV, args.exp + "_fine-tuned", args.arch
+                    args.dataDir, args.testCSV, args.exp + "_fine-tuned", args.arch, args.single_channel
                 )  # testing finetuned model
             else:
-                test(args.dataDir, args.testCSV, args.exp, args.arch)  # testing
+                test(args.dataDir, args.testCSV, args.exp, args.arch,args.single_channel)  # testing
 
 
 if __name__ == "__main__":

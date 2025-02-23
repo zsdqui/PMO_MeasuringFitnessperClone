@@ -111,12 +111,12 @@ def create_resnet(input_shape=(64, 64, 3), num_classes=4):
   x = layers.BatchNormalization()(x)
   x = layers.Flatten()(x)
   #x = layers.Dense(128, activation='relu')(x)
-  x = layers.Dropout(0.3)(x)
+  x = layers.Dropout(0.5)(x)
   
   out = layers.Dense(num_classes, activation='softmax',name='output')(x)
   #Model with input and output.
   model = keras.Model(inputs=input_tensor, outputs=out)
-  model.compile(loss=categorical_crossentropy,optimizer=k.optimizers.Adam(learning_rate=0.01),metrics=['accuracy'])
+  model.compile(loss=categorical_crossentropy,optimizer=k.optimizers.SGD(learning_rate=0.01),metrics=['accuracy'])
   return model
 
 # Create the ResNet model

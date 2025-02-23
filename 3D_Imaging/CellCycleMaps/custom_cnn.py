@@ -3,6 +3,7 @@
 from keras.models import Model
 from keras.layers import Input, Conv2D,MaxPooling2D,Dense, Flatten,Dropout,BatchNormalization
 from tensorflow.keras import regularizers
+import tensorflow.keras as k
 
 # architecture of CNN
 # we refer to this method as custom_cnn 
@@ -37,9 +38,8 @@ def buildModel(neurons,drop,hidden_layers,nb_classes):
 
     # modeling
     model = Model(inputs=inputs, outputs=predictions)
-
-    model.compile(optimizer='rmsprop',
-                            loss='binary_crossentropy',
+    model.compile(optimizer=k.optimizers.SGD(learning_rate=0.01),#optimizer='rmsprop'
+                            loss='categorical_crossentropy',
                             metrics=['accuracy'])
     return model
 

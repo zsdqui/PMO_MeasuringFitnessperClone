@@ -29,7 +29,7 @@ def normalize8(I):
     return I.astype(np.uint8)
 
 
-def load_data(train_dir, dataframe):
+def load_data(train_dir, dataframe,single_channel):
     images = []
     labels = []
     print("Loading data...")
@@ -44,6 +44,8 @@ def load_data(train_dir, dataframe):
         # image = img_temp
         # print(imagePath,label)
         # print(image.shape)
+        if single_channel and image.shape[0] == 3:
+            image = image[0,:,:] #take only the nucleus channel. 
         if image.shape[0] == 3:
             img_resized = np.zeros((3, 64, 64))
             img_resized[0, :, :] = cv2.resize(
