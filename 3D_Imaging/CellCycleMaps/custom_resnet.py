@@ -111,7 +111,7 @@ def create_resnet(input_shape=(64, 64, 3), num_classes=4):
   x = layers.BatchNormalization()(x)
   x = layers.Flatten()(x)
   #x = layers.Dense(128, activation='relu')(x)
-  x = layers.Dropout(0.5)(x)
+  x = layers.Dropout(0.3)(x)
   
   out = layers.Dense(num_classes, activation='softmax',name='output')(x)
   #Model with input and output.

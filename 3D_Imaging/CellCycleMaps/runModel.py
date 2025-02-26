@@ -114,10 +114,10 @@ def train(
     min_count_val = val_df['label'].value_counts().max()
     print('Applying oversampling with max_count is {}'.format(max_count))
     # Oversample
-    train_df = train_df.groupby('label', group_keys=False).apply(lambda x: x.sample(n=max_count, replace=True,random_state=42))
-    #train_df = train_df.groupby("label").sample(n=967,replace=True,random_state=42)
-    #counts = train_df.groupby("label").size()
-    val_df = val_df.groupby("label",group_keys=False).apply(lambda x: x.sample(n=min_count_val,replace=True,random_state=42))
+    train_df = train_df.groupby('label', group_keys=False).apply(lambda x: x.sample(n=max_count, replace=True, random_state=42))
+    train_df = train_df.sample(frac=1, random_state=42).reset_index(drop=True)  # Shuffle the oversampled dataset
+    val_df = val_df.groupby("label", group_keys=False).apply(lambda x: x.sample(n=min_count_val, replace=True, random_state=42))
+    val_df = val_df.sample(frac=1, random_state=42).reset_index(drop=True)  # Shuffle the oversampled dataset
     counts_train = train_df.groupby("label").size()
     counts_val = val_df.groupby("label").size()
     print(counts_train)
@@ -130,10 +130,12 @@ def train(
             Augmentor = AugmentImages(train_dir, train_dir + "-aug")
             Augmentor.iterate_df()
         train_df = load_cellCycleData(train_dir + "-aug")
-        max_count = train_df['label'].value_counts().max()
-        train_df = train_df.groupby('label',group_keys=False).apply(lambda x: x.sample(n=max_count,replace=True,random_state=42))
+        min_count = train_df['label'].value_counts().min()
+        print('Applying oversampling to augmented data with max_count is {}'.format(min_count))
+        train_df = train_df.groupby('label', group_keys=False).apply(lambda x: x.sample(n=min_count, replace=False, random_state=42))
+        train_df = train_df.sample(frac=1, random_state=42).reset_index(drop=True)  # Shuffle the oversampled dataset
         counts_train = train_df.groupby("label").size()
-        print('train after pre_augment size is {}'.format(counts_train))
+        print('train after pre_augment and oversampling size is {}'.format(counts_train))
         training_generator = DataGenerator(train_dir+'-aug',
             train_df, num_classes=4, batch_size=batch_size, augment=False
         )
