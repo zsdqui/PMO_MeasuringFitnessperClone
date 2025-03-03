@@ -1,6 +1,6 @@
 # conda activate r_env
 # setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/R")
-setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
+setwd("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/PMO_MeasuringFitnessperClone/3D_Imaging/R")
 source("CorrectCellposeSegmentation.R")
 source("assignCompartment2Nucleus.R")
 source("compareCells.R")
@@ -20,8 +20,8 @@ devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R
 
 
 ## Constants, Settings, Input and output folders:
-# ROOT="/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/data/GastricCancerCLs/3Dbrightfield/NCI-N87"
-ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCLs/3Dbrightfield/NCI-N87"
+#ROOT="/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/data/NCI-N87"
+ROOT="/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/data/NCI-N87"
 # ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCLs/3Dbrightfield/SUM-159"
 setwd(ROOT)
 EPS=10; #6
@@ -84,15 +84,25 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 }
 
 
-REGEX="240918_fluorescent.nucleus"
-#REGEX="231005_fluorescent.nucleus"
-MINGREEN = 250
-MINRED = 600
+#REGEX="240918_fluorescent.nucleus"
+REGEX="231005_fluorescent.nucleus"
+if (grepl("^240918", REGEX)){
+  MINGREEN = 250
+  MINRED = 600
+  print(REGEX)
+  print(sprintf("MINGREEN is %f MINRED is %f", MINGREEN,MINRED))
+}else if(grepl("^231005", REGEX)){
+  MINGREEN = 700
+  MINRED = 500
+  print(REGEX)
+  print(sprintf("MINGREEN is %f MINRED is %f", MINGREEN,MINRED))
+}
+
 
 ##########################
 ### read fucci results ###
-FUCCIDIR=paste0(ROOT,filesep,"I08_3DCellProfiler_FUCCI/FoFX_", REGEX)
-fucci=read.csv(list.files(FUCCIDIR,recursive = T, pattern="object.csv", full.names = T))
+FUCCIDIR=paste0("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/data")
+fucci=read.csv(list.files(FUCCIDIR,recursive = T, pattern="object_231005.csv", full.names = T)) #object_240918.csv
 fucci$FileName_bright=gsub(".ome.tif","",gsub("stk_0001_","",fucci$FileName_bright))
 colnames(fucci)=gsub("Location_Center_","", colnames(fucci))
 ii=which(colnames(fucci) %in% toupper(xyz))
@@ -218,8 +228,8 @@ for(FoF in FoFs){
   }
   signals_per_id[[FoF]]=signals_per_id_[!signals_per_id_$x %in% toRM,]
 }
-barplot(sapply(signals_per_id,nrow), names=names(signals_per_id))
-
+#barplot(sapply(signals_per_id,nrow), names=names(signals_per_id)). # Jan 30th 2025. This line caused an error with plotting the bar chart. Thus commented out --Saeed. 
+####################################################################################################################################################################################################
 
 barplot(unlist(ncells), names=names(ncells))
 save(file="~/Downloads/stats.RObj","stats")
