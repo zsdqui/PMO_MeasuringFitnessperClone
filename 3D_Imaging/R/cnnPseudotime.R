@@ -91,7 +91,7 @@ model <- infer_trajectory(
 )
 
 # Add pseudotime to the filtered data
-data_filtered$pseudotime <- pseudotime[rownames(data_filtered)]
+data_filtered$pseudotime <- model$pseudotime[rownames(data_filtered)]
 
 # Visualize pseudotime versus real cell cycle label
 ggplot(data_filtered, aes(x = factor(real_cell_cycle_label), y = pseudotime)) +
