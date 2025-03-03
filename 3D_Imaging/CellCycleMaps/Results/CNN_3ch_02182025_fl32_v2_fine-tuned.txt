@@ -1,3 +1,0 @@
-accuracy for CNN_3ch_02182025_fl32_v2_fine-tuned is 
- 0.784651992861392
-
