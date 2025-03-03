@@ -7,13 +7,13 @@ import tensorflow.keras as K
 import sys
 import numpy as np
 import pandas as pd
-from util import load_data, Binarize_labels, load_cellCycleData, load_keras_model
+from util import Binarize_labels, load_cellCycleData, load_keras_model
 from sklearn.metrics import accuracy_score
 import random as rn
 import argparse
 from sklearn.model_selection import train_test_split
 from DataGenerator import DataGenerator
-from custom_resnet import create_resnet
+from custom_resnet import create_resnet, create_resnet_small
 from custom_cnn import buildModel
 from tensorflow.keras.losses import categorical_crossentropy
 from pre_augment import AugmentImages
@@ -174,7 +174,7 @@ def train(
             print("Loading pre-trained model, please wait...")
             model = load_keras_model(path2PretrainedModel)
     elif arch == "custom_resnet":
-        model = create_resnet()
+        model = create_resnet_small()
         if path2PretrainedModel is not None:  # fine-tune model path available.
             # load the model from the path.
             print("Loading pre-trained model, please wait...")
@@ -218,17 +218,10 @@ def get_test_accuracy_per_label(df):
     return df_results_summary
 
 
-def test(train_dir, testCSV, exp, arch,single_channel):
-    # test_datagen = image.ImageDataGenerator(rescale=1./255)
+def test(train_dir, testCSV, exp, arch, single_channel):
     df = pd.read_csv(testCSV)
-    img_list, labels = load_data(train_dir, df,single_channel)
-    # test_datagen.fit(img_list_test)
-    img_test = np.array(img_list)
-    img_test = img_test.astype(np.float32)
-    img_test = img_test / 255.0
-
-    # CellCycle_true,_ = Binarize_labels(labels)
-    CellCycle_true = K.utils.to_categorical(labels, 4)
+    # Use DataGenerator for test data
+    test_generator = DataGenerator(train_dir, df, num_classes=4, batch_size=1,shuffle=False,single_channel=single_channel, augment=False)
 
     model = tf.keras.models.load_model(
         os.path.join("models", exp + "_" + arch + ".keras"),
@@ -240,14 +233,13 @@ def test(train_dir, testCSV, exp, arch,single_channel):
     print(f"Bottleneck layer (before dropout) is: {model.layers[-3].name}\n")
 
     # save bottleneck features to dataframe
-    feats = bottle_model.predict(img_test)
+    feats = bottle_model.predict(test_generator)
     df_feats = pd.DataFrame(feats)
 
-    # results = model.evaluate(test_datagen.flow(img_list_test,y=s_label_numeric_test, batch_size = 32, shuffle=False))
-    cellCycle = model.predict(img_test)
+    cellCycle = model.predict(test_generator)
 
     pred = np.argmax(cellCycle, axis=1)
-    labels_true = np.argmax(CellCycle_true, axis=1)
+    labels_true = df['label'].values
 
     df["pred"] = pred
     df["true_labels"] = labels_true

@@ -38,7 +38,7 @@ def buildModel(neurons,drop,hidden_layers,nb_classes):
 
     # modeling
     model = Model(inputs=inputs, outputs=predictions)
-    model.compile(optimizer=k.optimizers.SGD(learning_rate=0.01),#optimizer='rmsprop'
+    model.compile(optimizer=k.optimizers.RMSprop(learning_rate=0.001),#optimizer='rmsprop'
                             loss='categorical_crossentropy',
                             metrics=['accuracy'])
     return model

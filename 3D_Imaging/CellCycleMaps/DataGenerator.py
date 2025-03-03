@@ -54,6 +54,33 @@ class DataGenerator(keras.utils.Sequence):
         if self.shuffle == True:
             np.random.shuffle(self.indexes)
 
+
+    def random_augmentation(self,image,y1,img_name):
+        #print(image.shape) 
+        aug_list = []
+        aug_list.append(image)
+        #Rotation        
+        for i in range(5,360,5):
+            #print('rotation angle {}'.format(i))
+            aug_image = self.augmentor.apply_transform(image,{'theta':i})
+            aug_list.append(aug_image)
+        for i in range(20): # generate 10x random images. 
+            aug_image = tf.image.random_brightness(image, max_delta=0.7)  # Random brightness
+            aug_list.append(aug_image)
+            aug_image = tf.image.random_contrast(image, lower=0.8, upper=2.2)  # Random contrast
+            aug_list.append(aug_image)
+        #flipping 
+        
+        aug_image = self.augmentor.apply_transform(image,{'flip_horizontal':True})
+        aug_list.append(aug_image)
+
+        aug_image = self.augmentor.apply_transform(image,{'flip_vertical':True})
+        aug_list.append(aug_image)
+        
+        y1_list = [y1 for i in range(0,len(aug_list))]
+        return aug_list,y1_list,
+    
+
     def save_augmented_images(self,listOfImages):
         if os.path.exists(os.path.join('.','savedImages')):
             os.makedirs(os.path.join('.','savedImages'))
@@ -87,6 +114,10 @@ class DataGenerator(keras.utils.Sequence):
                 img = cv2.imread(os.path.join(self.data_path,img_name),-1)
             else:
                 img = tifffile.imread(os.path.join(self.data_path,img_name))
+            #Just to check if three channels impact the performance 
+            #img_temp = img[0,:,:]
+            #img = img_temp
+            # apply any kind of preprocessing
             if self.single_channel and img.shape[0] == 3:
                 img = img[0,:,:] # take only the nuclues
             if not img.shape[0] == 3:
@@ -105,7 +136,7 @@ class DataGenerator(keras.utils.Sequence):
                 if not img.shape[-1] == 3:
                     #img  = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
                     img = np.stack([img,img,img], axis = -1)
-                #Apply augmentation. 
+                #aug_imgs,y1 =  self.random_augmentation(img,label1,img_name)
                 aug_imgs,y1 =  self.apply_augmentation.random_augmentation(img,label1,img_name)
                 X_train = X_train + aug_imgs 
                 y1_train = y1_train + y1 

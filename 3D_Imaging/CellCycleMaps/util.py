@@ -29,52 +29,6 @@ def normalize8(I):
     return I.astype(np.uint8)
 
 
-def load_data(train_dir, dataframe,single_channel):
-    images = []
-    labels = []
-    print("Loading data...")
-    for imagePath, label in tqdm(
-        zip(dataframe["image"].tolist(), dataframe["label"].tolist())
-    ):
-        if imagePath.endswith(".png") or imagePath.endswith(".jpg"):
-            image = cv2.imread(os.path.join(train_dir, imagePath), -1)
-        else:
-            image = tifffile.imread(os.path.join(train_dir, imagePath))
-        # img_temp = image[0,:,:]
-        # image = img_temp
-        # print(imagePath,label)
-        # print(image.shape)
-        if single_channel and image.shape[0] == 3:
-            image = image[0,:,:] #take only the nucleus channel. 
-        if image.shape[0] == 3:
-            img_resized = np.zeros((3, 64, 64))
-            img_resized[0, :, :] = cv2.resize(
-                image[0, :, :], (64, 64), interpolation=cv2.INTER_CUBIC
-            )
-            img_resized[1, :, :] = cv2.resize(
-                image[1, :, :], (64, 64), interpolation=cv2.INTER_CUBIC
-            )
-            img_resized[2, :, :] = cv2.resize(
-                image[2, :, :], (64, 64), interpolation=cv2.INTER_CUBIC
-            )
-
-            img_transposed = img_resized.transpose(1, 2, 0)
-            image = img_transposed
-            # image = cv2.resize(image,(3,64,64),interpolation=cv2.INTER_CUBIC)
-        else:
-            image = cv2.resize(image, (64, 64), interpolation=cv2.INTER_CUBIC)
-
-       #if not image.dtype == np.uint8:
-       #     image = normalize8(image)
-        if image.shape[-1] == 3:
-            pass
-        else:
-            image = np.stack([image, image, image], -1)
-        images.append(image)
-        labels.append(label)
-    return images, labels
-
-
 def Binarize_labels(label):
     label = np.array(label)
     mlb = LabelBinarizer()
