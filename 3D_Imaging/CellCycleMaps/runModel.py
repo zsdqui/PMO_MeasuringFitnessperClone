@@ -218,8 +218,7 @@ def get_test_accuracy_per_label(df):
     return df_results_summary
 
 def calculate_accuracy_per_fov(df):
-    df['FoF_id'] = df['FoF'].str.split('_').str[0]
-    fov_accuracies = df.groupby('FoF_id').apply(lambda x: accuracy_score(x['true_labels'], x['pred']) * 100).reset_index(name='accuracy')
+    fov_accuracies = df.groupby('FoF').apply(lambda x: accuracy_score(x['true_labels'], x['pred']) * 100).reset_index(name='accuracy')
     return fov_accuracies
 
 def plot_accuracy_per_fov(fov_accuracies, exp):
@@ -279,14 +278,14 @@ def test(train_dir, testCSV, exp, arch, single_channel):
         header=True,
         index=None,
         sep=" ",
-        mode="a",
+        mode="w",
     )
     df_results_fof.to_csv(
         os.path.join("Results", exp + "_test_accuracy_per_fof.txt"),
         header=True,
         index=None,
         sep=" ",
-        mode="a",
+        mode="w",
     )
     #plotting boxplot per fof accuracy. 
     #plot_accuracy_per_fov(df_results_fof, exp)
