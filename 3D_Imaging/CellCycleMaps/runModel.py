@@ -219,7 +219,8 @@ def get_test_accuracy_per_label(df):
 
 def calculate_accuracy_per_fov(df):
     fov_accuracies = df.groupby('FoF').apply(lambda x: accuracy_score(x['true_labels'], x['pred']) * 100).reset_index(name='accuracy')
-    return fov_accuracies
+    fov_accuracies_class_ids = df.groupby(['FoF','Class_id']).apply(lambda x: accuracy_score(x['true_labels'], x['pred']) * 100).reset_index(name='accuracy')
+    return fov_accuracies, fov_accuracies_class_ids
 
 def plot_accuracy_per_fov(fov_accuracies, exp):
     plt.figure(figsize=(10, 6))
@@ -260,6 +261,7 @@ def test(train_dir, testCSV, exp, arch, single_channel):
     labels_true = df['label'].values
     df['FoF'] = df['image'].str.split('/').str[0]
     df['Cell_id'] = df['image'].str.split('/').str[-1].str.split('_').str[-1].str.split('.').str[0]
+    df['Class_id'] = 'class' + (df['label'] + 1).astype(str)
     df["pred"] = pred
     df["true_labels"] = labels_true
     
@@ -272,7 +274,7 @@ def test(train_dir, testCSV, exp, arch, single_channel):
     print("Accuracy is {}".format(accuracy))
 
     df_results = get_test_accuracy_per_label(df)
-    df_results_fof = calculate_accuracy_per_fov(df)
+    df_results_fof,df_results_fof_class_id = calculate_accuracy_per_fov(df)
     df_results.to_csv(
         os.path.join("Results", exp + "_test.txt"),
         header=True,
@@ -282,6 +284,14 @@ def test(train_dir, testCSV, exp, arch, single_channel):
     )
     df_results_fof.to_csv(
         os.path.join("Results", exp + "_test_accuracy_per_fof.txt"),
+        header=True,
+        index=None,
+        sep=" ",
+        mode="w",
+    )
+
+    df_results_fof_class_id.to_csv(
+        os.path.join("Results", exp + "_test_accuracy_per_fof_and_class_id.txt"),
         header=True,
         index=None,
         sep=" ",
