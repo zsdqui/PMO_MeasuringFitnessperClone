@@ -89,64 +89,15 @@ def create_resnet(input_shape=(64, 64, 3), num_classes=4):
   x = res_block2(x, 128)
   x = res_block2(x, 512)
 
-  #x = layers.GlobalAveragePooling2D()(x)
-  x = layers.AveragePooling2D((3, 3), strides=1, padding='valid')(x)
-  x = layers.BatchNormalization()(x)
-  x = layers.Flatten()(x)
+  x = layers.GlobalAveragePooling2D()(x)
+  #x = layers.AveragePooling2D((3, 3), strides=1, padding='valid')(x)
+  #x = layers.BatchNormalization()(x)
+  #x = layers.Flatten()(x)
   #x = layers.Dense(128, activation='relu')(x)
-  x = layers.Dropout(0.5)(x)
+  #x = layers.Dropout(0.5)(x)
   
   out = layers.Dense(num_classes, activation='softmax',name='output')(x)
   #Model with input and output.
   model = keras.Model(inputs=input_tensor, outputs=out)
-  model.compile(loss=categorical_crossentropy,optimizer=k.optimizers.SGD(learning_rate=0.01),metrics=['accuracy'])
+  model.compile(loss=categorical_crossentropy,optimizer=k.optimizers.Adam(learning_rate=0.01),metrics=['accuracy'])
   return model
-
-
-def create_resnet_small(input_shape=(64, 64, 3), num_classes=4):
-  """Creates a ResNet model.
-
-  Args:
-    input_shape: Shape of the input tensor.
-    num_classes: Number of classes for the classification task.
-
-  Returns:
-    A Keras model.
-  """
-  input_tensor = keras.Input(shape=input_shape)
-  x = layers.BatchNormalization()(input_tensor)
-  x = layers.Conv2D(32, (3, 3), strides=1, padding='same')(x)
-  x = layers.BatchNormalization()(x)
-  x = layers.Activation('relu')(x)
-  x = layers.MaxPooling2D((3, 3), strides=1, padding='same')(x)
-
-  # Stack residual modules
-  x = res_block1(x, 32)
-  x = res_block2(x, 32)
-  x = res_block2(x, 128)
-
-  #x = res_block2(x, 64)
-  #x = res_block2(x, 64)
-  #x = res_block2(x, 256)
-
-
-  #x = res_block2(x, 128)
-  #x = res_block2(x, 128)
-  #x = res_block2(x, 512)
-
-  #x = layers.GlobalAveragePooling2D()(x)
-  x = layers.AveragePooling2D((3, 3), strides=1, padding='valid')(x)
-  x = layers.BatchNormalization()(x)
-  x = layers.Flatten()(x)
-  #x = layers.Dense(128, activation='relu')(x)
-  x = layers.Dropout(0.3)(x)
-  out = layers.Dense(num_classes, activation='softmax',name='output')(x)
-  #Model with input and output.
-  model = keras.Model(inputs=input_tensor, outputs=out)
-  model.compile(loss=categorical_crossentropy,optimizer=k.optimizers.SGD(learning_rate=0.01),metrics=['accuracy'])
-  return model
-# Create the ResNet model
-#model = create_resnet()
-
-# Print the model summary
-#model.summary()

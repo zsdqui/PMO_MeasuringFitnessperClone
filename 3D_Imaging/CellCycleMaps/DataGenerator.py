@@ -154,9 +154,6 @@ class DataGenerator(keras.utils.Sequence):
         X_train = np.array(X_train)
         X_train = X_train.astype(np.float32)
         X_train = X_train / 255.0
-        #print(X_train.max())
-        #print(X_train.min())
-        #X_train = X_train.astype(np.float32)
         y1_train = np.array(y1_train)
         # The generator-y part: yield the next training batch
         #tf.keras.utils.to_categorical( y, num_classes=None, dtype='float32')

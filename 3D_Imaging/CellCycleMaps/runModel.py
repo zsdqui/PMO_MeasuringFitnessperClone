@@ -17,7 +17,7 @@ from custom_resnet import create_resnet, create_resnet_small
 from custom_cnn import buildModel
 from tensorflow.keras.losses import categorical_crossentropy
 from pre_augment import AugmentImages
-
+import matplotlib.pyplot as plt
 
 import tensorflow.keras as k
 
@@ -217,6 +217,19 @@ def get_test_accuracy_per_label(df):
     df_results_summary["Count"] = count_list
     return df_results_summary
 
+def calculate_accuracy_per_fov(df):
+    df['FoF_id'] = df['FoF'].str.split('_').str[0]
+    fov_accuracies = df.groupby('FoF_id').apply(lambda x: accuracy_score(x['true_labels'], x['pred']) * 100).reset_index(name='accuracy')
+    return fov_accuracies
+
+def plot_accuracy_per_fov(fov_accuracies, exp):
+    plt.figure(figsize=(10, 6))
+    plt.boxplot(fov_accuracies)
+    plt.title(f'Accuracy per FoF for {exp}')
+    plt.ylabel('Accuracy (%)')
+    plt.xlabel('Field of View')
+    plt.savefig(os.path.join("Results", f"{exp}_accuracy_per_fov.png"))
+    #plt.show()
 
 def test(train_dir, testCSV, exp, arch, single_channel):
     df = pd.read_csv(testCSV)
@@ -229,20 +242,28 @@ def test(train_dir, testCSV, exp, arch, single_channel):
         compile=True,
     )
 
-    bottle_model = k.models.Model(inputs=model.input, outputs=model.layers[-3].output)
-    print(f"Bottleneck layer (before dropout) is: {model.layers[-3].name}\n")
-
-    # save bottleneck features to dataframe
-    feats = bottle_model.predict(test_generator)
-    df_feats = pd.DataFrame(feats)
+    try:
+        bottle_model = k.models.Model(inputs=model.input, outputs=model.layers[-3].output)
+        print(f"Bottleneck layer (before dropout) is: {model.layers[-3].name}\n")
+        # save bottleneck features to dataframe
+        feats = bottle_model.predict(test_generator)
+        df_feats = pd.DataFrame(feats)
+    except:
+        bottle_model = k.models.Model(inputs=model.input, outputs=model.layers[-2].output)
+        print(f"Bottleneck layer (before dropout) is: {model.layers[-2].name}\n")
+        # save bottleneck features to dataframe
+        feats = bottle_model.predict(test_generator)
+        df_feats = pd.DataFrame(feats)
 
     cellCycle = model.predict(test_generator)
 
     pred = np.argmax(cellCycle, axis=1)
     labels_true = df['label'].values
-
+    df['FoF'] = df['image'].str.split('/').str[0]
+    df['Cell_id'] = df['image'].str.split('/').str[-1].str.split('_').str[-1].str.split('.').str[0]
     df["pred"] = pred
     df["true_labels"] = labels_true
+    
 
     accuracy = accuracy_score(labels_true, pred)
     if not os.path.exists("./Results"):
@@ -252,6 +273,7 @@ def test(train_dir, testCSV, exp, arch, single_channel):
     print("Accuracy is {}".format(accuracy))
 
     df_results = get_test_accuracy_per_label(df)
+    df_results_fof = calculate_accuracy_per_fov(df)
     df_results.to_csv(
         os.path.join("Results", exp + "_test.txt"),
         header=True,
@@ -259,8 +281,17 @@ def test(train_dir, testCSV, exp, arch, single_channel):
         sep=" ",
         mode="a",
     )
+    df_results_fof.to_csv(
+        os.path.join("Results", exp + "_test_accuracy_per_fof.txt"),
+        header=True,
+        index=None,
+        sep=" ",
+        mode="a",
+    )
+    #plotting boxplot per fof accuracy. 
+    #plot_accuracy_per_fov(df_results_fof, exp)
     # print bottleneck features to csv with labels
-    combined_df = pd.concat([df["true_labels"], df["pred"], df_feats], axis=1)
+    combined_df = pd.concat([df['FoF'],df['Cell_id'],df["true_labels"], df["pred"], df_feats], axis=1)
     combined_df.to_csv(
         os.path.join("./Results", exp + "_bottleneck_features.csv"), index=False
     )
