@@ -14,13 +14,8 @@ if (length(args) > 0) {
   input_file <- args[1]
 }
 
-# 2. If no command-line args but we're in interactive mode, 
-#    either use a default file or prompt the user.
+# 2. If no command-line args but we're in interactive mode, prompt the user.
 if (is.null(input_file) && interactive()) {
-  # Option A: Hard-code a default
-  # input_file <- "my_default_file.csv"
-  
-  # Option B: Let user pick a file (RStudio or interactive console)
   input_file <- file.choose()  
 }
 
@@ -52,7 +47,12 @@ features_numeric <- features_numeric[, colSums(is.na(features_numeric)) < nrow(f
 # Convert to matrix
 features_numeric_matrix <- as.matrix(features_numeric)
 rownames(features_numeric_matrix) <- rownames(features_numeric)  # Ensure row names are preserved
-
+# Check and remove zero-variance columns
+zero_variance_cols <- apply(features_numeric_matrix, 2, function(x) var(x, na.rm = TRUE) == 0)
+if (any(zero_variance_cols)) {
+  features_numeric_matrix <- features_numeric_matrix[, !zero_variance_cols, drop = FALSE]
+  print(paste("Removed", sum(zero_variance_cols), "zero-variance columns."))
+}
 # Median Normalization
 feature_medians <- apply(features_numeric_matrix, 2, median, na.rm = TRUE)
 
@@ -77,12 +77,32 @@ if (is.null(rownames(features_normalized))) {
   stop("Row names of features_normalized are NULL.")
 }
 
-# Create a dyno dataset WITHOUT specifying cell_ids explicitly
-dataset <- wrap_expression(
-  counts = features_numeric_matrix,
-  expression = features_normalized
-)
+# Perform PCA 
+pca_result <- prcomp(features_normalized, scale. = TRUE) 
 
+# Use the PCA scores as the new features
+features_pca <- pca_result$x
+rownames(features_pca) <- rownames(features_normalized)
+
+#plot #PCA features/variance
+variance_explained <- pca_result$sdev^2
+proportion_variance <- variance_explained / sum(variance_explained)
+cumulative_proportion <- cumsum(proportion_variance)
+
+plot(1:length(cumulative_proportion), cumulative_proportion, 
+     type = "b", # "b" for both points and lines
+     xlab = "Number of Principal Components", 
+     ylab = "Cumulative Proportion of Variance Explained",
+     main = "PCA: Variance Explained vs. Number of Components")
+
+# add line for threshold
+abline(h = 0.9, col = "red", lty = 2) # Add a dashed red line at 0.98
+
+# Create a dyno dataset (need to include cell_id)
+dataset <- wrap_expression(
+  counts = features_pca[,1:15],
+  expression = features_pca[,1:15]
+)
 
 # Infer trajectory using ti_angle
 model <- infer_trajectory(
@@ -95,20 +115,20 @@ data_filtered$pseudotime <- model$pseudotime[rownames(data_filtered)]
 
 # Visualize pseudotime versus real cell cycle label
 ggplot(data_filtered, aes(x = factor(real_cell_cycle_label), y = pseudotime)) +
-  geom_boxplot() +
+  geom_violin(scale = "count") +
   xlab("Real Cell Cycle Label") +
   ylab("Pseudotime") +
   ggtitle("Pseudotime vs Real Cell Cycle Label")
 
 # Visualize pseudotime versus inferred cell cycle
 ggplot(data_filtered, aes(x = factor(inferred_cell_cycle), y = pseudotime)) +
-  geom_boxplot() +
+  geom_boxplot(notch = TRUE) +
   xlab("Inferred Cell Cycle Label") +
   ylab("Pseudotime") +
   ggtitle("Pseudotime vs Inferred Cell Cycle")
 
-# Plot pseudotime on a dimensionality reduction (e.g., UMAP)
+# Plot pseudotime on a dimensionality reduction
 plot_dimred(model, color_cells = "pseudotime")
 
 # Save the model if needed
-saveRDS(model, file = "pseudotime_model.rds")
+#saveRDS(model, file = "pseudotime_model.rds")
