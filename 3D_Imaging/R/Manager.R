@@ -1,6 +1,7 @@
 # conda activate r_env
 # setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/R")
-setwd("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/PMO_MeasuringFitnessperClone/3D_Imaging/R")
+# setwd("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/PMO_MeasuringFitnessperClone/3D_Imaging/R")
+setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
 source("CorrectCellposeSegmentation.R")
 source("assignCompartment2Nucleus.R")
 source("compareCells.R")
@@ -21,8 +22,8 @@ devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R
 
 ## Constants, Settings, Input and output folders:
 #ROOT="/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/data/NCI-N87"
-ROOT="/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/data/NCI-N87"
-# ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCLs/3Dbrightfield/SUM-159"
+# ROOT="/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/data/NCI-N87"
+ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCLs/3Dbrightfield/NCI-N87"
 setwd(ROOT)
 EPS=10; #6
 MINPTS=3; #4
@@ -38,7 +39,11 @@ dirCreate(OUTCORRECTED, permission = "a+w")
 # ILASTIKINPUT="G06_IlastikInput"
 # dirCreate(ILASTIKINPUT, permission = "a+w")
 OUTLINKED="A06_multiSignals_Linked"
-OUTSTATS="A07_LinkedSignals_Stats"
+OUTSTATS="K07_LinkedSignals_Stats"
+OUTPSEUDOTIME="K08_Pseudotime"
+FUCCIDIR = "I08_3DCellProfiler_FUCCI"
+DATA4PAPERDIR="~/Repositories/CellCycle4DataIntegration/data4paper/A08_Pseudotime"
+dirCreate(OUTPSEUDOTIME, permission = "a+w")
 dirCreate(OUTLINKED, permission = "a+w")
 dirCreate(OUTSTATS, permission = "a+w")
 xmlfiles=list.files('A01_rawData/',pattern=".xml",full.names=T)
@@ -84,16 +89,16 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 }
 
 
-#REGEX="240918_fluorescent.nucleus"
-REGEX="231005_fluorescent.nucleus"
+REGEX="240918_fluorescent.nucleus"
+# REGEX="231005_fluorescent.nucleus"
 if (grepl("^240918", REGEX)){
-  MINGREEN = 250
-  MINRED = 600
+  MINGREEN = 0.005
+  MINRED = 0.012
   print(REGEX)
   print(sprintf("MINGREEN is %f MINRED is %f", MINGREEN,MINRED))
 }else if(grepl("^231005", REGEX)){
-  MINGREEN = 700
-  MINRED = 500
+  MINGREEN = 0.005
+  MINRED = 0.012
   print(REGEX)
   print(sprintf("MINGREEN is %f MINRED is %f", MINGREEN,MINRED))
 }
@@ -101,13 +106,37 @@ if (grepl("^240918", REGEX)){
 
 ##########################
 ### read fucci results ###
-FUCCIDIR=paste0("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/data")
-fucci=read.csv(list.files(FUCCIDIR,recursive = T, pattern="object_231005.csv", full.names = T)) #object_240918.csv
+# FUCCIDIR=paste0("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/data")
+f=list.files(FUCCIDIR,recursive = T, pattern="object.csv", full.names = T) #object_240918.csv
+fucci=read.csv(grep(REGEX, f, value=T))
 fucci$FileName_bright=gsub(".ome.tif","",gsub("stk_0001_","",fucci$FileName_bright))
 colnames(fucci)=gsub("Location_Center_","", colnames(fucci))
 ii=which(colnames(fucci) %in% toupper(xyz))
 colnames(fucci)[ii]=tolower(colnames(fucci)[ii])
 fucci$FileName_bright=gsub("_ch1","",fucci$FileName_bright)
+colnames(fucci) = gsub("fluor_1","green",colnames(fucci)) ## fluor_1 = green
+colnames(fucci) = gsub("fluor_2","red",colnames(fucci)) ## fluor_2 = red
+## classify cell cycle phase
+fucci$cellCycle = 2
+fucci$cellCycle[fucci$Intensity_MeanIntensity_green>MINGREEN & fucci$Intensity_MeanIntensity_red<MINRED] = 1
+fucci$cellCycle[fucci$Intensity_MeanIntensity_green<MINGREEN & fucci$Intensity_MeanIntensity_red>MINRED] = 3
+fucci$cellCycle[fucci$Intensity_MeanIntensity_green>MINGREEN & fucci$Intensity_MeanIntensity_red>MINRED] = 4
+## Plot fucci classes
+# par(mfrow=c(2,2))
+fuccicol=fliplr(rainbow(max(fucci$cellCycle)*1.2)[1:max(fucci$cellCycle)])
+names(fuccicol) = c("G1", "G1/S","S","G2/M")
+plot(fucci$Intensity_MeanIntensity_green, fucci$Intensity_MeanIntensity_red, col=fucci$cellCycle, pch=20, log="xy", xlab="Intensity_MeanIntensity_green", ylab="Intensity_MeanIntensity_red", cex.lab=2, cex.axis=2, main=REGEX)
+legend("bottomright", names(fuccicol), fill=1:4)
+plyr::count(fucci$cellCycle)
+## Save output for gating
+coi=sapply(c("red","green"), function(x) grep(x, colnames(fucci), value=T))
+coi=c(coi[,1], coi[,2])
+coi=grep("Name_", coi, invert = T, value = T)
+coi=grep("Intensity", coi, value = T)
+fucci$cellCycle = NA
+write.table(fucci[,coi],file = paste0("~/Downloads/",REGEX,"_fucci.txt"),row.names = F,quote = F)
+
+
 
 ###############################################
 ######Allen model performance evaluation#######
@@ -178,13 +207,6 @@ for(FoF in FoFs){
   ## Save cellprofiler output with matching nucleus ID:
   fucci_=fucci[fucci$FileName_bright==FoF,]
   fucci_$ID=NA
-  colnames(fucci_) = gsub("fluor_1","green",colnames(fucci_)) ## fluor_1 = green
-  colnames(fucci_) = gsub("fluor_2","red",colnames(fucci_)) ## fluor_2 = red
-  ## classify cell cycle phase
-  fucci_$cellCycle = 2
-  fucci_$cellCycle[fucci_$Intensity_IntegratedIntensity_green>MINGREEN & fucci_$Intensity_IntegratedIntensity_red<MINRED] = 1
-  fucci_$cellCycle[fucci_$Intensity_IntegratedIntensity_green<MINGREEN & fucci_$Intensity_IntegratedIntensity_red>MINRED] = 3
-  fucci_$cellCycle[fucci_$Intensity_IntegratedIntensity_green>MINGREEN & fucci_$Intensity_IntegratedIntensity_red>MINRED] = 4
   for(x in f){
     coord=read.csv(file=x,check.names = F,stringsAsFactors = F)
     coord_ = coord
@@ -213,6 +235,8 @@ for(FoF in FoFs){
 
 
 ## keep only cells with all three signals:
+OUTLINKED="K06_multiSignals_Linked"
+FoFs=list.files(OUTLINKED);
 signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv",cytoplasm.p="cytoplasm.p_Cells_Centers.csv")
 signals_per_id=list()
 ## Input and output:
@@ -220,7 +244,8 @@ for(FoF in FoFs){
   OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
   
   f=list.files(OUTLINKED_,full.names = T, pattern = ".csv")
-  signals_per_id_=plyr::count(sapply(strsplit(f,"_"), function(x) x[length(x)-1]))
+  f_= sapply(f, function(x) fileparts(x)$name)
+  signals_per_id_=plyr::count(sapply(strsplit(f_,"_"), function(x) x[length(x)-1]))
   toRM=signals_per_id_$x[signals_per_id_$freq<length(signals)]
   for(x in toRM){
     y=list.files(OUTLINKED_,full.names = T,pattern = paste0("_",x,"_"))
@@ -228,3 +253,159 @@ for(FoF in FoFs){
   }
   signals_per_id[[FoF]]=signals_per_id_[!signals_per_id_$x %in% toRM,]
 }
+barplot(sapply(signals_per_id,nrow), names=names(signals_per_id))
+
+###########################
+## Calculate image stats ##
+###########################
+for(FoF in FoFs){
+  print(FoF)
+  OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
+  if(length(signals)==1){
+    OUTLINKED_=paste0(getwd(),filesep,OUTCORRECTED,filesep,FoF,filesep,"All_Cells_coordinates")
+  }
+  
+  ## Read in linked organelles
+  coord_=readOrganelleCoordinates(signals_per_id[[FoF]], names(signals), OUTLINKED_)
+  save(file=paste0("~/Downloads/stats_",FoF,".RObj"),"coord_")
+  coord=coord_; ## Backup
+  
+  ## Gather stats
+  cells=unique(coord_$id)
+  thesignals=unique(coord_$signal)
+  imgStats=as.data.frame(matrix(NA,length(cells),3+4*length(thesignals)))
+  rownames(imgStats)=as.character(cells)
+  colnames(imgStats)=c(sapply(c("vol_","area_","pixels_","count_"),paste0,thesignals),"x","y","z")
+  imgStats$FUCCI_cellCycle=NA
+  for(id in cells){
+    print(paste("Processing",which(cells==id),"out of",length(cells),"cells ..."))
+    # print(paste("cell",id))
+    a=coord_[coord_$id==id,]
+    imgStats[as.character(id),c("x","y","z")]=apply(a[a$signal=="nucleus.p",c("x","y","z")],2,median)
+    ## shotcut to get convex hull stats
+    emptyList=list(area=NA, vol=NA, maxAreaSlice=NA,fractaldim=NA,rugosity=NA,heightRange=NA, convexity=NA, packing=NA, sphericity=NA, sma=NA,csf=NA)
+    getstats<-function(a_){
+      hull <- try(convhulln(a_[,c("x","y","z")], options = "FA", return.non.triangulated.facets=T),silent = T)
+      # hull=try(Plot_ConcaveHull(a_$x, a_$y, a_$z, lcolor =1, alpha=0.15,add = F))
+      if(class(hull)=="try-error"){
+        hull=emptyList
+      }else{
+        cmap <- try(convhulln(a_[,c("x","y","z")], options = "FA", return.non.triangulated.facets=F),silent = T)
+        cmap=to.mesh3d(cmap)
+        hull=hull[c("area","vol")]
+        hull$heightRange=hr(cmap)
+        # surface_area(cmap)
+        hull$convexity=convexity(cmap)
+        hull$packing=packing(cmap)
+        hull$sphericity=sphericity(cmap)
+        hull$sma=sma(cmap)
+        hull$smv=smv(cmap)
+        hull$csf=csf(mcap)
+      }
+      ## includes nucleus coordinates
+      if(!isempty(grep("nucleus", a_$signal))){
+        ## Central slice area
+        slice <- try(convhulln(a_[,c("x","y")], options = "FA"),silent = T)
+        hull$maxAreaSlice=slice$area
+        # hull$fractaldim=fd(cmap, method = "cubes", plot = TRUE, diagnose = TRUE)$D
+        hull$rugosity=rg(cmap)
+      }
+      hull$pixels=nrow(a_)
+      return(hull)
+    }
+    ## stats for entire cell (all organelles together)
+    stats_=getstats(a)
+    stats_$count=1
+    imgStats[as.character(id),paste0(names(stats_),"_cell")]=sapply(stats_,sum,na.rm=T)
+    ## iterate through signals: mito, cyto, nucleus
+    for(i in 1:length(thesignals)){
+      signal=thesignals[i]
+      if(isempty(grep("nucleus",signal))){
+        stats_=emptyList
+        for(organelle in unique(a$organelle)){
+          a_=a[a$organelle==organelle & a$signal==signal,]
+          hull=getstats(a_)
+          for(sname in names(hull)){
+            stats_[[sname]]=c(stats_[[sname]],hull[[sname]])
+          }
+        }
+        stats_$count=length(stats_$area)-1
+      }else{
+        a_=a[a$signal==signal,]
+        stats_=getstats(a_)
+        stats_$count=1
+      }
+      imgStats[as.character(id),paste0(names(stats_),"_",signal)]=sapply(stats_,sum,na.rm=T)
+      
+      ## distance to other organelles
+      a_=a[a$signal==thesignals[i],]
+      a_= t(as.matrix(apply(a_[,c("x","y","z")], 2, median)))
+      for(j in i:length(thesignals)){
+        if(i==j){
+          next
+        }
+        b_=a[a$signal==thesignals[j],]
+        b_=grpstats(b_[,c("x","y","z")], b_$organelle,"median")$median
+        d=dist2(a_,b_)
+        imgStats[as.character(id), paste0(c("Min","Max","Median"),"Dist_",thesignals[i],"_",thesignals[j])]=quantile(d,c(0,1,0.5))
+      }
+    }
+    
+    ## intensity based features
+    for(signal in grep("nucleus", thesignals, invert = T, value = T) ){
+      a_=a[a$signal==signal,]
+      imgStats[as.character(id),paste0(c("meanIntensity_","medianIntensity_","maxIntensity_","minIntensity_"),signal)]=c(mean(a_$intensity),median(a_$intensity),max(a_$intensity),min(a_$intensity));
+    }
+    
+    ## Record fucci derived cell cycle class too:
+    a_=a[a$signal==grep("nucleus", thesignals, value = T),]
+    imgStats[as.character(id),"FUCCI_cellCycle"] =unique(a_$cellCycle)
+  }
+  
+  ## Add more stats and save 
+  if("mito.t" %in% names(signals) || "mito.p" %in% names(signals)){
+    imgStats$pixel_per_mito_avg=imgStats$pixels_mito.p/imgStats$count_mito.p
+    imgStats$pixel_per_volume_mito=imgStats$pixels_mito.p/imgStats$vol_mito.p
+    imgStats$nuc_to_mito = imgStats$vol_nucleus.p/imgStats$vol_mito.p
+  }
+  for(organelle in thesignals){
+    imgStats[,paste0("pixels_per_volume_",organelle)]=imgStats[,paste0("pixels_",organelle)]/imgStats[,paste0("vol_",organelle)]
+  }
+  if("cytoplasm.t" %in% names(signals)){
+    imgStats$nuc_to_mito_plus_cyto = imgStats$vol_nucleus.p/(imgStats$vol_mito.p+imgStats$vol_cytoplasm.t)
+    imgStats$nuc_to_cyto = imgStats$vol_nucleus.p/imgStats$vol_cytoplasm.t
+    imgStats$cyto_to_mito = imgStats$vol_cytoplasm.t/imgStats$vol_mito.p
+  }
+  imgStats$nuc_vol_to_area=imgStats$vol_nucleus.p/imgStats$area_nucleus.p
+  write.table(imgStats,file=paste0(OUTSTATS,filesep,FoF,"_stats.txt"),sep="\t",quote=F,row.names = T)
+  
+  
+  ## Visualize stats
+  imgStats=read.table(paste0(OUTSTATS,filesep,FoF,"_stats.txt"),header = T,sep="\t")
+  ## Z-score
+  imgStats_=apply(imgStats, 2, function(x) (x - mean(x,na.rm=T))/sd(x,na.rm=T))
+  imgStats_=imgStats_[,!apply(is.na(imgStats_),2,any)]
+  jj=grep("nuc", colnames(imgStats_), value = T, ignore.case = T)
+  jj=grep("mito", jj, value = T, invert = T, ignore.case = T)
+  jj=c("rugosity_nucleus.p"      ,         "smv_nucleus.p"   ,                 "convexity_nucleus.p"        , "sphericity_nucleus.p" )
+  tmp=as.matrix(imgStats_[,jj])
+  tmp[!is.finite(tmp)]=NA
+  hm = gplots::heatmap.2(tmp,trace = "none", margins = c(13, 6), symm = F)
+}
+
+
+
+##################
+## Combine all ###
+imgStats <- list()
+for(FoF in FoFs){
+  imgStats_=read.table(paste0(OUTSTATS,filesep,FoF,"_stats.txt"),sep="\t",check.names = F,stringsAsFactors = F,header = T)
+  imgStats_$FoF= FoF
+  ## which frame (timepoint) is this? Used for mapping to Ilastik output:
+  imgStats_$ID=rownames(imgStats_)
+  imgStats[[FoF]]=imgStats_
+}
+imgStats=do.call(rbind, imgStats)
+imgStats=imgStats[,which(apply(imgStats, 2, function(x) !all(x==0 | is.na(x))))]
+write.table(imgStats, paste0(OUTPSEUDOTIME,filesep,"LabelFree_stats.txt"),sep="\t",quote = F, row.names = T)
+file.copy(paste0(OUTPSEUDOTIME,filesep,"LabelFree_stats.txt"),DATA4PAPERDIR, overwrite = T)
