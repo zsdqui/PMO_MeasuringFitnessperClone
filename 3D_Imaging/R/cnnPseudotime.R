@@ -25,21 +25,33 @@ if (is.null(input_file)) {
        Usage in non-interactive mode: Rscript my_script.R <path_to_file>")
 }
 
+
 # Read the CSV file
 data <- read.csv(input_file, stringsAsFactors = FALSE)
+
+#create barcode from the first two cols
+data <- unite(data, col="barcode", c('FoF', 'Cell_id'), sep='-')
+
+#merge identically barcoded cells by averaging (average of all slices)
+#grp stats automatically sets barcode as rownames
+devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R?raw=TRUE")
+data_merged <- grpstats(x=as.matrix(data[,-1]), g=data$barcode, statscols='median')$median
+
+#if not merging create the rownames manually
+rownames(data) <- make.unique(data$barcode)
+data <- data[,-1] 
+###USE MERGED data###
+#data <- data_merged
 
 # Rename the first two columns for clarity
 colnames(data)[1:2] <- c("real_cell_cycle_label", "inferred_cell_cycle")
 
-# Set row names on data
-rownames(data) <- paste0("cell", 1:nrow(data))
-
 # Extract features (all columns except the first two)
-features <- data[, -c(1, 2)]
+features_numeric <- data[, c(-1,-2)]
 
 # Convert all features to numeric
-features_numeric <- data.frame(lapply(features, function(x) as.numeric(as.character(x))))
-rownames(features_numeric) <- rownames(data)  # Set row names on features_numeric
+#features_numeric <- data.frame(lapply(features, function(x) as.numeric(as.character(x))))
+#rownames(features_numeric) <- rownames(data)  # Set row names on features_numeric
 
 # Remove columns with all NA values (non-numeric columns)
 features_numeric <- features_numeric[, colSums(is.na(features_numeric)) < nrow(features_numeric)]
@@ -66,8 +78,14 @@ rownames(features_normalized) <- rownames(features_numeric_matrix)  # Ensure row
 # Keep track of finite rows
 finite_rows <- apply(is.finite(features_normalized), 1, all)
 
+# After handling non-finite values
+finite_rows <- apply(is.finite(features_normalized), 1, all)
+
+# Filter features_normalized to keep only rows with finite values
 features_normalized <- features_normalized[finite_rows, , drop = FALSE]
-data_filtered <- data[finite_rows, , drop = FALSE]
+
+# Create data_filtered by filtering the original data to match
+data_filtered <- as.data.frame(data[finite_rows, ])
 
 # Ensure row names are preserved
 rownames(features_normalized) <- rownames(features_numeric_matrix)[finite_rows]
@@ -100,8 +118,8 @@ abline(h = 0.9, col = "red", lty = 2) # Add a dashed red line at 0.98
 
 # Create a dyno dataset (need to include cell_id)
 dataset <- wrap_expression(
-  counts = features_pca[,1:15],
-  expression = features_pca[,1:15]
+  counts = features_pca[,1:10],
+  expression = features_pca[,1:10]
 )
 
 # Infer trajectory using ti_angle
@@ -115,20 +133,20 @@ data_filtered$pseudotime <- model$pseudotime[rownames(data_filtered)]
 
 # Visualize pseudotime versus real cell cycle label
 ggplot(data_filtered, aes(x = factor(real_cell_cycle_label), y = pseudotime)) +
-  geom_violin(scale = "count") +
+  geom_boxplot(notch=TRUE) +
   xlab("Real Cell Cycle Label") +
   ylab("Pseudotime") +
   ggtitle("Pseudotime vs Real Cell Cycle Label")
 
 # Visualize pseudotime versus inferred cell cycle
-ggplot(data_filtered, aes(x = factor(inferred_cell_cycle), y = pseudotime)) +
-  geom_boxplot(notch = TRUE) +
-  xlab("Inferred Cell Cycle Label") +
-  ylab("Pseudotime") +
-  ggtitle("Pseudotime vs Inferred Cell Cycle")
+#ggplot(data_filtered, aes(x = factor(inferred_cell_cycle), y = pseudotime)) +
+ # geom_boxplot(notch = TRUE) +
+  #xlab("Inferred Cell Cycle Label") +
+  #ylab("Pseudotime") +
+  #ggtitle("Pseudotime vs Inferred Cell Cycle")
 
 # Plot pseudotime on a dimensionality reduction
 plot_dimred(model, color_cells = "pseudotime")
 
 # Save the model if needed
-#saveRDS(model, file = "pseudotime_model.rds")
+save(model, file = "~/Downloads/pseudotime_model.Robj")
