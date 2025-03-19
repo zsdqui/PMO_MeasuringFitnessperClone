@@ -6,8 +6,8 @@ library(dynwrap)
 # Retrieve command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
-# Initialize an input_file variable
-input_file <- NULL
+# Initialize an input_file variable - this file should be the features csv file from cell cycle classification CNN
+input_file <- NULL 
 
 # 1. If command-line args exist, use the first one
 if (length(args) > 0) {
