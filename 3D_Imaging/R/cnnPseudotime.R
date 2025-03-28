@@ -6,8 +6,8 @@ library(dynwrap)
 # Retrieve command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
-# Initialize an input_file variable
-input_file <- NULL
+# Initialize an input_file variable - this file should be the features csv file from cell cycle classification CNN
+input_file <- NULL 
 
 # 1. If command-line args exist, use the first one
 if (length(args) > 0) {
@@ -40,8 +40,9 @@ data_merged <- grpstats(x=as.matrix(data[,-1]), g=data$barcode, statscols='media
 #if not merging create the rownames manually
 rownames(data) <- make.unique(data$barcode)
 data <- data[,-1] 
+
 ###USE MERGED data###
-#data <- data_merged
+data <- data_merged
 
 # Rename the first two columns for clarity
 colnames(data)[1:2] <- c("real_cell_cycle_label", "inferred_cell_cycle")
@@ -133,7 +134,7 @@ data_filtered$pseudotime <- model$pseudotime[rownames(data_filtered)]
 
 # Visualize pseudotime versus real cell cycle label
 ggplot(data_filtered, aes(x = factor(real_cell_cycle_label), y = pseudotime)) +
-  geom_boxplot(notch=TRUE) +
+  geom_violin(scale='width') +
   xlab("Real Cell Cycle Label") +
   ylab("Pseudotime") +
   ggtitle("Pseudotime vs Real Cell Cycle Label")

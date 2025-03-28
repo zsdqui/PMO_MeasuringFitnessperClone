@@ -92,16 +92,17 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 REGEX="240918_fluorescent.nucleus"
 # REGEX="231005_fluorescent.nucleus"
 if (grepl("^240918", REGEX)){
-  MINGREEN = 0.005
-  MINRED = 0.012
+  MINGREEN = 250
+  MINRED = 600
   print(REGEX)
   print(sprintf("MINGREEN is %f MINRED is %f", MINGREEN,MINRED))
 }else if(grepl("^231005", REGEX)){
-  MINGREEN = 0.005
-  MINRED = 0.012
+  MINGREEN = 700
+  MINRED = 500
   print(REGEX)
   print(sprintf("MINGREEN is %f MINRED is %f", MINGREEN,MINRED))
 }
+
 
 
 ##########################
@@ -118,14 +119,14 @@ colnames(fucci) = gsub("fluor_1","green",colnames(fucci)) ## fluor_1 = green
 colnames(fucci) = gsub("fluor_2","red",colnames(fucci)) ## fluor_2 = red
 ## classify cell cycle phase
 fucci$cellCycle = 2
-fucci$cellCycle[fucci$Intensity_MeanIntensity_green>MINGREEN & fucci$Intensity_MeanIntensity_red<MINRED] = 1
-fucci$cellCycle[fucci$Intensity_MeanIntensity_green<MINGREEN & fucci$Intensity_MeanIntensity_red>MINRED] = 3
-fucci$cellCycle[fucci$Intensity_MeanIntensity_green>MINGREEN & fucci$Intensity_MeanIntensity_red>MINRED] = 4
+fucci$cellCycle[fucci$Intensity_IntegratedIntensity_green>MINGREEN & fucci$Intensity_IntegratedIntensity_red<MINRED] = 1
+fucci$cellCycle[fucci$Intensity_IntegratedIntensity_green<MINGREEN & fucci$Intensity_IntegratedIntensity_red>MINRED] = 3
+fucci$cellCycle[fucci$Intensity_IntegratedIntensity_green>MINGREEN & fucci$Intensity_IntegratedIntensity_red>MINRED] = 4
 ## Plot fucci classes
 # par(mfrow=c(2,2))
 fuccicol=fliplr(rainbow(max(fucci$cellCycle)*1.2)[1:max(fucci$cellCycle)])
 names(fuccicol) = c("G1", "G1/S","S","G2/M")
-plot(fucci$Intensity_MeanIntensity_green, fucci$Intensity_MeanIntensity_red, col=fucci$cellCycle, pch=20, log="xy", xlab="Intensity_MeanIntensity_green", ylab="Intensity_MeanIntensity_red", cex.lab=2, cex.axis=2, main=REGEX)
+plot(fucci$Intensity_IntegratedIntensity_green, fucci$Intensity_IntegratedIntensity_red, col=fucci$cellCycle, pch=20, log="xy", xlab="Intensity_IntegratedIntensity_green", ylab="Intensity_IntegratedIntensity_red", cex.lab=2, cex.axis=2, main=REGEX)
 legend("bottomright", names(fuccicol), fill=1:4)
 plyr::count(fucci$cellCycle)
 ## Save output for gating
