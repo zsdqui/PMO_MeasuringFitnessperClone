@@ -1,7 +1,7 @@
 # conda activate r_env
 # setwd("/raid/crdlab/ix1/Projects/M005_MeasuringFitnessPerClone_2019/code/R")
 # setwd("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/PMO_MeasuringFitnessperClone/3D_Imaging/R")
-setwd("~/Projects/PMO/MeasuringFitnessPerClone/code/3D_Imaging/R")
+setwd("/Users/saeedalahmari/Downloads/BioInformaticsPaper/PMO_MeasuringFitnessperClone/3D_Imaging/R")
 source("CorrectCellposeSegmentation.R")
 source("assignCompartment2Nucleus.R")
 source("compareCells.R")
@@ -23,7 +23,7 @@ devtools::source_url("https://github.com/noemiandor/Utils/blob/master/grpstats.R
 ## Constants, Settings, Input and output folders:
 #ROOT="/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/data/NCI-N87"
 # ROOT="/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/data/NCI-N87"
-ROOT="~/Projects/PMO/MeasuringFitnessPerClone/data/GastricCancerCLs/3Dbrightfield/NCI-N87"
+ROOT="/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/NCI-N87-2"
 setwd(ROOT)
 EPS=10; #6
 MINPTS=3; #4
@@ -89,8 +89,9 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 }
 
 
-REGEX="240918_fluorescent.nucleus"
-# REGEX="231005_fluorescent.nucleus"
+#REGEX="240918_fluorescent.nucleus"
+REGEX="2410"
+#REGEX="231005_fluorescent.nucleus"
 if (grepl("^240918", REGEX)){
   MINGREEN = 250
   MINRED = 600
@@ -134,7 +135,7 @@ coi=sapply(c("red","green"), function(x) grep(x, colnames(fucci), value=T))
 coi=c(coi[,1], coi[,2])
 coi=grep("Name_", coi, invert = T, value = T)
 coi=grep("Intensity", coi, value = T)
-fucci$cellCycle = NA
+#fucci$cellCycle = NA
 write.table(fucci[,coi],file = paste0("~/Downloads/",REGEX,"_fucci.txt"),row.names = F,quote = F)
 
 
@@ -195,7 +196,7 @@ for(FoF in FoFs){
   assignCompartment2Nucleus(MITOTIF, CYTOTIF,OUTLINKED_, signals$nucleus.p, save_cell_gif=F)
   setwd(ROOT)
   
-  
+  ### RUN THE LOOP UP TO THIS POINT, THEN RUN CELLPROFILER. 
   ## Save FUCCI intensities
   ## Use Nucleus coordinates (from cellpose postprocess) to access intensities in ch00 and ch02 of FUCCI image:
   fucci_coord=list()
@@ -236,7 +237,7 @@ for(FoF in FoFs){
 
 
 ## keep only cells with all three signals:
-OUTLINKED="K06_multiSignals_Linked"
+OUTLINKED="A06_multiSignals_Linked"
 FoFs=list.files(OUTLINKED);
 signals=list(nucleus.p="nucleus.p_Cells_Centers.csv",mito.p="mito.p_Cells_Centers.csv",cytoplasm.p="cytoplasm.p_Cells_Centers.csv")
 signals_per_id=list()
