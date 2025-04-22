@@ -92,7 +92,7 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 #REGEX="240918_fluorescent.nucleus"
 REGEX="2410"
 #REGEX="231005_fluorescent.nucleus"
-if (grepl("^240918", REGEX)){
+if (grepl("^240918", REGEX) || grepl("^2410",REGEX)){
   MINGREEN = 250
   MINRED = 600
   print(REGEX)
