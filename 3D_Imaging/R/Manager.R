@@ -116,6 +116,7 @@ colnames(fucci)=gsub("Location_Center_","", colnames(fucci))
 ii=which(colnames(fucci) %in% toupper(xyz))
 colnames(fucci)[ii]=tolower(colnames(fucci)[ii])
 fucci$FileName_bright=gsub("_ch1","",fucci$FileName_bright)
+fucci$FileName_bright=gsub("_ch01","",fucci$FileName_bright) 
 colnames(fucci) = gsub("fluor_1","green",colnames(fucci)) ## fluor_1 = green
 colnames(fucci) = gsub("fluor_2","red",colnames(fucci)) ## fluor_2 = red
 ## classify cell cycle phase
