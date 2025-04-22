@@ -163,7 +163,7 @@ for(FoF in FoFs){
   ###### Correcting Cellpose Segmentation #######
   ###############################################
   CorrectCellposeSegmentation(FoF,signal=names(signals)[1],INDIR,OUTCORRECTED,doplot=0,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
-  OUTLINKED_=paste0(getwd(),filesep,OUTCORRECTED,filesep,FoF,filesep,"All_Cells_coordinates")
+  #OUTLINKED_=paste0(getwd(),filesep,OUTCORRECTED,filesep,FoF,filesep,"All_Cells_coordinates")
   ncells[[FoF]]= length(list.files(paste0(OUTCORRECTED,filesep,FoF,filesep,"All_Cells_coordinates"),pattern = "nucleus"))
   # # ## For live-cell tracking:
   # # # # CorrectCellposeSegmentation(FoF,signal=names(signals),INDIR,OUTCORRECTED,doplot=F,eps=EPS,minPts=MINPTS,IMPORTALLORGANELLES=F)
@@ -195,10 +195,15 @@ for(FoF in FoFs){
   # assignCompartment2Nucleus(signals$cytoplasm.p, signals$nucleus.p, OUTLINKED_, save_cell_gif=F)
   assignCompartment2Nucleus(MITOTIF, CYTOTIF,OUTLINKED_, signals$nucleus.p, save_cell_gif=F)
   setwd(ROOT)
+}
   
   ### RUN THE LOOP UP TO THIS POINT, THEN RUN CELLPROFILER. 
   ## Save FUCCI intensities
   ## Use Nucleus coordinates (from cellpose postprocess) to access intensities in ch00 and ch02 of FUCCI image:
+for(FoF in FoFs){
+  print(FoF)
+  setwd(ROOT)
+  OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
   fucci_coord=list()
   for(ch in c("ch00","ch02")){
     TIF=list.files(paste0("A01_rawData",filesep,FoF), pattern=ch, full.names = T)
