@@ -92,38 +92,14 @@ readOrganelleCoordinates<-function(signals_per_id, signals, IN){
 #REGEX="240918_fluorescent.nucleus"
 REGEX="2410"
 #REGEX="231005_fluorescent.nucleus"
-if (grepl("^240918", REGEX) || grepl("^2410",REGEX)){
-  MINGREEN = 250
-  MINRED = 600
-  print(REGEX)
-  print(sprintf("MINGREEN is %f MINRED is %f", MINGREEN,MINRED))
-}else if(grepl("^231005", REGEX)){
-  MINGREEN = 700
-  MINRED = 500
-  print(REGEX)
-  print(sprintf("MINGREEN is %f MINRED is %f", MINGREEN,MINRED))
-}
-
-
 
 ##########################
 ### read fucci results ###
 # FUCCIDIR=paste0("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/data")
-f=list.files(FUCCIDIR,recursive = T, pattern="object.csv", full.names = T) #object_240918.csv
+f=list.files(FUCCIDIR,recursive = T, pattern="object_cellCycle.csv", full.names = T) #object_240918.csv
 fucci=read.csv(grep(REGEX, f, value=T))
-fucci$FileName_bright=gsub(".ome.tif","",gsub("stk_0001_","",fucci$FileName_bright))
-colnames(fucci)=gsub("Location_Center_","", colnames(fucci))
 ii=which(colnames(fucci) %in% toupper(xyz))
 colnames(fucci)[ii]=tolower(colnames(fucci)[ii])
-fucci$FileName_bright=gsub("_ch1","",fucci$FileName_bright)
-fucci$FileName_bright=gsub("_ch01","",fucci$FileName_bright) 
-colnames(fucci) = gsub("fluor_1","green",colnames(fucci)) ## fluor_1 = green
-colnames(fucci) = gsub("fluor_2","red",colnames(fucci)) ## fluor_2 = red
-## classify cell cycle phase
-fucci$cellCycle = 2
-fucci$cellCycle[fucci$Intensity_IntegratedIntensity_green>MINGREEN & fucci$Intensity_IntegratedIntensity_red<MINRED] = 1
-fucci$cellCycle[fucci$Intensity_IntegratedIntensity_green<MINGREEN & fucci$Intensity_IntegratedIntensity_red>MINRED] = 3
-fucci$cellCycle[fucci$Intensity_IntegratedIntensity_green>MINGREEN & fucci$Intensity_IntegratedIntensity_red>MINRED] = 4
 ## Plot fucci classes
 # par(mfrow=c(2,2))
 fuccicol=fliplr(rainbow(max(fucci$cellCycle)*1.2)[1:max(fucci$cellCycle)])
