@@ -190,7 +190,7 @@ for(FoF in FoFs){
   f=list.files(OUTLINKED_, pattern="nucleus.p_cell_",full.names = T)
   ## Save cellprofiler output with matching nucleus ID:
   fucci_=fucci[fucci$FileName_bright==FoF,]
-  fucci_$ID=NA
+  fucci_$dist2nuc <- fucci_$ID <- NA
   for(x in f){
     coord=read.csv(file=x,check.names = F,stringsAsFactors = F)
     coord_ = coord
@@ -200,8 +200,10 @@ for(FoF in FoFs){
      ## Assign FUCCI ID:
     d=dist2(t(as.matrix(apply(coord_[,xyz],2,mean))), fucci_[,xyz])
     fucci_$ID[which.min(d)] = as.numeric(strsplit(fileparts(x)$name,"_")[[1]][3])
-    
+    fucci_$dist2nuc[which.min(d)] = min(d);
+                           
     coord$cellCycle = fucci_$cellCycle[which.min(d)]
+    coord$dist2fucci = min(d);
     ## Save output -- overwrite
     write.csv(coord, file=x,quote = F,row.names = F)
   }
