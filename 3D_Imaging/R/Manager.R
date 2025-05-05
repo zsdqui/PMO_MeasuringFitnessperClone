@@ -27,6 +27,7 @@ ROOT="/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/NCI-N87
 setwd(ROOT)
 EPS=10; #6
 MINPTS=3; #4
+MAXDIST2FUCCISIGNAL=3
 xydim = 255
 pixelsize_xy = 0.232 # um 
 z_interval = 0.29 #  um 
@@ -228,11 +229,20 @@ signals_per_id=list()
 ## Input and output:
 for(FoF in FoFs){
   OUTLINKED_=paste0(getwd(),filesep,OUTLINKED,filesep,FoF,filesep)
-  
+
+  ## Exclude cells where one or more signals are missing
   f=list.files(OUTLINKED_,full.names = T, pattern = ".csv")
   f_= sapply(f, function(x) fileparts(x)$name)
   signals_per_id_=plyr::count(sapply(strsplit(f_,"_"), function(x) x[length(x)-1]))
   toRM=signals_per_id_$x[signals_per_id_$freq<length(signals)]
+
+  ## Exclude cells with ambiguous fucci signal
+  rownames(signals_per_id_)=signals_per_id_$x
+  fucci_=read.table(list.files(OUTLINKED_,full.names = T, pattern = "fucci.txt"),header = T)
+  noFucciIDs=fucci_$ID[fucci_$dist2nuc>MAXDIST2FUCCISIGNAL]
+  toRM=union(toRM, signals_per_id_[noFucciIDs,"x"])
+    
+  ## Now remove files
   for(x in toRM){
     y=list.files(OUTLINKED_,full.names = T,pattern = paste0("_",x,"_"))
     file.remove(y)
