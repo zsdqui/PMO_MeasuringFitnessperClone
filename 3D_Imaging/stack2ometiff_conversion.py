@@ -110,7 +110,7 @@ def Get_ome_tif_file_single(signal, SaveIMG = "A02_ometiffconversion/FoF3_210803
 
 
 # place the desired path location in the diectory 
-directory = "/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/dataset_bioinformatics/A01_rawData"
+directory = "/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/NCI-N87-2/A01_rawData"
 
 for filename in os.listdir(directory):
     #print(os.path.join(directory, filename)) 
@@ -128,9 +128,9 @@ for filename in os.listdir(directory):
         signals = desiredfile + "/*ch01*.tif"
         targets = desiredfile + "/*.t_*.tif"
         # input desired directory to store the saved .ome files 
-        if not os.path.exists("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/dataset_bioinformatics/A02_ometiffconversion/"):
-            os.makedirs("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/dataset_bioinformatics/A02_ometiffconversion/")
-        SaveDir = "/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/dataset_bioinformatics/A02_ometiffconversion/" + Savefile + ".ome.tif"
+        if not os.path.exists("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/NCI-N87-2/A02_ometiffconversion/"):
+            os.makedirs("/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/NCI-N87-2/A02_ometiffconversion/")
+        SaveDir = "/Volumes/Expansion/Collaboration/Moffitt_Noemi/BioinformaticsPaper/NCI-N87-2/A02_ometiffconversion/" + Savefile + ".ome.tif"
         # call the function : which convert the numpy array to .ome file 
         if len(glob.glob(targets))==0:
             Get_ome_tif_file_single(signal = glob.glob(signals), SaveIMG = SaveDir)

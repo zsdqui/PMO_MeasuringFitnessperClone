@@ -83,7 +83,7 @@ class AugmentImages():
         for image,folder in zip(aug_images,labels):
             if not os.path.exists(os.path.join(self.path2Save,dir_name)):
                 os.makedirs(os.path.join(self.path2Save,dir_name))
-            aug_image_name = image_name.split('.tif')[0] + '_aug_'+str(index)+'.png'
+            aug_image_name = image_name.split('.tif')[0] + '_aug_'+str(index)+'.tif'
             image = self.normalize8(image)
             image = image.transpose(2 , 0 , 1)
             #print(image.shape)
@@ -99,7 +99,7 @@ class AugmentImages():
                 #print('rotation angle {}'.format(i))
                 aug_image = self.augmentor.apply_transform(image,{'theta':i})
                 aug_list.append(aug_image)
-            for i in range(20): # generate 10x random images. 
+            for i in range(40): # generate 40x random images. 
                 aug_image = tf.image.random_brightness(image, max_delta=0.7)  # Random brightness
                 aug_list.append(aug_image)
                 aug_image = tf.image.random_contrast(image, lower=0.8, upper=2.2)  # Random contrast

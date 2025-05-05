@@ -7,7 +7,7 @@ import tensorflow.keras as K
 import sys
 import numpy as np
 import pandas as pd
-from util import Binarize_labels, load_cellCycleData, load_keras_model
+from util import Binarize_labels, load_cellCycleData, load_keras_model, split_dataframe
 from sklearn.metrics import accuracy_score
 import random as rn
 import argparse
@@ -90,19 +90,14 @@ def train(
     if not os.path.exists("models"):
         os.makedirs("models")
 
-    train_df = load_cellCycleData(train_dir)
+    df = load_cellCycleData(train_dir)
     if (
         not os.path.exists(os.path.join(train_dir, "train_data.csv"))
         and not os.path.exists(os.path.join(train_dir, "val_data.csv"))
         and not os.path.exists(os.path.join(train_dir, "test_data.csv"))
     ):
         print("Didnt find csv files, splitting the data...")
-        train_df, temp_df = train_test_split(
-            train_df, random_state=2024, test_size=0.4, stratify=train_df["label"]
-        )
-        val_df, test_df = train_test_split(
-            temp_df, random_state=2024, test_size=0.5, stratify=temp_df["label"]
-        )
+        train_df, val_df, test_df = split_dataframe(df)
         train_df.to_csv(train_dir + "/train_data.csv", index=False)
         val_df.to_csv(train_dir + "/val_data.csv", index=False)
         test_df.to_csv(train_dir + "/test_data.csv", index=False)
@@ -111,13 +106,13 @@ def train(
         val_df = pd.read_csv(train_dir + "/val_data.csv")
     # Pre-augment option goes here and updating the df_train file
     max_count = train_df['label'].value_counts().max()
-    min_count_val = val_df['label'].value_counts().max()
+    max_count_val = val_df['label'].value_counts().max()
     print('Applying oversampling with max_count is {}'.format(max_count))
     # Oversample
-    train_df = train_df.groupby('label', group_keys=False).apply(lambda x: x.sample(n=max_count, replace=True, random_state=42))
-    train_df = train_df.sample(frac=1, random_state=42).reset_index(drop=True)  # Shuffle the oversampled dataset
-    val_df = val_df.groupby("label", group_keys=False).apply(lambda x: x.sample(n=min_count_val, replace=True, random_state=42))
-    val_df = val_df.sample(frac=1, random_state=42).reset_index(drop=True)  # Shuffle the oversampled dataset
+    #train_df = train_df.groupby('label', group_keys=False).apply(lambda x: x.sample(n=max_count, replace=True, random_state=42))
+    #train_df = train_df.sample(frac=1, random_state=42).reset_index(drop=True)  # Shuffle the oversampled dataset
+    #val_df = val_df.groupby("label", group_keys=False).apply(lambda x: x.sample(n=max_count_val, replace=True, random_state=42))
+    #val_df = val_df.sample(frac=1, random_state=42).reset_index(drop=True)  # Shuffle the oversampled dataset
     counts_train = train_df.groupby("label").size()
     counts_val = val_df.groupby("label").size()
     print(counts_train)
@@ -132,8 +127,8 @@ def train(
         train_df = load_cellCycleData(train_dir + "-aug")
         min_count = train_df['label'].value_counts().min()
         print('Applying oversampling to augmented data with max_count is {}'.format(min_count))
-        train_df = train_df.groupby('label', group_keys=False).apply(lambda x: x.sample(n=min_count, replace=False, random_state=42))
-        train_df = train_df.sample(frac=1, random_state=42).reset_index(drop=True)  # Shuffle the oversampled dataset
+        #train_df = train_df.groupby('label', group_keys=False).apply(lambda x: x.sample(n=min_count, replace=False, random_state=42))
+        #train_df = train_df.sample(frac=1, random_state=42).reset_index(drop=True)  # Shuffle the oversampled dataset
         counts_train = train_df.groupby("label").size()
         print('train after pre_augment and oversampling size is {}'.format(counts_train))
         training_generator = DataGenerator(train_dir+'-aug',

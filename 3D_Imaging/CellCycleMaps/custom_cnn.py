@@ -16,7 +16,7 @@ def buildModel(neurons,drop,hidden_layers,nb_classes):
     # input layer
     inputs = Input(shape=(64,64,3))
 
-    x = Conv2D(neurons, (3, 3), padding='same', activation='relu',kernel_regularizer=regularizers.l2(0.001))(inputs) #Saeed: Added l2 regularizer to overcome overfitting issue
+    x = Conv2D(neurons, (3, 3), padding='same', activation='relu',kernel_regularizer=regularizers.l2(0.01))(inputs) #Saeed: Added l2 regularizer to overcome overfitting issue
     x = BatchNormalization()(x) # Saeed: Added this to overcome overfitting problems
     x = MaxPooling2D((2, 2), padding='same')(x)
     # hidden layers
@@ -24,15 +24,15 @@ def buildModel(neurons,drop,hidden_layers,nb_classes):
     if hidden_layers !=0:
         for i in range(1,hidden_layers+1):
             #print(i)
-            x = Conv2D(neurons*(2**i), (3, 3), padding='same', activation='relu',kernel_regularizer=regularizers.l2(0.001))(x) #Saeed: Added l2 regularizer to overcome overfitting issue
+            x = Conv2D(neurons*(2**i), (3, 3), padding='same', activation='relu',kernel_regularizer=regularizers.l2(0.01))(x) #Saeed: Added l2 regularizer to overcome overfitting issue
             x = BatchNormalization()(x) # Saeed: Added this to overcome overfitting problem.
             #print('conv hidden {}'.format(x.shape))
             x = MaxPooling2D((2, 2), padding='same')(x)
             #print('maxpool hidden {}'.format(x.shape))
     x = Flatten()(x)
-    x = Dense(neurons*(2**(hidden_layers+1)), activation='relu',kernel_regularizer=regularizers.l2(0.001))(x) #Saeed: Added l2 regularizer to overcome overfitting issue
-    x = Dropout(drop)(x)
-
+    x = Dense(neurons*(2**(hidden_layers+1)), activation='relu',kernel_regularizer=regularizers.l2(0.01))(x) #Saeed: Added l2 regularizer to overcome overfitting issue
+    #x = Dropout(drop)(x)
+    x = BatchNormalization()(x)
     # output
     predictions = Dense(nb_classes, activation='softmax')(x)
 

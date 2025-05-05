@@ -93,11 +93,15 @@ def pad_data(list_of_data, df_max_cell):
                 percentage_reduction_y = 64 / float(max_shape[0][1])
 
         image = tifffile.imread(path2Image)
+        percentage_reduction_x = 0 
+        percentage_reduction_y = 0
         try:
             if percentage_reduction_x == 0 and percentage_reduction_y == 0:
                 image_resized = image
+                #print('pass')
                 pass
-            else:  # update reduction percentages if it is zero to avoid issues with cv2.resize      
+            else:  # update reduction percentages if it is zero to avoid issues with cv2.resize    
+                #print('else')  
                 if percentage_reduction_x  == 0:
                     percentage_reduction_x = 1
                 if percentage_reduction_y == 0:
@@ -120,6 +124,7 @@ def pad_data(list_of_data, df_max_cell):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Pad image patches to 64x64 for training.')
     parser.add_argument('path2Patches', type=str, help='Path to the patches directory.')
+    #parser.add_argument('--scaleImages', help='Scale images so the largest cell is reduced to 64x64 pixels',action="store_true")
     parser.add_argument('path2Save',type=str,default='same_as_path2Patches',help='Path to directory for saving the patches',nargs='?')
     args = parser.parse_args()
     if args.path2Save == 'same_as_path2Patches':
