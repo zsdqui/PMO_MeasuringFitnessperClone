@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from tifffile import imread
 import argparse, traceback
+from skimage.color import label2rgb
 
 try:
     from cellpose import models
@@ -19,6 +20,29 @@ except ImportError:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--input_dir",help= "Input directory for 3D Tiffs" )
+    parser.add_argument("-c", "--colorize", help="colorize output", optional=True )
+    parser.add_argument("-o", "--output", help="Output directory for 3D masks")
+    args = parser.parse_args()
+
+    image_base_dir = args.input_dir
+    volume_subdirs = []
+    try:
+        if not os.path.isdir(image_base_dir):
+             raise FileNotFoundError(f"Image base directory not found: {image_base_dir}")
+        volume_subdirs = sorted([
+            d for d in os.listdir(image_base_dir)
+            if os.path.isdir(os.path.join(image_base_dir, d))
+        ])
+        print(f"Found {len(volume_subdirs)} potential volume directories in {image_base_dir}.")
+        if not volume_subdirs:
+            print("Warning: No subdirectories found. Check the image_base_dir path and contents.")
+
+    except FileNotFoundError as e:
+        print(f"ERROR: {e}")
+    except Exception as e:
+        print(f"ERROR: An unexpected error occurred while listing directories: {e}")
     if not volume_subdirs:  # Check if variable from Cell 1 exists and is not empty
         print(
             "No volume subdirectories found (list 'volume_subdirs' is empty or was not created in Cell 1). Exiting batch processing."
@@ -64,7 +88,7 @@ def main():
             )  # Start timer for the whole volume processing
 
             try:
-                # STEP 1: Assemble Image (Sequential - Required first)
+                # STEP 1: Assemble Image 
                 print("(Step 1) Assembling Image...")
                 start_time_img = time.time()
                 # for 2d files- image, img_h, img_w, img_d = assemble_3d_image(volume_img_dir_path)
@@ -107,6 +131,17 @@ def main():
                 pred_error = str(e_pred)
                 print(f"  (Cellpose inference encountered issue: {pred_error})")
             print(f" Inference took {time.time() - start_time_cellpose:.2f} seconds.")
+
+            if args.colorize:
+                masks = label2rgb(masks, bg_label=0)
+
+        output_path = 
+        tifffile.imwrite(
+            output_path,
+            (masks * 255).astype(np.uint8),
+            imagej=True
+        )
+    print(f"Colorized image saved to: {output_path}")
 
 
 if __name__ == "__main__":
