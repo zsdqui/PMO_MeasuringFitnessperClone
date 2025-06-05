@@ -4,6 +4,7 @@ import time
 import numpy as np
 import argparse
 import traceback
+import glob
 from skimage.color import label2rgb
 
 def main():
@@ -14,27 +15,30 @@ def main():
     parser.add_argument("-o", "--output", help="Output directory for 3D masks", required=True)
     parser.add_argument("-b", "--backend", help="Backend: cpu,gpu", default="gpu")
     parser.add_argument("-c", "--channels", help="Name of file for nuc channel e.g. 'nucleus.p.tif'", required=True)
-    parser.add_argument("-z", "--colorize", help="colorize output")
+    parser.add_argument("-z", "--colorize", help="colorize output", action='store_true')
+    parser.add_argument("-s", "--stop", help="max volumes to process (integer)", default=100)
     args = parser.parse_args()
 
-    image_base_dir = args.input_dir
     volume_subdirs = []
+    inferred_fofs = [os.path.basename(f).split("_inference")[0] for f in glob.glob(os.path.join(args.output, "FoF*.tif"))]
+    print(inferred_fofs)
     try:
-        if not os.path.isdir(image_base_dir):
-            raise FileNotFoundError(f"Image base directory not found: {image_base_dir}")
+        if not os.path.isdir(args.input_dir):
+            raise FileNotFoundError(f"Image base directory not found: {args.input_dir}")
         volume_subdirs = sorted(
             [
                 d
-                for d in os.listdir(image_base_dir)
-                if os.path.isdir(os.path.join(image_base_dir, d))
+                for d in os.listdir(args.input_dir)
+                if os.path.isdir(os.path.join(args.input_dir, d))
+                and d not in inferred_fofs
             ]
         )
         print(
-            f"Found {len(volume_subdirs)} potential volume directories in {image_base_dir}."
+            f"Found {len(volume_subdirs)} potential volume directories in {args.input_dir}."
         )
         if not volume_subdirs:
             print(
-                "Warning: No subdirectories found. Check the image_base_dir path and contents."
+                "Warning: No subdirectories found. Check the args.input_dir path and contents."
             )
 
     except FileNotFoundError as e:
@@ -59,7 +63,7 @@ def main():
             print("🛑 Prediction step will be skipped.")
         processed_volume_count = 0
         # Set how many volumes to process (e.g., 5 for testing, None for all)
-        max_volumes_to_process = 1  # Set to None to process all found volumes
+        max_volumes_to_process = args.stop  # Set to None to process all found volumes
         cellpose_model = models.CellposeModel(gpu=args.backend=='gpu')
         print(
             f"\nStarting batch processing loop for up to {max_volumes_to_process if max_volumes_to_process is not None else len(volume_subdirs)} volumes..."
@@ -90,7 +94,7 @@ def main():
                 print("(Step 1) Assembling Image...")
                 start_time_img = time.time()
                 sample_volume_name = volume_subdirs[0]
-                sample_img_dir_path = os.path.join(image_base_dir, sample_volume_name)
+                sample_img_dir_path = os.path.join(args.input_dir, sample_volume_name)
                 # for 2d files- image, img_h, img_w, img_d = assemble_3d_image(volume_img_dir_path)
                 image = io.imread(
                     os.path.join(sample_img_dir_path, args.channels )
@@ -133,13 +137,15 @@ def main():
             if args.colorize:
                 masks = label2rgb(masks, bg_label=0)
 
+            else:
+                masks = masks * 255
+
             path_save=os.path.join(args.output,volume_name+'_inference.tif')
             io.imsave(
                 path_save,
-                (masks * 255).astype(np.uint8),
+                masks,
                 #imagej=True,
             )
-            print(f"{"Colorized" if args.colorize else ""}Image saved to {path_save}")
             processed_volume_count += 1
 
 
