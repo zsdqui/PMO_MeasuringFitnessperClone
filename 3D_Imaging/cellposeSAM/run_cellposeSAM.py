@@ -17,6 +17,7 @@ def main():
     parser.add_argument("-c", "--channels", help="Name of file for nuc channel e.g. 'nucleus.p.tif'", required=True)
     parser.add_argument("-z", "--colorize", help="colorize output", action='store_true')
     parser.add_argument("-s", "--stop", help="max volumes to process (integer)", default=100)
+    parser.add_argument("-z", "--colorize", help="colorize output", action="store_true")
     args = parser.parse_args()
 
     volume_subdirs = []
@@ -93,8 +94,7 @@ def main():
                 # STEP 1: Assemble Image
                 print("(Step 1) Assembling Image...")
                 start_time_img = time.time()
-                sample_volume_name = volume_subdirs[0]
-                sample_img_dir_path = os.path.join(args.input_dir, sample_volume_name)
+                sample_img_dir_path = os.path.join(image_base_dir, volume_name)
                 # for 2d files- image, img_h, img_w, img_d = assemble_3d_image(volume_img_dir_path)
                 image = io.imread(
                     os.path.join(sample_img_dir_path, args.channels )
@@ -135,17 +135,23 @@ def main():
             print(f" Inference took {time.time() - start_time_cellpose:.2f} seconds.")
 
             if args.colorize:
-                masks = label2rgb(masks, bg_label=0)
+                masks_colorized = label2rgb(masks, bg_label=0)
 
-            else:
-                masks = masks * 255
+            path_save_colorized=os.path.join(args.output,volume_name+'_colorized.tif')
+            path_save_masks=os.path.join(args.output,volume_name+'_masks.tif')
 
-            path_save=os.path.join(args.output,volume_name+'_inference.tif')
+            #Save the colorized prediction by cellPoseSAM 
             io.imsave(
-                path_save,
-                masks,
+                path_save_colorized,
+                (masks_colorized * 255).astype(np.uint8),
                 #imagej=True,
             )
+            # save the raw masks prediction by cellPoseSAM
+            io.imsave(
+                path_save_masks,
+                masks
+            )
+            #print(f"{"Colorized" if args.colorize else ""}Image saved to {path_save_colorized}")
             processed_volume_count += 1
 
 
