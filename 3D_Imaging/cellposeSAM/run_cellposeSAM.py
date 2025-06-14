@@ -14,7 +14,7 @@ def main():
     parser.add_argument("-o", "--output", help="Output directory for 3D masks", required=True)
     parser.add_argument("-b", "--backend", help="Backend: cpu,gpu", default="gpu")
     parser.add_argument("-c", "--channels", help="Name of file for nuc channel e.g. 'nucleus.p.tif'", required=True)
-    parser.add_argument("-z", "--colorize", help="colorize output")
+    parser.add_argument("-z", "--colorize", help="colorize output", action="store_true")
     args = parser.parse_args()
 
     image_base_dir = args.input_dir
@@ -59,7 +59,7 @@ def main():
             print("🛑 Prediction step will be skipped.")
         processed_volume_count = 0
         # Set how many volumes to process (e.g., 5 for testing, None for all)
-        max_volumes_to_process = 1  # Set to None to process all found volumes
+        max_volumes_to_process = None  # Set to None to process all found volumes
         cellpose_model = models.CellposeModel(gpu=args.backend=='gpu')
         print(
             f"\nStarting batch processing loop for up to {max_volumes_to_process if max_volumes_to_process is not None else len(volume_subdirs)} volumes..."
@@ -89,8 +89,8 @@ def main():
                 # STEP 1: Assemble Image
                 print("(Step 1) Assembling Image...")
                 start_time_img = time.time()
-                sample_volume_name = volume_subdirs[0]
-                sample_img_dir_path = os.path.join(image_base_dir, sample_volume_name)
+                #sample_volume_name = volume_subdirs[0]
+                sample_img_dir_path = os.path.join(image_base_dir, volume_name)
                 # for 2d files- image, img_h, img_w, img_d = assemble_3d_image(volume_img_dir_path)
                 image = io.imread(
                     os.path.join(sample_img_dir_path, args.channels )
@@ -131,15 +131,23 @@ def main():
             print(f" Inference took {time.time() - start_time_cellpose:.2f} seconds.")
 
             if args.colorize:
-                masks = label2rgb(masks, bg_label=0)
+                masks_colorized = label2rgb(masks, bg_label=0)
 
-            path_save=os.path.join(args.output,volume_name+'_inference.tif')
+            path_save_colorized=os.path.join(args.output,volume_name+'_colorized.tif')
+            path_save_masks=os.path.join(args.output,volume_name+'_masks.tif')
+
+            #Save the colorized prediction by cellPoseSAM 
             io.imsave(
-                path_save,
-                (masks * 255).astype(np.uint8),
+                path_save_colorized,
+                (masks_colorized * 255).astype(np.uint8),
                 #imagej=True,
             )
-            print(f"{"Colorized" if args.colorize else ""}Image saved to {path_save}")
+            # save the raw masks prediction by cellPoseSAM
+            io.imsave(
+                path_save_masks,
+                masks
+            )
+            #print(f"{"Colorized" if args.colorize else ""}Image saved to {path_save_colorized}")
             processed_volume_count += 1
 
 
