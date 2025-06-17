@@ -17,6 +17,7 @@ def main():
     parser.add_argument("-c", "--channels", help="Name of file for nuc channel e.g. 'nucleus.p.tif'", required=True)
     parser.add_argument("-z", "--colorize", help="colorize output", action='store_true')
     parser.add_argument("-s", "--stop", help="max volumes to process (integer)", default=100)
+
     args = parser.parse_args()
 
     volume_subdirs = []
@@ -64,6 +65,7 @@ def main():
         processed_volume_count = 0
         # Set how many volumes to process (e.g., 5 for testing, None for all)
         max_volumes_to_process = args.stop  # Set to None to process all found volumes
+
         cellpose_model = models.CellposeModel(gpu=args.backend=='gpu')
         print(
             f"\nStarting batch processing loop for up to {max_volumes_to_process if max_volumes_to_process is not None else len(volume_subdirs)} volumes..."
@@ -147,6 +149,7 @@ def main():
                 path_save_masks,
                 masks
             )
+
             #print(f"{"Colorized" if args.colorize else ""}Image saved to {path_save_colorized}")
             processed_volume_count += 1
 
