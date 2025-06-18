@@ -102,7 +102,7 @@ def main():
                 )
                 #If 2D, add an z_axis
                 if image.ndim ==2:
-                    image = image[...,np.newaxis]
+                    image = image[np.newaxis, ...]
 
                 image=image.transpose(1, 2, 0)
                 [img_h, img_w, img_d] = np.shape(image)
