@@ -96,18 +96,22 @@ def main():
                 print("(Step 1) Assembling Image...")
                 start_time_img = time.time()
                 sample_img_dir_path = os.path.join(args.input_dir, volume_name)
-                # for 2d files- image, img_h, img_w, img_d = assemble_3d_image(volume_img_dir_path)
+                # for 2d series -> 3D files- image, img_h, img_w, img_d = assemble_3d_image(volume_img_dir_path)
                 image = io.imread(
                     os.path.join(sample_img_dir_path, args.channels )
-                ).transpose(1, 2, 0)
-                [img_h, img_w, img_d] = np.shape(image)
+                )
+                #If 2D, add an z_axis
+                image2d = image.ndim ==2
+
+                if not image2d:
+                    image=image.transpose(1, 2, 0)
                 if image is None:
                     print(f"  Skipping volume {volume_name}: Image assembly failed.")
                     # No need to increment processed_volume_count here, finally block handles it
                     continue  # Skip to the next volume in the finally block
                 img_assembly_time = time.time() - start_time_img
                 print(
-                    f"  Image assembly took {img_assembly_time:.2f} seconds. Image Shape (H,W,D): ({img_h}, {img_w}, {img_d})"
+                    f"  Image assembly took {img_assembly_time:.2f} seconds. Image Shape (H,W,D): {np.shape(image)})"
                 )
             except Exception as e:
                 print(f"Unable to read {volume_name}")
@@ -116,14 +120,21 @@ def main():
             start_time_cellpose = time.time()
             try:
                 print("  Waiting for Cellpose inference result...")
-                masks, _, _ = cellpose_model.eval(
-                    image,
-                    do_3D=True,
-                    batch_size=16,
-                    z_axis=2,  # cellpose.io automatically does z-last
-                    channel_axis=None,
-                    flow3D_smooth=1,
-                )
+                if image2d:
+                    masks, _, _ = cellpose_model.eval(
+                        image,
+                        do_3D=False,
+                        batch_size=64,
+                    )
+                else:
+                    masks, _, _ = cellpose_model.eval(
+                        image,
+                        do_3D=True,
+                        batch_size=16,
+                        z_axis=2,  # cellpose.io automatically does z-last
+                        channel_axis=None,
+                        flow3D_smooth=1,
+                    )
 
                 print("  Cellpose inference finished.")
                 if masks is None:
@@ -135,8 +146,9 @@ def main():
                 traceback.print_exc()
             print(f" Inference took {time.time() - start_time_cellpose:.2f} seconds.")
 
-            if args.colorize:
-                masks_colorized = label2rgb(masks, bg_label=0)
+            if args.colorize and masks.size>0:
+                masks_for_color = masks if masks.ndim == 3 else masks[np.newaxis, :, :]
+                masks_colorized = label2rgb(masks_for_color, bg_label=0)
                 path_save_colorized=os.path.join(args.output,volume_name+'_colorized.tif')
                 io.imsave(
                     path_save_colorized,
