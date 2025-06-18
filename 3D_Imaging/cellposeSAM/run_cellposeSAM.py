@@ -99,7 +99,12 @@ def main():
                 # for 2d files- image, img_h, img_w, img_d = assemble_3d_image(volume_img_dir_path)
                 image = io.imread(
                     os.path.join(sample_img_dir_path, args.channels )
-                ).transpose(1, 2, 0)
+                )
+                #If 2D, add an z_axis
+                if image.ndim ==2:
+                    image = image[...,np.newaxis]
+
+                image=image.transpose(1, 2, 0)
                 [img_h, img_w, img_d] = np.shape(image)
                 if image is None:
                     print(f"  Skipping volume {volume_name}: Image assembly failed.")
